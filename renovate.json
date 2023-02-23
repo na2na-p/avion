@@ -1,0 +1,26 @@
+{
+	"extends": [
+		"config:base",
+		"group:allNonMajor",
+		":timezone(Asia/Tokyo)",
+		":prHourlyLimitNone"
+	],
+	"schedule": ["after 9am", "before 12am"],
+	"rangeStrategy": "bump",
+	"postUpdateOptions": ["yarnDedupeHighest"],
+	"packageRules": [
+		{
+			"groupName": "vite",
+			"matchSourceUrlPrefixes": [
+				"https://github.com/vitejs/vite",
+				"https://github.com/vitest-dev/vitest"
+			]
+		},
+		{
+			"matchUpdateTypes": ["major"],
+			"addLabels": ["major update"]
+		}
+	],
+	"ignoreDeps": ["tibdex/github-app-token"],
+	"prConcurrentLimit": 4
+}
