@@ -1,0 +1,9 @@
+"""
+メディア
+"""
+type Medium implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+}

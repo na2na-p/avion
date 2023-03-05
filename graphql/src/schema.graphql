@@ -1,0 +1,19 @@
+"""
+ベース
+"""
+type Query {
+	"""
+	ベース
+	"""
+  avion: String
+}
+
+"""
+ベース
+"""
+type Mutation {
+	"""
+	ベース
+	"""
+  avion: String
+}

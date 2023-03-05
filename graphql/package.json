@@ -1,0 +1,15 @@
+{
+	"name": "avion-graphql",
+	"version": "0.0.0",
+	"repository": "https://github.com/na2na-p/avion",
+	"author": "na2na",
+	"private": true,
+	"scripts": {
+		"lint": "yarn cat && graphql-schema-linter",
+		"cat": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/types/*.graphql >./dist/schema.graphql"
+	},
+	"devDependencies": {
+		"graphql": "^16.6.0",
+		"graphql-schema-linter": "^3.0.1"
+	}
+}

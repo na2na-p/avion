@@ -1,0 +1,30 @@
+name: Lint
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+    branches:
+      - main
+      - develop
+      - na2na
+
+jobs:
+  Lint-GraphQL:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v1
+        # 2回目以降エラーが出るが問題なし
+        continue-on-error: true
+      - name: asdf install
+        uses: asdf-vm/actions/install@v1
+      - name: Install dependencies
+        run: cd graphql && yarn install --immutable
+        shell: bash
+      - name: lint
+        run: cd graphql && yarn lint
