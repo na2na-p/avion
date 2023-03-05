@@ -2,8 +2,14 @@
 
 ## 環境準備
 
+### devcontainer を利用しない場合
+
 - asdf を利用している場合は、`asdf install`で済みます。
 - そうでない場合は、手動で導入してください。
+
+### devcontainer を利用する場合
+
+- 初回のみ`asdf install`してください。
 
 ## やること
 
