@@ -37,7 +37,7 @@ extend type Query {
 		ロールID
 		"""
 		id: ID!
-	): Role
+	): Role!
 
 	"""
 	ロール一覧を取得する

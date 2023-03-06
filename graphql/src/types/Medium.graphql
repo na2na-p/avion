@@ -39,5 +39,5 @@ extend type Query {
 		ID
 		"""
 		id: ID!
-	): Medium
+	): Medium!
 }
