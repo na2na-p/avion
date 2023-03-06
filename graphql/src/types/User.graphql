@@ -64,7 +64,7 @@ extend type Query {
 		ユーザID
 		"""
 		id: ID!
-	): User
+	): User!
 
 	"""
 	ユーザ一覧を取得する
