@@ -1,0 +1,188 @@
+"""
+ユーザ
+"""
+type User implements Node {
+	"""
+	ID
+#	TODO userIdだけでよくならないか、他の実装を確認
+	"""
+	id: ID!
+
+	"""
+	ユーザID
+	ユーザが登録時に指定可能かつ、サーバ内で一意
+	"""
+	userId: ID!
+
+	"""
+	Icon
+	登録時にデフォルトのアイコンを設定
+	"""
+	icon: Medium!
+
+	"""
+	Email
+	登録するしないは運営者に委ねる
+	"""
+	email: Email
+
+	"""
+	自己紹介
+	"""
+	introduction: String
+
+	"""
+	ユーザ名
+	nullの場合はuserIdを表示する
+	"""
+	userName: String
+
+	"""
+	パスワード
+	OAuth対応は未定
+	TODO: そもそもtypeに載せる必要なさそう
+	"""
+	password: Password!
+
+	"""
+	アサイン済みのロール
+	"""
+	assignedRoles: [Role!]!
+}
+
+extend type Query {
+	"""
+	ユーザを取得する
+	"""
+	user(
+		"""
+		ユーザID
+		"""
+		id: ID!
+	): User
+
+	"""
+	ユーザ一覧を取得する
+	"""
+	allUsers(
+		"""
+		ユーザID
+		"""
+		ids: [ID!]
+		"""
+		ロールID
+		"""
+		roleIds: [ID!]
+		"""
+		Email登録状況
+		"""
+		hasEmail: Boolean
+	): [User!]!
+}
+
+"""
+初回登録用Input
+"""
+input createUserInput {
+	"""
+	ユーザID
+	"""
+	userId: ID!
+
+	"""
+	Email
+	"""
+	email: Email
+
+	"""
+	パスワード
+	"""
+	password: Password!
+}
+
+"""
+ユーザ情報更新用Input
+"""
+input updateUserInput {
+	"""
+	ユーザID
+	"""
+	userId: ID!
+
+	"""
+	ユーザ名
+	"""
+	userName: String
+
+	"""
+	Icon
+	"""
+	icon: URI!
+
+	"""
+	Email
+	"""
+	email: Email
+
+	"""
+	自己紹介
+	"""
+	introduction: String
+}
+
+"""
+パスワード更新用Input
+"""
+input updatePasswordInput {
+	"""
+	ユーザID
+	"""
+	id: ID!
+
+	"""
+	パスワード
+	"""
+	password: Password!
+}
+
+extend type Mutation {
+	"""
+	ユーザを作成
+	"""
+	createUser(
+		"""
+		初回登録用Input
+		"""
+		input: createUserInput
+	): User!
+
+	"""
+	ユーザ情報更新
+	"""
+	updateUser(
+		"""
+		ユーザ情報更新用Input
+		"""
+		input: updateUserInput
+	): User!
+
+	"""
+	パスワード更新
+	"""
+	updatePassword(
+		"""
+		パスワード更新用Input
+		"""
+		input: updatePasswordInput
+	): User!
+
+	"""
+	ユーザを削除
+	"""
+	deleteUser(
+		"""
+		ユーザID
+		"""
+		id: ID!
+	): User!
+}

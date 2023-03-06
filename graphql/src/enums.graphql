@@ -1,0 +1,39 @@
+"""
+タイムライン種別
+"""
+enum TimelineType {
+	"""
+	全体投稿
+	"""
+	PUBLIC
+
+	"""
+	ホームタイムライン
+	"""
+	HOME_TIMELINE
+
+	"""
+	フォロワー限定投稿
+	"""
+	FOLLOWERS_ONLY
+}
+
+"""
+ユーザ種別
+"""
+enum BaseUserType {
+	"""
+	管理者
+	"""
+	ADMIN
+
+	"""
+	モデレータ
+	"""
+	MODERATOR
+
+	"""
+	一般ユーザ
+	"""
+	USER
+}
