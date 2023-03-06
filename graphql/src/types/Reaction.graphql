@@ -1,0 +1,20 @@
+"""
+リアクション
+"""
+type Reaction implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	リアクションに使用するMedium
+	"""
+	medium: Medium!
+
+	"""
+	カテゴリ
+	複数のカテゴリに属することができる
+	"""
+	category: [String!]
+}
