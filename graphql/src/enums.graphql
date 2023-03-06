@@ -8,9 +8,9 @@ enum PostScope {
 	PUBLIC
 
 	"""
-	ホームタイムライン
+	ホーム投稿
 	"""
-	HOME_TIMELINE
+	HOME
 
 	"""
 	フォロワー限定投稿
@@ -56,4 +56,9 @@ enum BaseUserType {
 	一般ユーザ
 	"""
 	USER
+
+	"""
+	Bot
+	"""
+	BOT
 }
