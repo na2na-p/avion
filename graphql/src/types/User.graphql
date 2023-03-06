@@ -4,7 +4,6 @@
 type User implements Node {
 	"""
 	ID
-#	TODO userIdだけでよくならないか、他の実装を確認
 	"""
 	id: ID!
 
