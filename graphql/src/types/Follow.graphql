@@ -1,0 +1,24 @@
+"""
+ユーザによるフォローに関係するエンティティ
+"""
+type Follow implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	フォローしているユーザ
+	"""
+	followee: User!
+
+	"""
+	フォローされているユーザ
+	"""
+	follower: User!
+
+	"""
+	フォローした日時
+	"""
+	createdAt: DateTime!
+}
