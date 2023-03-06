@@ -18,3 +18,8 @@ scalar Email
 Password
 """
 scalar Password
+
+"""
+Host
+"""
+scalar Host

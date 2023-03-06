@@ -1,7 +1,7 @@
 """
-タイムライン種別
+投稿範囲種別
 """
-enum TimelineType {
+enum PostScope {
 	"""
 	全体投稿
 	"""
@@ -16,6 +16,26 @@ enum TimelineType {
 	フォロワー限定投稿
 	"""
 	FOLLOWERS_ONLY
+}
+
+"""
+タイムライン種別
+"""
+enum TimelineType {
+	"""
+	ホームタイムライン
+	"""
+	HOME_TIMELINE
+
+	"""
+	ローカルタイムライン
+	"""
+	LOCAL_TIMELINE
+
+	"""
+	グローバルタイムライン
+	"""
+	GLOBAL_TIMELINE
 }
 
 """
