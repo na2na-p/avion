@@ -8,14 +8,21 @@ type Post implements Node {
 	id: ID!
 
 	"""
+	Host
+	nullの場合local
+	"""
+	host: Host
+
+	"""
 	投稿者
 	"""
 	user: User!
 
 	"""
 	投稿範囲
+	指定しない場合、PUBLICとなる
 	"""
-	scope: TimelineType!
+	scope: PostScope
 
 	"""
 	Content Warning
@@ -50,6 +57,38 @@ type Post implements Node {
 	モデレータ等による削除の場合は論理削除
 	"""
 	deletedAt: DateTime
+}
+
+extend type Query {
+	"""
+	投稿を取得
+	"""
+	post(
+		"""
+		投稿ID
+		"""
+		id: ID!
+	): Post!
+
+	"""
+	タイムライン取得
+	"""
+	timeline(
+		"""
+		タイムライン種別
+		"""
+		type: TimelineType!
+
+		"""
+		最大取得件数
+		"""
+		limit: Int = 10
+
+		"""
+		最後に取得した投稿のID
+		"""
+		after: ID
+	): [Post!]!
 }
 
 # TODO: Query, MutationはPostの概念用語決めてから

@@ -8,6 +8,12 @@ type Reaction implements Node {
 	id: ID!
 
 	"""
+	Host
+	nullの場合はlocal
+	"""
+	host: Host
+
+	"""
 	リアクションに使用するMedium
 	"""
 	medium: Medium!

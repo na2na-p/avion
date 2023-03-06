@@ -8,6 +8,12 @@ type Medium implements Node {
 	id: ID!
 
 	"""
+	Host
+	nullの場合local
+	"""
+	host: Host
+
+	"""
 	実体URI
 	"""
 	url: URI!
