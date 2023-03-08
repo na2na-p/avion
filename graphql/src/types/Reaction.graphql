@@ -8,10 +8,14 @@ type Reaction implements Node {
 	id: ID!
 
 	"""
-	Host
-	nullの場合はlocal
+	対象Drop
 	"""
-	host: Host
+	drop: Drop!
+
+	"""
+	Terminal
+	"""
+	terminal: Terminal!
 
 	"""
 	リアクションに使用するMedium

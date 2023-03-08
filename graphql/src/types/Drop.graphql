@@ -1,17 +1,16 @@
 """
 投稿
 """
-type Post implements Node {
+type Drop implements Node {
 	"""
 	ID
 	"""
 	id: ID!
 
 	"""
-	Host
-	nullの場合local
+	Terminal
 	"""
-	host: Host
+	terminal: Terminal!
 
 	"""
 	投稿者
@@ -63,12 +62,12 @@ extend type Query {
 	"""
 	投稿を取得
 	"""
-	post(
+	drop(
 		"""
 		投稿ID
 		"""
 		id: ID!
-	): Post!
+	): Drop!
 
 	"""
 	タイムライン取得
@@ -88,7 +87,5 @@ extend type Query {
 		最後に取得した投稿のID
 		"""
 		after: ID
-	): [Post!]!
+	): [Drop!]!
 }
-
-# TODO: Query, MutationはPostの概念用語決めてから
