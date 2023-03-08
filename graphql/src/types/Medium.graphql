@@ -8,10 +8,9 @@ type Medium implements Node {
 	id: ID!
 
 	"""
-	Host
-	nullの場合local
+	Terminal
 	"""
-	host: Host
+	terminal: Terminal
 
 	"""
 	実体URI

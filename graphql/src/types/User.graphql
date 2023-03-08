@@ -14,10 +14,9 @@ type User implements Node {
 	userId: ID!
 
 	"""
-	ホスト
-	nullの場合local
+	Terminal
 	"""
-	host: Host
+	terminal: Terminal!
 
 	"""
 	Icon
@@ -78,6 +77,10 @@ extend type Query {
 		ロールID
 		"""
 		roleIds: [ID!]
+		"""
+		所属Terminal
+		"""
+		terminalId: [ID!]
 		"""
 		Email登録状況
 		"""
