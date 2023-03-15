@@ -18,11 +18,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v1
+        uses: asdf-vm/actions/setup@v2
         # 2回目以降エラーが出るが問題なし
         continue-on-error: true
       - name: asdf install
-        uses: asdf-vm/actions/install@v1
+        uses: asdf-vm/actions/install@v2
       - name: Install dependencies
         run: cd graphql && yarn install --immutable
         shell: bash
