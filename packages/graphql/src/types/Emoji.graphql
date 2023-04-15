@@ -1,6 +1,5 @@
 """
 リアクションのマスタ
-TODO: フィールド名イケてないのなんとかする
 """
 type Emoji implements Node {
 	"""

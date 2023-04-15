@@ -19,9 +19,8 @@ type Medium implements Node {
 
 	"""
 	File type
-	TODO: enumにしたい
 	"""
-	type: String!
+	type: MediumExtensionType!
 
 	"""
 	NSFW Flag
