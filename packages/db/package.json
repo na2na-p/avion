@@ -4,7 +4,10 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"validate": "pnpm dbdocs validate",
+		"build": "pnpm cat-dbml && pnpm dbdocs build ./dist/avion.dbml",
+		"dbdocs-login": "pnpm dbdocs login",
+		"cat-dbml": "cat ./src/avion.dbml ./src/tables/*.dbml ./src/enums/*.dbml ./src/relationships/*.dbml > ./dist/avion.dbml"
 	},
 	"keywords": [],
 	"author": "",
