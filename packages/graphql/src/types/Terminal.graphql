@@ -25,14 +25,29 @@ type Terminal implements Node {
 	updatedAt: DateTime!
 
 	"""
-	フォロー中
+	ユーザ数
+	"""
+	userCount: Int!
+
+	"""
+	投稿数
+	"""
+	dropCount: Int!
+
+	"""
+	自Terminalからフォローしているユーザ
 	"""
 	followees: [Follow]!
 
 	"""
-	フォロワー
+	自Terminalをフォローしているユーザ
 	"""
 	followers: [Follow]!
+
+	"""
+	登録解放状態
+	"""
+	isRegistrationOpen: Boolean!
 }
 
 extend type Query {

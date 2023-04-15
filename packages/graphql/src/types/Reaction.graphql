@@ -1,5 +1,5 @@
 """
-リアクション
+リアクションの履歴
 """
 type Reaction implements Node {
 	"""
@@ -13,18 +13,12 @@ type Reaction implements Node {
 	drop: Drop!
 
 	"""
-	Terminal
+	リアクションをしたユーザー
 	"""
-	terminal: Terminal!
+	reactedBy: User!
 
 	"""
-	リアクションに使用するMedium
+	リアクションに使用するReactionMaster
 	"""
-	medium: Medium!
-
-	"""
-	カテゴリ
-	複数のカテゴリに属することができる
-	"""
-	category: [String!]
+	reactionMaster: ReactionMaster!
 }
