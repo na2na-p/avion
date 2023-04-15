@@ -24,7 +24,7 @@ jobs:
       - name: asdf install
         uses: asdf-vm/actions/install@v2
       - name: Install dependencies
-        run: cd graphql && pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
         shell: bash
       - name: lint
         run: cd graphql && pnpm lint
