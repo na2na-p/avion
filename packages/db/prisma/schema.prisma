@@ -13,44 +13,43 @@ datasource db {
 }
 
 model User {
-  id            String         @id
-  userId        String         @unique
-  email         String?        @unique
+  id            String    @id
+  userId        String    @unique
+  email         String?   @unique
   name          String?
   introduction  String?
   password      String
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime  @default(now())
   deletedAt     DateTime?
-  Terminal      Terminal       @relation(fields: [terminalId], references: [id])
+  Terminal      Terminal  @relation(fields: [terminalId], references: [id])
   terminalId    String
-  Medium        Medium?        @relation(fields: [iconId], references: [id])
+  Medium        Medium?   @relation(fields: [iconId], references: [id])
   iconId        String?
-  assignedRoles RolesOnUsers[]
-}
-
-model RolesOnUsers {
-  id          String
-  userId      String
-  roleId      String
-  assiginedAt DateTime @default(now())
-
-  User User @relation(fields: [userId], references: [id])
-  Role Role @relation(fields: [roleId], references: [id])
-
-  @@id([userId, roleId])
+  assignedRoles Role[]
 }
 
 model Role {
-  id          String         @id
-  name        String         @unique
+  id          String       @id
+  name        String       @unique
   description String?
   baseType    BaseUserType
-  users       RolesOnUsers[]
+  users       User[]
 }
 
 model Terminal {
-  id    String @id
-  users User[]
+  id                 String   @id
+  name               String
+  firstSeen          DateTime @default(now())
+  updatedAt          DateTime @default(now())
+  userCount          Int
+  dropCount          Int
+  isRegistrationOpen Boolean
+  User               User[]
+}
+
+model Reaction {
+  id   String @id
+  name String @unique
 }
 
 model Medium {

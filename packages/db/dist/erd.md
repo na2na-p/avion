@@ -27,7 +27,7 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
   "User" {
     String id "🗝️"
     String userId 
-    String email 
+    String email "❓"
     String name "❓"
     String introduction "❓"
     String password 
@@ -36,21 +36,28 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
     }
   
 
-  "RolesOnUsers" {
-    String id 
-    DateTime assiginedAt 
-    }
-  
-
   "Role" {
     String id "🗝️"
     String name 
+    String description "❓"
     BaseUserType baseType 
     }
   
 
   "Terminal" {
     String id "🗝️"
+    String name 
+    DateTime firstSeen 
+    DateTime updatedAt 
+    Int userCount 
+    Int dropCount 
+    Boolean isRegistrationOpen 
+    }
+  
+
+  "Reaction" {
+    String id "🗝️"
+    String name 
     }
   
 
@@ -58,13 +65,11 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
     String id "🗝️"
     }
   
-    "User" o|--|o "Terminal" : "Terminal"
+    "User" o|--|| "Terminal" : "Terminal"
     "User" o|--|o "Medium" : "Medium"
-    "User" o{--}o "RolesOnUsers" : "assignedRoles"
-    "RolesOnUsers" o|--|| "User" : "User"
-    "RolesOnUsers" o|--|| "Role" : "Role"
+    "User" o{--}o "Role" : "assignedRoles"
     "Role" o|--|| "BaseUserType" : "enum:baseType"
-    "Role" o{--}o "RolesOnUsers" : "users"
-    "Terminal" o{--}o "User" : "users"
+    "Role" o{--}o "User" : "users"
+    "Terminal" o{--}o "User" : "User"
     "Medium" o{--}o "User" : "users"
 ```
