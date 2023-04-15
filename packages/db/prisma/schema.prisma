@@ -26,6 +26,19 @@ model User {
   Medium        Medium?   @relation(fields: [iconId], references: [id])
   iconId        String?
   assignedRoles Role[]
+  Drop          Drop[]
+  Emoji         Emoji[]
+}
+
+model Drop {
+  id        String     @id
+  userId    String
+  scope     PostScope
+  cw        String?
+  body      String
+  medium    Medium[]
+  reactions Reaction[]
+  User      User       @relation(fields: [userId], references: [id])
 }
 
 model Role {
@@ -45,16 +58,50 @@ model Terminal {
   dropCount          Int
   isRegistrationOpen Boolean
   User               User[]
+  Emoji              Emoji[]
+  Medium             Medium[]
 }
 
+/// ユーザのつけたリアクションを表すエンティティ
 model Reaction {
-  id   String @id
-  name String @unique
+  id     String  @id
+  name   String  @unique
+  Drop   Drop?   @relation(fields: [dropId], references: [id])
+  dropId String?
+}
+
+/// ユーザの利用できる絵文字を表すエンティティ
+model Emoji {
+  id         String          @id
+  /// ユーザが利用時に指定する一意な名前
+  name       String          @unique
+  createdAt  DateTime        @default(now())
+  addedBy    String
+  terminalId String
+  mediumId   String
+  categories EmojiCategory[]
+  User       User            @relation(fields: [addedBy], references: [id])
+  Medium     Medium          @relation(fields: [mediumId], references: [id])
+  Terminal   Terminal        @relation(fields: [terminalId], references: [id])
+}
+
+model EmojiCategory {
+  id    String  @id
+  name  String
+  Emoji Emoji[]
 }
 
 model Medium {
-  id    String @id
-  users User[]
+  id         String              @id
+  terminalId String
+  url        String
+  isNsfw     Boolean
+  users      User[]
+  dropId     String?
+  type       MediumExtentionType
+  Emoji      Emoji[]
+  Terminal   Terminal            @relation(fields: [terminalId], references: [id])
+  Drop       Drop?               @relation(fields: [dropId], references: [id])
 }
 
 enum PostScope {
@@ -74,4 +121,22 @@ enum TimelineType {
   HOME_TIMELINE
   LOCAL_TIMELINE
   GLOBAL_TIMELINE
+}
+
+enum MediumExtentionType {
+  PNG
+  JPEG
+  JPG
+  GIF
+  MP4
+  MP3
+  WEBM
+  WEBP
+  WMV
+  AVI
+  MOV
+  MKV
+  FLV
+  SWF
+  OGG
 }
