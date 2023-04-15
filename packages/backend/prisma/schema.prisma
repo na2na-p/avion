@@ -28,6 +28,17 @@ model User {
   assignedRoles Role[]
   Drop          Drop[]
   Emoji         Emoji[]
+  Followee      Follow[]  @relation("followee")
+  Follower      Follow[]  @relation("follower")
+}
+
+model Follow {
+  id         String   @id
+  followeeId String
+  followerId String
+  followedAt DateTime @default(now())
+  followee   User     @relation("followee", fields: [followeeId], references: [id])
+  follower   User     @relation("follower", fields: [followerId], references: [id])
 }
 
 model Drop {

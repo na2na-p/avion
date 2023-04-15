@@ -56,6 +56,12 @@ OGG OGG
     }
   
 
+  "Follow" {
+    String id "🗝️"
+    DateTime followedAt 
+    }
+  
+
   "Drop" {
     String id "🗝️"
     PostScope scope 
@@ -114,6 +120,10 @@ OGG OGG
     "User" o{--}o "Role" : "assignedRoles"
     "User" o{--}o "Drop" : "Drop"
     "User" o{--}o "Emoji" : "Emoji"
+    "User" o{--}o "Follow" : "Followee"
+    "User" o{--}o "Follow" : "Follower"
+    "Follow" o|--|| "User" : "followee"
+    "Follow" o|--|| "User" : "follower"
     "Drop" o|--|| "PostScope" : "enum:scope"
     "Drop" o{--}o "Medium" : "medium"
     "Drop" o{--}o "Reaction" : "reactions"
