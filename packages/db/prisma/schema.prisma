@@ -42,9 +42,10 @@ model RolesOnUsers {
 }
 
 model Role {
-  id    String         @id
-  name  String         @unique
-  users RolesOnUsers[]
+  id       String         @id
+  name     String         @unique
+  baseType BaseUserType
+  users    RolesOnUsers[]
 }
 
 model Terminal {

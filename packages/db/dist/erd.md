@@ -45,6 +45,7 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
   "Role" {
     String id "🗝️"
     String name 
+    BaseUserType baseType 
     }
   
 
@@ -62,6 +63,7 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
     "User" o{--}o "RolesOnUsers" : "assignedRoles"
     "RolesOnUsers" o|--|| "User" : "User"
     "RolesOnUsers" o|--|| "Role" : "Role"
+    "Role" o|--|| "BaseUserType" : "enum:baseType"
     "Role" o{--}o "RolesOnUsers" : "users"
     "Terminal" o{--}o "User" : "users"
     "Medium" o{--}o "User" : "users"
