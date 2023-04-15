@@ -1,6 +1,6 @@
 generator erd {
   provider = "prisma-erd-generator"
-  output   = "../dist/erd.md"
+  output   = "./erd.md"
 }
 
 generator client {
