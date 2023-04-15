@@ -12,7 +12,7 @@ on:
       - na2na
 
 jobs:
-  Lint-GraphQL:
+  Lint:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
@@ -28,4 +28,4 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
       - name: lint
-        run: cd graphql && pnpm lint
+        run: pnpm lint

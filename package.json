@@ -11,7 +11,8 @@
 		"yarn": "use pnpm instead."
 	},
 	"scripts": {
-		"build": "turbo build"
+		"build": "turbo build",
+		"lint": "turbo lint"
 	},
 	"devDependencies": {
 		"turbo": "^1.9.1"
