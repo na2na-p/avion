@@ -16,6 +16,8 @@
 	},
 	"devDependencies": {
 		"@mermaid-js/mermaid-cli": "^10.1.0",
-		"prisma-erd-generator": "^1.5.4"
+		"eslint": "^8.38.0",
+		"prisma-erd-generator": "^1.5.4",
+		"typescript": "^5.0.4"
 	}
 }
