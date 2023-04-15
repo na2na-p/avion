@@ -1,0 +1,51 @@
+"""
+ユーザに割り当てるロール
+"""
+type Role implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	ロール名
+	"""
+	name: String!
+
+	"""
+	ロールの説明
+	"""
+	description: String
+
+	"""
+	ロールに割り当てられているユーザ
+	"""
+	assignedUsers: [User!]
+
+	"""
+	ベース種別
+	"""
+	baseType: BaseUserType!
+}
+
+extend type Query {
+	"""
+	ロールを取得する
+	"""
+	role(
+		"""
+		ロールID
+		"""
+		id: ID!
+	): Role!
+
+	"""
+	ロール一覧を取得する
+	"""
+	allRoles(
+		"""
+		ロールIDのリスト
+		"""
+		ids: [ID!]
+	): [Role!]
+}

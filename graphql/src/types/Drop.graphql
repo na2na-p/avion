@@ -1,0 +1,91 @@
+"""
+投稿
+"""
+type Drop implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	Terminal
+	"""
+	terminal: Terminal!
+
+	"""
+	投稿者
+	"""
+	user: User!
+
+	"""
+	投稿範囲
+	指定しない場合、PUBLICとなる
+	"""
+	scope: PostScope
+
+	"""
+	Content Warning
+	空文字も許容
+	"""
+	cw: String
+
+	"""
+	投稿内容
+	メディアのみの投稿の場合があるのでnullable
+	"""
+	body: String
+
+	"""
+	添付メディア
+	"""
+	medium: [Medium!]
+
+	"""
+	リアクション
+	"""
+	reactions: [Reaction!]
+
+	"""
+	投稿日時
+	"""
+	createdAt: DateTime!
+
+	"""
+	削除日時
+	ユーザ自身による削除の場合は物理削除
+	モデレータ等による削除の場合は論理削除
+	"""
+	deletedAt: DateTime
+}
+
+extend type Query {
+	"""
+	投稿を取得
+	"""
+	drop(
+		"""
+		投稿ID
+		"""
+		id: ID!
+	): Drop!
+
+	"""
+	タイムライン取得
+	"""
+	timeline(
+		"""
+		タイムライン種別
+		"""
+		type: TimelineType!
+
+		"""
+		最大取得件数
+		"""
+		limit: Int = 10
+
+		"""
+		最後に取得した投稿のID
+		"""
+		after: ID
+	): [Drop!]!
+}

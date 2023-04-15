@@ -1,0 +1,30 @@
+"""
+リアクション
+"""
+type Reaction implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	対象Drop
+	"""
+	drop: Drop!
+
+	"""
+	Terminal
+	"""
+	terminal: Terminal!
+
+	"""
+	リアクションに使用するMedium
+	"""
+	medium: Medium!
+
+	"""
+	カテゴリ
+	複数のカテゴリに属することができる
+	"""
+	category: [String!]
+}

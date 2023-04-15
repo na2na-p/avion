@@ -6,4 +6,37 @@ type Medium implements Node {
 	ID
 	"""
 	id: ID!
+
+	"""
+	Terminal
+	"""
+	terminal: Terminal
+
+	"""
+	実体URI
+	"""
+	url: URI!
+
+	"""
+	File type
+	TODO: enumにしたい
+	"""
+	type: String!
+
+	"""
+	NSFW Flag
+	"""
+	isNsfw: Boolean!
+}
+
+extend type Query {
+	"""
+	メディアを取得
+	"""
+	medium(
+		"""
+		ID
+		"""
+		id: ID!
+	): Medium!
 }

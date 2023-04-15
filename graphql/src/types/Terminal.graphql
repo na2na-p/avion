@@ -1,0 +1,48 @@
+"""
+リモートホストを意味する
+"""
+type Terminal implements Node {
+	"""
+	ID
+	各ターミナルを指すホスト名は必ず一意になるため、IDとして利用
+	実態は`scalar Host`
+	"""
+	id: ID!
+
+	"""
+	ターミナル名
+	"""
+	name: String!
+
+	"""
+	初観測日時
+	"""
+	firstSeen: DateTime!
+
+	"""
+	更新日時
+	"""
+	updatedAt: DateTime!
+
+	"""
+	フォロー中
+	"""
+	followees: [Follow]!
+
+	"""
+	フォロワー
+	"""
+	followers: [Follow]!
+}
+
+extend type Query {
+	"""
+	ターミナルを取得
+	"""
+	terminal(
+		"""
+		対象ホスト名
+		"""
+		id: ID!
+	): Terminal
+}

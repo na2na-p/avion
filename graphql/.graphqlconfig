@@ -1,0 +1,15 @@
+{
+  "name": "Avion GraphQL Schema",
+  "schemaPath": "./dist/schema.graphql",
+  "extensions": {
+    "endpoints": {
+      "Default GraphQL Endpoint": {
+        "url": "http://localhost:8080/graphql",
+        "headers": {
+          "user-agent": "tester-client"
+        },
+        "introspect": false
+      }
+    }
+  }
+}
