@@ -18,9 +18,3 @@ scalar Email
 Password
 """
 scalar Password
-
-"""
-Host
-example: example.com
-"""
-scalar Host
