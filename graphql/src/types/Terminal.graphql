@@ -34,3 +34,15 @@ type Terminal implements Node {
 	"""
 	followers: [Follow]!
 }
+
+extend type Query {
+	"""
+	ターミナルを取得
+	"""
+	terminal(
+		"""
+		対象ホスト名
+		"""
+		id: ID!
+	): Terminal
+}
