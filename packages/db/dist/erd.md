@@ -26,7 +26,7 @@ GLOBAL_TIMELINE GLOBAL_TIMELINE
     
 
 
-        MediumExtentionType {
+        MediumExtensionType {
             PNG PNG
 JPEG JPEG
 JPG JPG
@@ -106,7 +106,7 @@ OGG OGG
     String id "🗝️"
     String url 
     Boolean isNsfw 
-    MediumExtentionType type 
+    MediumExtensionType type 
     }
   
     "User" o|--|| "Terminal" : "Terminal"
@@ -130,7 +130,7 @@ OGG OGG
     "Emoji" o|--|| "Terminal" : "Terminal"
     "EmojiCategory" o{--}o "Emoji" : "Emoji"
     "Medium" o{--}o "User" : "users"
-    "Medium" o|--|| "MediumExtentionType" : "enum:type"
+    "Medium" o|--|| "MediumExtensionType" : "enum:type"
     "Medium" o{--}o "Emoji" : "Emoji"
     "Medium" o|--|| "Terminal" : "Terminal"
     "Medium" o|--|o "Drop" : "Drop"

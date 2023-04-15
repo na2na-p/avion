@@ -98,7 +98,7 @@ model Medium {
   isNsfw     Boolean
   users      User[]
   dropId     String?
-  type       MediumExtentionType
+  type       MediumExtensionType
   Emoji      Emoji[]
   Terminal   Terminal            @relation(fields: [terminalId], references: [id])
   Drop       Drop?               @relation(fields: [dropId], references: [id])
@@ -123,7 +123,7 @@ enum TimelineType {
   GLOBAL_TIMELINE
 }
 
-enum MediumExtentionType {
+enum MediumExtensionType {
   PNG
   JPEG
   JPG
