@@ -8,11 +8,6 @@ type Drop implements Node {
 	id: ID!
 
 	"""
-	Terminal
-	"""
-	terminal: Terminal!
-
-	"""
 	投稿者
 	"""
 	user: User!
@@ -38,12 +33,12 @@ type Drop implements Node {
 	"""
 	添付メディア
 	"""
-	medium: [Medium!]
+	medium: [Medium]!
 
 	"""
 	リアクション
 	"""
-	reactions: [Reaction!]
+	reactions: [Reaction]!
 
 	"""
 	投稿日時

@@ -1,5 +1,6 @@
 """
 メディア
+ドライブに格納される
 """
 type Medium implements Node {
 	"""
@@ -8,20 +9,24 @@ type Medium implements Node {
 	id: ID!
 
 	"""
+	ファイル名
+	"""
+	name: String!
+
+	"""
 	Terminal
 	"""
 	terminal: Terminal
 
 	"""
-	実体URI
+	実体URL
 	"""
 	url: URI!
 
 	"""
 	File type
-	TODO: enumにしたい
 	"""
-	type: String!
+	type: MediumExtensionType!
 
 	"""
 	NSFW Flag

@@ -62,3 +62,83 @@ enum BaseUserType {
 	"""
 	BOT
 }
+
+"""
+ファイル拡張子種別
+"""
+enum MediumExtensionType {
+	"""
+	png
+	"""
+	PNG
+
+	"""
+	jpeg
+	"""
+  JPEG
+
+	"""
+	jpg
+	"""
+  JPG
+
+	"""
+	gif
+	"""
+  GIF
+
+	"""
+	mp4
+	"""
+  MP4
+
+	"""
+	mp3
+	"""
+  MP3
+
+	"""
+	webm
+	"""
+  WEBM
+
+	"""
+	webp
+	"""
+  WEBP
+
+	"""
+	wav
+	"""
+  WMV
+
+	"""
+	avi
+	"""
+  AVI
+
+	"""
+	mov
+	"""
+  MOV
+
+	"""
+	mkv
+	"""
+  MKV
+
+	"""
+	flv
+	"""
+  FLV
+
+	"""
+	swf
+	"""
+  SWF
+
+	"""
+	ogg
+	"""
+  OGG
+}

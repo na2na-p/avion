@@ -1,0 +1,40 @@
+"""
+リアクションのマスタ
+"""
+type Emoji implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	ユーザが利用時に指定する一意な名前
+	"""
+	name: String!
+
+	"""
+	Terminal
+	"""
+	terminal: Terminal!
+
+	"""
+	絵文字情報
+	"""
+	medium: Medium!
+
+	"""
+	登録日時
+	"""
+	createdAt: DateTime!
+
+	"""
+	追加日時
+	"""
+	addedBy: User!
+
+	"""
+	カテゴリ
+	複数のカテゴリに属することができる
+	"""
+	categories: [String]!
+}
