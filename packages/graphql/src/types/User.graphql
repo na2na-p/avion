@@ -39,7 +39,7 @@ type User implements Node {
 	ユーザ名
 	nullの場合はuserIdを表示する
 	"""
-	userName: String
+	username: String
 
 	"""
 	パスワード
@@ -52,6 +52,11 @@ type User implements Node {
 	アサイン済みのロール
 	"""
 	assignedRoles: [Role!]!
+
+	"""
+	登録日時
+	"""
+	createdAt: DateTime!
 }
 
 extend type Query {
