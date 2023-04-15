@@ -3,7 +3,10 @@
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
-	"scripts": {},
+	"scripts": {
+		"db-lint": "prisma validate",
+		"lint": "pnpm db-lint"
+	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
