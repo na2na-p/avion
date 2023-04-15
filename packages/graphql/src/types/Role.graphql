@@ -1,5 +1,6 @@
 """
 ユーザに割り当てるロール
+TODO: ロールでやれること詰める
 """
 type Role implements Node {
 	"""
