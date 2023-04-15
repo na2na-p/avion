@@ -13,19 +13,18 @@ datasource db {
 }
 
 model User {
-  id           String    @id
-  userId       String    @unique
-  email        String    @unique
-  name         String?
-  introduction String?
-  password     String
-  createdAt    DateTime  @default(now())
-  deletedAt    DateTime?
-
-  Terminal      Terminal?      @relation(fields: [terminalId], references: [id])
-  terminalId    String?
-  Medium        Medium?        @relation(fields: [mediumId], references: [id])
-  mediumId      String?
+  id            String         @id
+  userId        String         @unique
+  email         String?        @unique
+  name          String?
+  introduction  String?
+  password      String
+  createdAt     DateTime       @default(now())
+  deletedAt     DateTime?
+  Terminal      Terminal       @relation(fields: [terminalId], references: [id])
+  terminalId    String
+  Medium        Medium?        @relation(fields: [iconId], references: [id])
+  iconId        String?
   assignedRoles RolesOnUsers[]
 }
 
@@ -42,10 +41,11 @@ model RolesOnUsers {
 }
 
 model Role {
-  id       String         @id
-  name     String         @unique
-  baseType BaseUserType
-  users    RolesOnUsers[]
+  id          String         @id
+  name        String         @unique
+  description String?
+  baseType    BaseUserType
+  users       RolesOnUsers[]
 }
 
 model Terminal {
