@@ -39,14 +39,7 @@ type User implements Node {
 	ユーザ名
 	nullの場合はuserIdを表示する
 	"""
-	username: String
-
-	"""
-	パスワード
-	OAuth対応は未定
-	TODO: そもそもtypeに載せる必要なさそう
-	"""
-	password: Password!
+	name: String
 
 	"""
 	アサイン済みのロール
@@ -57,6 +50,11 @@ type User implements Node {
 	登録日時
 	"""
 	createdAt: DateTime!
+
+	"""
+	削除日時
+	"""
+	deletedAt: DateTime
 }
 
 extend type Query {
