@@ -24,6 +24,8 @@ jobs:
         continue-on-error: true
       - name: asdf install
         uses: asdf-vm/actions/install@v2
+      - name: Setup
+        run: pnpm setup-ci
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         shell: bash
