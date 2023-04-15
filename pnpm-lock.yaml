@@ -8,7 +8,7 @@ importers:
         specifier: ^1.9.1
         version: 1.9.1
 
-  packages/db:
+  packages/backend:
     dependencies:
       '@prisma/client':
         specifier: ^4.12.0
