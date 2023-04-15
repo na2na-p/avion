@@ -12,7 +12,9 @@
 	},
 	"scripts": {
 		"build": "turbo build",
-		"lint": "turbo lint"
+		"lint": "turbo lint",
+		"setup-backend": "cd packages/backend && cp .env.example .env",
+		"setup-ci": "pnpm setup-backend"
 	},
 	"devDependencies": {
 		"turbo": "^1.9.1"
