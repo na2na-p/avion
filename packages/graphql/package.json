@@ -5,8 +5,8 @@
 	"author": "na2na",
 	"private": true,
 	"scripts": {
-		"lint": "yarn cat && graphql-schema-linter",
-		"cat": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/types/*.graphql >./dist/schema.graphql"
+		"lint": "pnpm build && graphql-schema-linter",
+		"build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/types/*.graphql >./dist/schema.graphql"
 	},
 	"devDependencies": {
 		"graphql": "^16.6.0",

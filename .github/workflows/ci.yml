@@ -4,6 +4,7 @@ on:
     types:
       - opened
       - reopened
+      - synchronize
       - ready_for_review
     branches:
       - main
@@ -11,7 +12,7 @@ on:
       - na2na
 
 jobs:
-  Lint-GraphQL:
+  Lint:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
@@ -24,7 +25,7 @@ jobs:
       - name: asdf install
         uses: asdf-vm/actions/install@v2
       - name: Install dependencies
-        run: cd graphql && yarn install --immutable
+        run: pnpm install --frozen-lockfile
         shell: bash
       - name: lint
-        run: cd graphql && yarn lint
+        run: pnpm lint
