@@ -7,7 +7,7 @@
 	],
 	"schedule": ["after 9am", "before 12am"],
 	"rangeStrategy": "bump",
-	"postUpdateOptions": ["yarnDedupeHighest"],
+	"postUpdateOptions": ["pnpmDedupe"],
 	"packageRules": [
 		{
 			"groupName": "vite",
