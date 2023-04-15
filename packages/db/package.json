@@ -3,16 +3,16 @@
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
-	"scripts": {
-		"validate": "pnpm dbdocs validate",
-		"build": "pnpm cat-dbml && pnpm dbdocs build ./dist/avion.dbml",
-		"dbdocs-login": "pnpm dbdocs login",
-		"cat-dbml": "cat ./src/avion.dbml ./src/tables/*.dbml ./src/enums/*.dbml ./src/relationships/*.dbml > ./dist/avion.dbml"
-	},
+	"scripts": {},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
+	"dependencies": {
+		"@prisma/client": "^4.12.0",
+		"prisma": "^4.12.0"
+	},
 	"devDependencies": {
-		"dbdocs": "^0.7.4"
+		"@mermaid-js/mermaid-cli": "^10.1.0",
+		"prisma-erd-generator": "^1.5.4"
 	}
 }
