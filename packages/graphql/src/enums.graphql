@@ -70,7 +70,7 @@ enum MediumExtensionType {
 	"""
 	png
 	"""
-  PNG
+	PNG
 
 	"""
 	jpeg
