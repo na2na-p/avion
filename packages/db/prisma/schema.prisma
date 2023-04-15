@@ -56,3 +56,22 @@ model Medium {
   id    String @id
   users User[]
 }
+
+enum PostScope {
+  PUBLIC
+  HOME
+  FOLLOWERS_ONLY
+}
+
+enum BaseUserType {
+  ADMIN
+  MODERATOR
+  USER
+  BOT
+}
+
+enum TimelineType {
+  HOME_TIMELINE
+  LOCAL_TIMELINE
+  GLOBAL_TIMELINE
+}

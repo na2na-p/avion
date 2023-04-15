@@ -1,6 +1,29 @@
 ```mermaid
 erDiagram
 
+        PostScope {
+            PUBLIC PUBLIC
+HOME HOME
+FOLLOWERS_ONLY FOLLOWERS_ONLY
+        }
+    
+
+
+        BaseUserType {
+            ADMIN ADMIN
+MODERATOR MODERATOR
+USER USER
+BOT BOT
+        }
+    
+
+
+        TimelineType {
+            HOME_TIMELINE HOME_TIMELINE
+LOCAL_TIMELINE LOCAL_TIMELINE
+GLOBAL_TIMELINE GLOBAL_TIMELINE
+        }
+    
   "User" {
     String id "🗝️"
     String userId 
