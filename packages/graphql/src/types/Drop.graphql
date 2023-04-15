@@ -33,7 +33,7 @@ type Drop implements Node {
 	"""
 	添付メディア
 	"""
-	medium: [Medium!]
+	medium: [Medium]!
 
 	"""
 	リアクション
