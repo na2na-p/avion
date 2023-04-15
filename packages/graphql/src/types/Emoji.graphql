@@ -2,7 +2,7 @@
 リアクションのマスタ
 TODO: フィールド名イケてないのなんとかする
 """
-type ReactionMaster implements Node {
+type Emoji implements Node {
 	"""
 	ID
 	"""

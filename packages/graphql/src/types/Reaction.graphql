@@ -18,7 +18,7 @@ type Reaction implements Node {
 	reactedBy: User!
 
 	"""
-	リアクションに使用するReactionMaster
+	リアクションに使用したEmoji
 	"""
-	reactionMaster: ReactionMaster!
+	emoji: Emoji!
 }
