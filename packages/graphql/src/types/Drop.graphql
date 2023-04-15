@@ -8,11 +8,6 @@ type Drop implements Node {
 	id: ID!
 
 	"""
-	Terminal
-	"""
-	terminal: Terminal!
-
-	"""
 	投稿者
 	"""
 	user: User!
