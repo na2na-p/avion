@@ -19,6 +19,7 @@ type Emoji implements Node {
 
 	"""
 	絵文字情報
+	createdByはMediumから取得する
 	"""
 	medium: Medium!
 
@@ -26,11 +27,6 @@ type Emoji implements Node {
 	登録日時
 	"""
 	createdAt: DateTime!
-
-	"""
-	追加日時
-	"""
-	addedBy: User!
 
 	"""
 	カテゴリ

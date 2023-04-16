@@ -42,6 +42,7 @@ MKV MKV
 FLV FLV
 SWF SWF
 OGG OGG
+UNKNOWN UNKNOWN
         }
     
   "User" {
@@ -119,7 +120,6 @@ OGG OGG
     "User" o|--|o "Medium" : "Medium"
     "User" o{--}o "Role" : "assignedRoles"
     "User" o{--}o "Drop" : "Drop"
-    "User" o{--}o "Emoji" : "Emoji"
     "User" o{--}o "Follow" : "Followee"
     "User" o{--}o "Follow" : "Follower"
     "Follow" o|--|| "User" : "followee"
@@ -135,7 +135,6 @@ OGG OGG
     "Terminal" o{--}o "Medium" : "Medium"
     "Reaction" o|--|o "Drop" : "Drop"
     "Emoji" o{--}o "EmojiCategory" : "categories"
-    "Emoji" o|--|| "User" : "User"
     "Emoji" o|--|| "Medium" : "Medium"
     "Emoji" o|--|| "Terminal" : "Terminal"
     "EmojiCategory" o{--}o "Emoji" : "Emoji"

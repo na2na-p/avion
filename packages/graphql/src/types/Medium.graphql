@@ -19,6 +19,11 @@ type Medium implements Node {
 	terminal: Terminal
 
 	"""
+	ユーザー
+	"""
+	createdBy: User!
+
+	"""
 	実体URL
 	"""
 	url: URI!

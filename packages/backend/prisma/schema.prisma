@@ -27,7 +27,6 @@ model User {
   iconId        String?
   assignedRoles Role[]
   Drop          Drop[]
-  Emoji         Emoji[]
   Followee      Follow[]  @relation("followee")
   Follower      Follow[]  @relation("follower")
 }
@@ -87,11 +86,10 @@ model Emoji {
   /// ユーザが利用時に指定する一意な名前
   name       String          @unique
   createdAt  DateTime        @default(now())
-  addedBy    String
+  /// メディアキャッシュも考えてEmojiエンティティでも保存する
   terminalId String
   mediumId   String
   categories EmojiCategory[]
-  User       User            @relation(fields: [addedBy], references: [id])
   Medium     Medium          @relation(fields: [mediumId], references: [id])
   Terminal   Terminal        @relation(fields: [terminalId], references: [id])
 }
