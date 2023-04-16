@@ -64,7 +64,9 @@ model Terminal {
   name               String
   firstSeen          DateTime @default(now())
   updatedAt          DateTime @default(now())
+  /// 自インスタンスから観測されているユーザ数
   userCount          Int
+  /// 自インスタンスから観測されている投稿数
   dropCount          Int
   isRegistrationOpen Boolean
   User               User[]
