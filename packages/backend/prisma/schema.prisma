@@ -27,7 +27,6 @@ model User {
   iconId        String?
   assignedRoles Role[]
   Drop          Drop[]
-  Emoji         Emoji[]
   Followee      Follow[]  @relation("followee")
   Follower      Follow[]  @relation("follower")
 }
@@ -65,7 +64,9 @@ model Terminal {
   name               String
   firstSeen          DateTime @default(now())
   updatedAt          DateTime @default(now())
+  /// 自インスタンスから観測されているユーザ数
   userCount          Int
+  /// 自インスタンスから観測されている投稿数
   dropCount          Int
   isRegistrationOpen Boolean
   User               User[]
@@ -87,11 +88,10 @@ model Emoji {
   /// ユーザが利用時に指定する一意な名前
   name       String          @unique
   createdAt  DateTime        @default(now())
-  addedBy    String
+  /// メディアキャッシュも考えてEmojiエンティティでも保存する
   terminalId String
   mediumId   String
   categories EmojiCategory[]
-  User       User            @relation(fields: [addedBy], references: [id])
   Medium     Medium          @relation(fields: [mediumId], references: [id])
   Terminal   Terminal        @relation(fields: [terminalId], references: [id])
 }
@@ -150,4 +150,5 @@ enum MediumExtensionType {
   FLV
   SWF
   OGG
+  UNKNOWN
 }
