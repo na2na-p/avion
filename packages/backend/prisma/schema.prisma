@@ -150,4 +150,5 @@ enum MediumExtensionType {
   FLV
   SWF
   OGG
+  UNKNOWN
 }
