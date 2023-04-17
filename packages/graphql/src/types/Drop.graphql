@@ -88,5 +88,10 @@ extend type Query {
 		最後に取得した投稿のID
 		"""
 		after: ID
+
+		"""
+		アンテナID
+		"""
+		antennaId: ID
 	): [Drop!]!
 }

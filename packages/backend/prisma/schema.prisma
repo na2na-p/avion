@@ -29,6 +29,7 @@ model User {
   Drop          Drop[]
   Followee      Follow[]  @relation("followee")
   Follower      Follow[]  @relation("follower")
+  Antenna       Antenna[]
 }
 
 model Follow {
@@ -51,6 +52,17 @@ model Drop {
   medium    Medium[]
   reactions Reaction[]
   User      User       @relation(fields: [userId], references: [id])
+}
+
+model Antenna {
+  id              String   @id
+  name            String
+  description     String?
+  condifition     String[]
+  exclusions      String[]
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  User            User     @relation(fields: [createdByUserId], references: [id])
 }
 
 model Role {
