@@ -1,0 +1,14 @@
+"""
+選択肢
+"""
+type Choice implements Node {
+  """
+  ID
+  """
+  id: ID!
+
+  """
+  表示名
+  """
+  name: String!
+}
