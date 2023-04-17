@@ -52,6 +52,41 @@ input MediumsFilter {
 	件数
 	"""
 	limit: Int = 30
+
+	"""
+	作成者
+	"""
+	createdBy: ID
+
+	"""
+	ターミナル
+	"""
+	terminal: ID
+
+	"""
+	ファイル名
+	"""
+	name: String
+
+	"""
+	拡張子
+	"""
+	extension: MediumExtensionType
+
+	"""
+	NSFW Flag
+	"""
+	isNsfw: Boolean
+
+	"""
+	作成日時(開始)
+	"""
+	createdAtSince: DateTime
+
+	"""
+	作成日時(終了)
+	"""
+	createdAtUntil: DateTime
 }
 
 extend type Query {
