@@ -15,7 +15,8 @@
 		"lint": "turbo lint",
 		"test": "turbo test",
 		"setup-backend": "cd packages/backend && cp .env.example .env",
-		"setup-ci": "pnpm setup-backend"
+		"setup-ci": "pnpm setup-backend",
+		"setup": "pnpm setup-backend"
 	},
 	"devDependencies": {
 		"turbo": "^1.9.1"
