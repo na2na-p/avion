@@ -60,4 +60,9 @@ extend type Query {
 		"""
 		id: ID!
 	): Terminal
+
+	"""
+	ターミナル一覧を取得
+	"""
+	terminals: [Terminal]!
 }

@@ -4,7 +4,9 @@
 		"dbdocs",
 		"dbml",
 		"devcontainer",
+		"followee",
 		"followees",
+		"unfollow",
 		"webm",
 		"WEBP"
 	]

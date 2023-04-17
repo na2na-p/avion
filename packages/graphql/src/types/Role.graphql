@@ -26,7 +26,7 @@ type Role implements Node {
 	"""
 	ベース種別
 	"""
-	baseType: BaseUserType!
+	baseType: BaseRoleType!
 }
 
 extend type Query {
@@ -49,4 +49,121 @@ extend type Query {
 		"""
 		ids: [ID!]
 	): [Role!]
+}
+
+extend type Mutation {
+	"""
+	ロール作成
+	"""
+	createRole(
+		"""
+		ロール名
+		"""
+		name: String!
+
+		"""
+		ロールの説明
+		"""
+		description: String
+
+		"""
+		ベース種別
+		"""
+		baseType: BaseRoleType!
+	): Role!
+
+	"""
+	ロール更新
+	"""
+	updateRole(
+		"""
+		ロールID
+		"""
+		id: ID!
+
+		"""
+		ロール名
+		"""
+		name: String!
+
+		"""
+		ロールの説明
+		"""
+		description: String
+
+		"""
+		ベース種別
+		"""
+		baseType: BaseRoleType!
+	): Role!
+
+	"""
+	ロール削除
+	"""
+	deleteRole(
+		"""
+		ロールID
+		"""
+		id: ID!
+	): Role!
+
+	"""
+	ロールにアサイン
+	"""
+	assignRole(
+		"""
+		ロールID
+		"""
+		roleId: ID!
+
+		"""
+		ユーザID
+		"""
+		userId: ID!
+	): Role!
+
+	"""
+	ロールからアサイン解除
+	"""
+	unassignRole(
+		"""
+		ロールID
+		"""
+		roleId: ID!
+
+		"""
+		ユーザID
+		"""
+		userId: ID!
+	): Role!
+
+	"""
+	まとめてアサイン
+	"""
+	assignMany(
+		"""
+		ロールID
+		"""
+		roleId: ID!
+
+		"""
+		ユーザIDのリスト
+		"""
+		userIds: [ID!]
+	): Role!
+
+	"""
+	まとめてアサイン解除
+	"""
+	unassignMany(
+		"""
+		ロールID
+		"""
+		roleId: ID!
+
+		"""
+		ユーザIDのリスト
+		"""
+		userIds: [ID!]
+	): Role!
 }

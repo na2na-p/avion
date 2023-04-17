@@ -6,7 +6,7 @@
 	"private": true,
 	"scripts": {
 		"lint": "pnpm build && graphql-schema-linter",
-		"build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/types/*.graphql >./dist/schema.graphql"
+		"build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/common.graphql ./src/types/*.graphql >./dist/schema.graphql"
 	},
 	"devDependencies": {
 		"graphql": "^16.6.0",

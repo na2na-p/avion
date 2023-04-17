@@ -9,7 +9,7 @@ FOLLOWERS_ONLY FOLLOWERS_ONLY
     
 
 
-        BaseUserType {
+        BaseRoleType {
             ADMIN ADMIN
 MODERATOR MODERATOR
 USER USER
@@ -88,7 +88,7 @@ UNKNOWN UNKNOWN
     String id "🗝️"
     String name 
     String description "❓"
-    BaseUserType baseType 
+    BaseRoleType baseType 
     }
   
 
@@ -143,7 +143,7 @@ UNKNOWN UNKNOWN
     "Drop" o{--}o "Reaction" : "reactions"
     "Drop" o|--|| "User" : "User"
     "Antenna" o|--|| "User" : "User"
-    "Role" o|--|| "BaseUserType" : "enum:baseType"
+    "Role" o|--|| "BaseRoleType" : "enum:baseType"
     "Role" o{--}o "User" : "users"
     "Terminal" o{--}o "User" : "User"
     "Terminal" o{--}o "Emoji" : "Emoji"

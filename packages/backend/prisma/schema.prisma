@@ -69,7 +69,7 @@ model Role {
   id          String       @id
   name        String       @unique
   description String?
-  baseType    BaseUserType
+  baseType    BaseRoleType
   users       User[]
 }
 
@@ -135,7 +135,7 @@ enum PostScope {
   FOLLOWERS_ONLY
 }
 
-enum BaseUserType {
+enum BaseRoleType {
   ADMIN
   MODERATOR
   USER

@@ -46,7 +46,7 @@ enum TimelineType {
 """
 ユーザ種別
 """
-enum BaseUserType {
+enum BaseRoleType {
 	"""
 	管理者
 	"""

@@ -165,7 +165,7 @@ extend type Mutation {
 		"""
 		初回登録用Input
 		"""
-		input: createUserInput
+		input: createUserInput!
 	): User!
 
 	"""
@@ -175,7 +175,7 @@ extend type Mutation {
 		"""
 		ユーザ情報更新用Input
 		"""
-		input: updateUserInput
+		input: updateUserInput!
 	): User!
 
 	"""
@@ -185,7 +185,7 @@ extend type Mutation {
 		"""
 		パスワード更新用Input
 		"""
-		input: updatePasswordInput
+		input: updatePasswordInput!
 	): User!
 
 	"""

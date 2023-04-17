@@ -39,6 +39,56 @@ type Medium implements Node {
 	isNsfw: Boolean!
 }
 
+"""
+Medium Filter
+"""
+input MediumsFilter {
+	"""
+	id
+	"""
+	ids: [ID!]
+
+	"""
+	件数
+	"""
+	limit: Int = 30
+
+	"""
+	作成者
+	"""
+	createdBy: ID
+
+	"""
+	ターミナル
+	"""
+	terminal: ID
+
+	"""
+	ファイル名
+	"""
+	name: String
+
+	"""
+	拡張子
+	"""
+	extension: MediumExtensionType
+
+	"""
+	NSFW Flag
+	"""
+	isNsfw: Boolean
+
+	"""
+	作成日時(開始)
+	"""
+	createdAtSince: DateTime
+
+	"""
+	作成日時(終了)
+	"""
+	createdAtUntil: DateTime
+}
+
 extend type Query {
 	"""
 	メディアを取得
@@ -48,5 +98,44 @@ extend type Query {
 		ID
 		"""
 		id: ID!
+	): Medium!
+
+	"""
+	メディアの複数件取得
+	"""
+	mediums(
+		"""
+		取得用フィルタ
+		"""
+		filter: MediumsFilter!
+	): [Medium!]!
+}
+
+extend type Mutation {
+	"""
+	メディアをアップロード
+	TODO: リゾルバ実装時に変更予定 | #26
+	"""
+	uploadMedium(
+		"""
+		ファイル名
+		"""
+		name: String!
+
+		"""
+		Mime Type
+		"""
+		mimeType: String!
+
+		"""
+		エンコーディング
+		TODO: enumで持つように | #27
+		"""
+		encoding: String!
+
+		"""
+		NSFW Flag
+		"""
+		isNsfw: Boolean!
 	): Medium!
 }
