@@ -21,8 +21,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "graphql-build": "cd ../graphql && pnpm build ",
-    "graphql-codegen": "pnpm graphql-build && ts-node ./scripts/generate-typings.ts",
-    "postinstall": "pnpm graphql-codegen"
+    "graphql-codegen": "pnpm graphql-build && ts-node ./scripts/generate-typings.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.6.0",
