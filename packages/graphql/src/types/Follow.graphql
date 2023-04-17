@@ -22,3 +22,27 @@ type Follow implements Node {
 	"""
 	createdAt: DateTime!
 }
+
+extend type Query {
+	"""
+	フォローしているユーザ一覧を取得する
+	"""
+	followees: [User!]!
+
+	"""
+	フォローされているユーザ一覧を取得する
+	"""
+	followers: [User!]!
+}
+
+extend type Mutation {
+	"""
+	ユーザをフォローする
+	"""
+	follow(followeeId: ID!): Follow!
+
+	"""
+	ユーザのフォローを解除する
+	"""
+	unfollow(followeeId: ID!): Follow!
+}
