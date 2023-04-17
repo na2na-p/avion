@@ -6,7 +6,7 @@ erDiagram
 HOME HOME
 FOLLOWERS_ONLY FOLLOWERS_ONLY
         }
-
+    
 
 
         BaseRoleType {
@@ -15,7 +15,7 @@ MODERATOR MODERATOR
 USER USER
 BOT BOT
         }
-
+    
 
 
         TimelineType {
@@ -24,7 +24,7 @@ LOCAL_TIMELINE LOCAL_TIMELINE
 GLOBAL_TIMELINE GLOBAL_TIMELINE
 ANTENNA_TIMELINE ANTENNA_TIMELINE
         }
-
+    
 
 
         MediumExtensionType {
@@ -45,90 +45,90 @@ SWF SWF
 OGG OGG
 UNKNOWN UNKNOWN
         }
-
+    
   "User" {
     String id "🗝️"
-    String userId
+    String userId 
     String email "❓"
     String name "❓"
     String introduction "❓"
-    String password
-    DateTime createdAt
+    String password 
+    DateTime createdAt 
     DateTime deletedAt "❓"
     }
-
+  
 
   "Follow" {
     String id "🗝️"
-    DateTime followedAt
+    DateTime followedAt 
     }
-
+  
 
   "Drop" {
     String id "🗝️"
-    PostScope scope
+    PostScope scope 
     String cw "❓"
-    String body
+    String body 
     DateTime expiresAt "❓"
-    DateTime createdAt
+    DateTime createdAt 
     }
-
+  
 
   "Antenna" {
     String id "🗝️"
-    String name
+    String name 
     String description "❓"
-    String condifition
-    String exclusions
-    DateTime createdAt
+    String condifition 
+    String exclusions 
+    DateTime createdAt 
     }
-
+  
 
   "Role" {
     String id "🗝️"
-    String name
+    String name 
     String description "❓"
-    BaseRoleType baseType
+    BaseRoleType baseType 
     }
-
+  
 
   "Terminal" {
     String id "🗝️"
-    String name
-    DateTime firstSeen
-    DateTime updatedAt
-    Int userCount
-    Int dropCount
-    Boolean isRegistrationOpen
+    String name 
+    DateTime firstSeen 
+    DateTime updatedAt 
+    Int userCount 
+    Int dropCount 
+    Boolean isRegistrationOpen 
     }
-
+  
 
   "Reaction" {
     String id "🗝️"
-    String name
+    String name 
     }
-
+  
 
   "Emoji" {
     String id "🗝️"
-    String name
-    DateTime createdAt
+    String name 
+    DateTime createdAt 
     }
-
+  
 
   "EmojiCategory" {
     String id "🗝️"
-    String name
+    String name 
     }
-
+  
 
   "Medium" {
     String id "🗝️"
-    String url
-    Boolean isNsfw
-    MediumExtensionType type
+    String url 
+    Boolean isNsfw 
+    MediumExtensionType type 
     }
-
+  
     "User" o|--|| "Terminal" : "Terminal"
     "User" o|--|o "Medium" : "Medium"
     "User" o{--}o "Role" : "assignedRoles"
