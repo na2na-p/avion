@@ -39,6 +39,9 @@ type Medium implements Node {
 	isNsfw: Boolean!
 }
 
+"""
+Medium Filter
+"""
 input MediumsFilter {
 	"""
 	id

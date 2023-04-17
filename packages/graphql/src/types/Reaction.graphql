@@ -24,6 +24,9 @@ type Reaction implements Node {
 }
 
 extend type Mutation {
+	"""
+	リアクションをする
+	"""
 	createReaction(
 		"""
 		リアクションをするDropのID

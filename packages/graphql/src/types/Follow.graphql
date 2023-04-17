@@ -39,10 +39,20 @@ extend type Mutation {
 	"""
 	ユーザをフォローする
 	"""
-	follow(followeeId: ID!): Follow!
+	follow(
+		"""
+		フォローするユーザのID
+		"""
+		followeeId: ID!
+	): Follow!
 
 	"""
 	ユーザのフォローを解除する
 	"""
-	unfollow(followeeId: ID!): Follow!
+	unfollow(
+		"""
+		フォローを解除するユーザのID
+		"""
+		followeeId: ID!
+	): Follow!
 }
