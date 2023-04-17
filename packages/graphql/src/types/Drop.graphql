@@ -150,5 +150,5 @@ extend type Mutation {
 		投稿ID
 		"""
 		id: ID!
-	)
+	): Boolean!
 }
