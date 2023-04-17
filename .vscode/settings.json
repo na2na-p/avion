@@ -1,6 +1,7 @@
 {
 	"editor.formatOnSave": true,
 	"cSpell.words": [
+		"codegen",
 		"dbdocs",
 		"dbml",
 		"devcontainer",

@@ -1,3 +1,5 @@
-# About
+# Avion backend
 
-Avion で利用する DB スキーマの管理
+# Avion DB
+
+`prisma`ディレクトリの中に全部あります

@@ -62,7 +62,7 @@ type Drop implements Node {
 """
 投稿作成用Input
 """
-input createDropInput {
+input CreateDropInput {
 	"""
 	投稿範囲
 	"""
@@ -139,7 +139,7 @@ extend type Mutation {
 		"""
 		投稿内容
 		"""
-		input: createDropInput!
+		input: CreateDropInput!
 	): Drop!
 
 	"""
