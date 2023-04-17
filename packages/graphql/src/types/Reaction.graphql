@@ -22,3 +22,17 @@ type Reaction implements Node {
 	"""
 	emoji: Emoji!
 }
+
+extend type Mutation {
+	createReaction(
+		"""
+		リアクションをするDropのID
+		"""
+		dropId: ID!
+
+		"""
+		リアクションに使用するEmojiのID
+		"""
+		emojiId: ID!
+	): Reaction!
+}
