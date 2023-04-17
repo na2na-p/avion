@@ -68,6 +68,8 @@ UNKNOWN UNKNOWN
     PostScope scope 
     String cw "❓"
     String body 
+    DateTime expiresAt "❓"
+    DateTime createdAt 
     }
   
 

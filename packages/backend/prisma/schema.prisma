@@ -46,6 +46,8 @@ model Drop {
   scope     PostScope
   cw        String?
   body      String
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
   medium    Medium[]
   reactions Reaction[]
   User      User       @relation(fields: [userId], references: [id])
