@@ -29,6 +29,7 @@ model User {
   Drop          Drop[]
   Followee      Follow[]  @relation("followee")
   Follower      Follow[]  @relation("follower")
+  Antenna       Antenna[]
 }
 
 model Follow {
@@ -46,9 +47,22 @@ model Drop {
   scope     PostScope
   cw        String?
   body      String
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
   medium    Medium[]
   reactions Reaction[]
   User      User       @relation(fields: [userId], references: [id])
+}
+
+model Antenna {
+  id              String   @id
+  name            String
+  description     String?
+  condifition     String[]
+  exclusions      String[]
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  User            User     @relation(fields: [createdByUserId], references: [id])
 }
 
 model Role {
@@ -132,6 +146,7 @@ enum TimelineType {
   HOME_TIMELINE
   LOCAL_TIMELINE
   GLOBAL_TIMELINE
+  ANTENNA_TIMELINE
 }
 
 enum MediumExtensionType {

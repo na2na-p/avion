@@ -22,6 +22,7 @@ BOT BOT
             HOME_TIMELINE HOME_TIMELINE
 LOCAL_TIMELINE LOCAL_TIMELINE
 GLOBAL_TIMELINE GLOBAL_TIMELINE
+ANTENNA_TIMELINE ANTENNA_TIMELINE
         }
     
 
@@ -68,6 +69,18 @@ UNKNOWN UNKNOWN
     PostScope scope 
     String cw "❓"
     String body 
+    DateTime expiresAt "❓"
+    DateTime createdAt 
+    }
+  
+
+  "Antenna" {
+    String id "🗝️"
+    String name 
+    String description "❓"
+    String condifition 
+    String exclusions 
+    DateTime createdAt 
     }
   
 
@@ -122,12 +135,14 @@ UNKNOWN UNKNOWN
     "User" o{--}o "Drop" : "Drop"
     "User" o{--}o "Follow" : "Followee"
     "User" o{--}o "Follow" : "Follower"
+    "User" o{--}o "Antenna" : "Antenna"
     "Follow" o|--|| "User" : "followee"
     "Follow" o|--|| "User" : "follower"
     "Drop" o|--|| "PostScope" : "enum:scope"
     "Drop" o{--}o "Medium" : "medium"
     "Drop" o{--}o "Reaction" : "reactions"
     "Drop" o|--|| "User" : "User"
+    "Antenna" o|--|| "User" : "User"
     "Role" o|--|| "BaseUserType" : "enum:baseType"
     "Role" o{--}o "User" : "users"
     "Terminal" o{--}o "User" : "User"

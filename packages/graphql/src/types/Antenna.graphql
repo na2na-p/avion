@@ -1,0 +1,41 @@
+"""
+アンテナ
+"""
+type Antenna implements Node {
+	"""
+	ID
+	"""
+	id: ID!
+
+	"""
+	アンテナ名
+	"""
+	name: String!
+
+	"""
+	アンテナの説明
+	"""
+	description: String
+
+	"""
+	アンテナの検知条件
+	"""
+	conditions: [String!]!
+
+	"""
+	アンテナの除外条件
+	"""
+	exclusions: [String!]!
+
+	"""
+	作成者
+	"""
+	createdBy: User!
+}
+
+extend type Query {
+	"""
+	アンテナを全て取得する
+	"""
+	allAntennas: [Antenna]!
+}

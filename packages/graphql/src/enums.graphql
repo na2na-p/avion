@@ -36,6 +36,11 @@ enum TimelineType {
 	グローバルタイムライン
 	"""
 	GLOBAL_TIMELINE
+
+	"""
+	アンテナタイムライン
+	"""
+	ANTENNA_TIMELINE
 }
 
 """
