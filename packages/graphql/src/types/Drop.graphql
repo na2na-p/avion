@@ -91,6 +91,7 @@ extend type Query {
 
 		"""
 		アンテナID
+		TimelineTypeがANTENNA_TIMELINEの場合のみ指定可能
 		"""
 		antennaId: ID
 	): [Drop!]!
