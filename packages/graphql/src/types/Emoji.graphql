@@ -49,7 +49,7 @@ extend type Query {
 		ID
 		"""
 		id: ID!
-	): Emoji
+	): Emoji!
 
 	"""
 	絵文字カテゴリ一覧取得
