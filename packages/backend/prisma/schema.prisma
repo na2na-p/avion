@@ -134,6 +134,7 @@ enum TimelineType {
   HOME_TIMELINE
   LOCAL_TIMELINE
   GLOBAL_TIMELINE
+  ANTENNA_TIMELINE
 }
 
 enum MediumExtensionType {
