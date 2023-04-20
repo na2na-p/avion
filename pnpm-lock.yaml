@@ -25,6 +25,9 @@ importers:
       '@nestjs/graphql':
         specifier: ^11.0.5
         version: 11.0.5(@apollo/subgraph@2.4.1)(@nestjs/common@9.4.0)(@nestjs/core@9.4.0)(graphql@16.6.0)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
+      '@nestjs/mapped-types':
+        specifier: '*'
+        version: 1.2.2(@nestjs/common@9.4.0)(reflect-metadata@0.1.13)
       '@nestjs/platform-express':
         specifier: ^9.4.0
         version: 9.4.0(@nestjs/common@9.4.0)(@nestjs/core@9.4.0)

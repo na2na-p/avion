@@ -21,7 +21,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "graphql-build": "cd ../graphql && pnpm build ",
-    "graphql-codegen": "pnpm graphql-build && ts-node ./scripts/generate-typings.ts"
+    "graphql-codegen": "pnpm graphql-build && ts-node ./scripts/generate-typings.ts",
+    "type-check": "pnpm tsc --noEmit"
   },
   "dependencies": {
     "@apollo/server": "^4.6.0",
@@ -29,6 +30,7 @@
     "@nestjs/common": "^9.4.0",
     "@nestjs/core": "^9.4.0",
     "@nestjs/graphql": "^11.0.5",
+    "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^9.4.0",
     "@prisma/client": "^4.13.0",
     "graphql": "^16.6.0",
