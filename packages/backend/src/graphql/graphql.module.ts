@@ -15,6 +15,7 @@ import { join } from 'path';
         emitTypenameField: true,
         outputAs: 'class',
       },
+      installSubscriptionHandlers: true,
       playground: false,
       // TODO: productionであればfalseになるように
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
