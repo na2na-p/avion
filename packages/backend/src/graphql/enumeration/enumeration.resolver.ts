@@ -1,7 +1,7 @@
 import { Query, Resolver } from '@nestjs/graphql';
 import { EnumerationService } from './enumeration.service';
 import { Enumeration } from '@/generated/types';
-import { Typename } from '@/types/TypeName';
+import { Typename } from '@/types/Typename';
 
 @Resolver('Enumeration')
 export class EnumerationResolver {
