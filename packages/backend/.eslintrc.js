@@ -56,5 +56,6 @@ module.exports = {
         format: ['PascalCase'],
       },
     ],
+    'object-shorthand': 'error',
   },
 };
