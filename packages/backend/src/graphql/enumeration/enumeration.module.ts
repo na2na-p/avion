@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { EnumerationService } from './enumeration.service';
+
 import { EnumerationResolver } from './enumeration.resolver';
+import { EnumerationService } from './enumeration.service';
 
 @Module({
   providers: [EnumerationResolver, EnumerationService],

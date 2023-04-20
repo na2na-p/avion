@@ -14,7 +14,9 @@
     },
     "baseUrl": "./",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@types/*": ["src/types/*"],
+      "@graphql/*": ["src/graphql/*"]
     }
   },
   "module": {
