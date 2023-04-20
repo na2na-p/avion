@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Enumeration } from '@/generated/types';
+
+import type { Enumeration } from '@/generated/types';
+
 import {
   baseRoleTypes,
   mediaExtensionTypes,

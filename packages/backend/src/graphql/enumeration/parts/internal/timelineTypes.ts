@@ -1,5 +1,6 @@
 import { TimelineType } from '@/generated/types';
-import { IsExhaustive } from '../../utils/exhaustiveCheck';
+
+import type { IsExhaustive } from '../../utils/exhaustiveCheck';
 
 export const timelineTypes = [
   { id: TimelineType['GLOBAL_TIMELINE'], name: 'グローバルタイムライン' },

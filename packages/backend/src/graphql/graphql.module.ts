@@ -1,9 +1,11 @@
+import { join } from 'path';
+
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import { EnumerationModule } from '@graphql/enumeration/enumeration.module';
+import type { ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloDriver } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
-import { join } from 'path';
-import { EnumerationModule } from '@graphql/enumeration/enumeration.module';
 
 @Module({
   imports: [

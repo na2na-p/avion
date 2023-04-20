@@ -1,6 +1,7 @@
-import { Choices } from '@/types/Choices';
-import { IsExhaustive } from '../../utils/exhaustiveCheck';
 import { BaseRoleType } from '@/generated/types';
+import type { Choices } from '@/types/Choices';
+
+import type { IsExhaustive } from '../../utils/exhaustiveCheck';
 
 export const baseRoleTypes = [
   { id: BaseRoleType['ADMIN'], name: '管理者' },

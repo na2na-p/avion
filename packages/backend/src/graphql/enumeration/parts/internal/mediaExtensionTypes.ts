@@ -1,6 +1,7 @@
 import { MediumExtensionType } from '@/generated/types';
-import { Choices } from '@/types/Choices';
-import { IsExhaustive } from '../../utils/exhaustiveCheck';
+import type { Choices } from '@/types/Choices';
+
+import type { IsExhaustive } from '../../utils/exhaustiveCheck';
 
 export const mediaExtensionTypes = [
   { id: MediumExtensionType['AVI'], name: 'avi' },

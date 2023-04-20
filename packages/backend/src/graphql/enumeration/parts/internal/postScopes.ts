@@ -1,6 +1,7 @@
 import { PostScope } from '@/generated/types';
-import { Choices } from '@/types/Choices';
-import { IsExhaustive } from '../../utils/exhaustiveCheck';
+import type { Choices } from '@/types/Choices';
+
+import type { IsExhaustive } from '../../utils/exhaustiveCheck';
 
 export const postScopes = [
   { id: PostScope['PUBLIC'], name: '公開' },

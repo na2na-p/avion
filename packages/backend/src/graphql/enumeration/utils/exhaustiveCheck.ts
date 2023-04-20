@@ -1,5 +1,5 @@
 import type { Choice } from '@/types/Choices';
-import { ElementOf } from '@/types/ElementOf';
+import type { ElementOf } from '@/types/ElementOf';
 
 export type IsExhaustive<TKeys, TChoices extends ReadonlyArray<Choice>> =
   | Exclude<TKeys, ElementOf<TChoices>['id']>
