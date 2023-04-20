@@ -16,8 +16,9 @@
 		"test": "turbo test",
 		"type-check": "turbo type-check",
 		"setup-backend": "cd packages/backend && cp .env.example .env",
-		"setup-ci": "pnpm setup-backend",
-		"setup": "pnpm setup-backend"
+		"setup-graphql": "cd packages/graphql && pnpm build",
+		"setup-ci": "pnpm setup-graphql && pnpm setup-backend",
+		"setup": "pnpm setup-graphql && pnpm setup-backend"
 	},
 	"devDependencies": {
 		"turbo": "^1.9.3"
