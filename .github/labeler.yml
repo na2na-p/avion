@@ -1,0 +1,4 @@
+Frontend: "packages/frontend/**/*"
+Backend: "packages/backend/**/*"
+Schema: "packages/graphql/**/*"
+CI: ".github/**/*"
