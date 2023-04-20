@@ -20,6 +20,7 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["src/*"],
+      "@types/*": ["src/types/*"],
       "@graphql/*": ["src/graphql/*"],
       "@root/*": ["*"]
     }
