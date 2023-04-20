@@ -14,6 +14,7 @@
 		"build": "turbo build",
 		"lint": "turbo lint",
 		"test": "turbo test",
+		"type-check": "turbo type-check",
 		"setup-backend": "cd packages/backend && cp .env.example .env",
 		"setup-ci": "pnpm setup-backend",
 		"setup": "pnpm setup-backend"
