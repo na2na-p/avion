@@ -48,6 +48,11 @@ type Terminal implements Node {
 	登録解放状態
 	"""
 	isRegistrationOpen: Boolean!
+
+	"""
+	ジョブキューの状態
+	"""
+	jobQueue: JobQueue!
 }
 
 extend type Query {
