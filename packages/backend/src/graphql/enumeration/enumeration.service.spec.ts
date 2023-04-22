@@ -15,6 +15,6 @@ describe('EnumerationService', () => {
   });
 
   it('should be defined', () => {
-    expect(service).toBeDefined();
+    expect(service.enumeration).toBeDefined();
   });
 });
