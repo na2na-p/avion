@@ -31,7 +31,7 @@
     "@nestjs/common": "^9.4.0",
     "@nestjs/core": "^9.4.0",
     "@nestjs/graphql": "^11.0.5",
-    "@nestjs/mapped-types": "*",
+    "@nestjs/mapped-types": "^1.2.2",
     "@nestjs/platform-express": "^9.4.0",
     "@prisma/client": "^4.13.0",
     "graphql": "^16.6.0",
