@@ -152,3 +152,18 @@ enum MediumExtensionType {
 	"""
 	UNKNOWN
 }
+
+"""
+ジョブキュー種別
+"""
+enum JobQueueType {
+	"""
+	Inbox
+	"""
+	INBOX
+
+	"""
+	Deliver
+	"""
+	DELIVER
+}

@@ -27,6 +27,13 @@ ANTENNA_TIMELINE ANTENNA_TIMELINE
     
 
 
+        JobQueueType {
+            INBOX INBOX
+DELIVER DELIVER
+        }
+    
+
+
         MediumExtensionType {
             PNG PNG
 JPEG JPEG

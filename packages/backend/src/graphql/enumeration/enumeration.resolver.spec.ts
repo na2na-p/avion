@@ -16,6 +16,6 @@ describe('EnumerationResolver', () => {
   });
 
   it('should be defined', () => {
-    expect(resolver).toBeDefined();
+    expect(resolver.enumeration).toBeDefined();
   });
 });
