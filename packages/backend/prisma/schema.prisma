@@ -149,6 +149,11 @@ enum TimelineType {
   ANTENNA_TIMELINE
 }
 
+enum JobQueueType {
+  INBOX
+  DELIVER
+}
+
 enum MediumExtensionType {
   PNG
   JPEG
