@@ -9,17 +9,17 @@ importers:
   .:
     devDependencies:
       turbo:
-        specifier: ^1.10.1
-        version: 1.10.1
+        specifier: ^1.10.2
+        version: 1.10.2
 
   packages/backend:
     dependencies:
       '@apollo/server':
-        specifier: ^4.7.2
-        version: 4.7.2(graphql@16.6.0)
+        specifier: ^4.7.3
+        version: 4.7.3(graphql@16.6.0)
       '@nestjs/apollo':
         specifier: ^11.0.6
-        version: 11.0.6(@apollo/server@4.7.2)(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(@nestjs/graphql@11.0.6)(graphql@16.6.0)
+        version: 11.0.6(@apollo/server@4.7.3)(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(@nestjs/graphql@11.0.6)(graphql@16.6.0)
       '@nestjs/common':
         specifier: ^9.4.2
         version: 9.4.2(reflect-metadata@0.1.13)(rxjs@7.8.1)
@@ -55,8 +55,8 @@ importers:
         specifier: ^29.5.0
         version: 29.5.0
       '@mermaid-js/mermaid-cli':
-        specifier: ^10.1.0
-        version: 10.1.0(typescript@5.1.3)
+        specifier: ^10.2.2
+        version: 10.2.2(typescript@5.1.3)
       '@nestjs/cli':
         specifier: ^9.5.0
         version: 9.5.0(@swc/core@1.3.62)
@@ -116,7 +116,7 @@ importers:
         version: 2.8.8
       prisma-erd-generator:
         specifier: ^1.7.0
-        version: 1.7.0(@mermaid-js/mermaid-cli@10.1.0)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0)
+        version: 1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0)
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -245,19 +245,19 @@ packages:
       graphql: 16.6.0
     dev: false
 
-  /@apollo/server-plugin-landing-page-graphql-playground@4.0.0(@apollo/server@4.7.2):
+  /@apollo/server-plugin-landing-page-graphql-playground@4.0.0(@apollo/server@4.7.3):
     resolution: {integrity: sha512-PBDtKI/chJ+hHeoJUUH9Kuqu58txQl00vUGuxqiC9XcReulIg7RjsyD0G1u3drX4V709bxkL5S0nTeXfRHD0qA==}
     engines: {node: '>=14.0'}
     deprecated: The use of GraphQL Playground in Apollo Server was supported in previous versions, but this is no longer the case as of December 31, 2022. This package exists for v4 migration purposes only. We do not intend to resolve security issues or other bugs with this package if they arise, so please migrate away from this to [Apollo Server's default Explorer](https://www.apollographql.com/docs/apollo-server/api/plugin/landing-pages) as soon as possible.
     peerDependencies:
       '@apollo/server': ^4.0.0
     dependencies:
-      '@apollo/server': 4.7.2(graphql@16.6.0)
+      '@apollo/server': 4.7.3(graphql@16.6.0)
       '@apollographql/graphql-playground-html': 1.6.29
     dev: false
 
-  /@apollo/server@4.7.2(graphql@16.6.0):
-    resolution: {integrity: sha512-GCGgdrz+1+9fNRuj64J4H+iyYNm6C+Uph5kNbYgSEUz8ujjs3P4FKKMbWov2N6z2kany3y+QjOsHXksrhqrkgQ==}
+  /@apollo/server@4.7.3(graphql@16.6.0):
+    resolution: {integrity: sha512-eFCzHHheNHfVALjYJjIghV7kSgO49ZFr8+4g2CKOLShoDmLplQ3blyL5NsONyC0Z5l8kqm62V8yXGoxy2eNGfw==}
     engines: {node: '>=14.16.0'}
     peerDependencies:
       graphql: ^16.6.0
@@ -1185,8 +1185,8 @@ packages:
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
 
-  /@mermaid-js/mermaid-cli@10.1.0(typescript@5.1.3):
-    resolution: {integrity: sha512-O75bbknW9xe1KYpD0Zgjfa81oH4pjPdAPmR4miXBKTmoqPhQMzbbecCJJmJFLpa1D8UaSBr2lNgKoagXEzNT8Q==}
+  /@mermaid-js/mermaid-cli@10.2.2(typescript@5.1.3):
+    resolution: {integrity: sha512-N1Ci6gFNl4RG7mxvLTBBcpDKtqOj3rpzKndTz7zj2NuVtiynz8z6QFndDBC/gYNCsAMfPpUqGTsH0YzqkxFGfQ==}
     engines: {node: ^14.13 || >=16.0}
     hasBin: true
     dependencies:
@@ -1215,7 +1215,7 @@ packages:
       os-filter-obj: 2.0.0
     dev: true
 
-  /@nestjs/apollo@11.0.6(@apollo/server@4.7.2)(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(@nestjs/graphql@11.0.6)(graphql@16.6.0):
+  /@nestjs/apollo@11.0.6(@apollo/server@4.7.3)(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(@nestjs/graphql@11.0.6)(graphql@16.6.0):
     resolution: {integrity: sha512-w9I8oZHkHcBdR2sXoag4USe5nCOqWVdINYZTAnsLq8tafIolkGQAI9O+o1cGLyyV+9wwh4GAty5b9+jx/x1sbA==}
     peerDependencies:
       '@apollo/gateway': ^2.0.0
@@ -1234,8 +1234,8 @@ packages:
       '@as-integrations/fastify':
         optional: true
     dependencies:
-      '@apollo/server': 4.7.2(graphql@16.6.0)
-      '@apollo/server-plugin-landing-page-graphql-playground': 4.0.0(@apollo/server@4.7.2)
+      '@apollo/server': 4.7.3(graphql@16.6.0)
+      '@apollo/server-plugin-landing-page-graphql-playground': 4.0.0(@apollo/server@4.7.3)
       '@nestjs/common': 9.4.2(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/core': 9.4.2(@nestjs/common@9.4.2)(@nestjs/platform-express@9.4.2)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/graphql': 11.0.6(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(graphql@16.6.0)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
@@ -5703,7 +5703,7 @@ packages:
       react-is: 18.2.0
     dev: true
 
-  /prisma-erd-generator@1.7.0(@mermaid-js/mermaid-cli@10.1.0)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0):
+  /prisma-erd-generator@1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0):
     resolution: {integrity: sha512-YwFSMf83Cvly9QcWdEG+HYaCTBf9puV65QVVwXawqpS2KBi/xevUtTfwQ/KrbuCUPdypnwEu51aslfgZ4Sq88g==}
     engines: {node: '>=14'}
     hasBin: true
@@ -5712,7 +5712,7 @@ packages:
       '@prisma/client': ^4.0.0
       '@prisma/generator-helper': ^4.0.0
     dependencies:
-      '@mermaid-js/mermaid-cli': 10.1.0(typescript@5.1.3)
+      '@mermaid-js/mermaid-cli': 10.2.2(typescript@5.1.3)
       '@prisma/client': 4.15.0(prisma@4.15.0)
       '@prisma/generator-helper': 4.12.0
       dotenv: 16.0.3
@@ -6639,65 +6639,65 @@ packages:
       typescript: 5.1.3
     dev: true
 
-  /turbo-darwin-64@1.10.1:
-    resolution: {integrity: sha512-isLLoPuAOMNsYovOq9BhuQOZWQuU13zYsW988KkkaA4OJqOn7qwa9V/KBYCJL8uVQqtG+/Y42J37lO8RJjyXuA==}
+  /turbo-darwin-64@1.10.2:
+    resolution: {integrity: sha512-sVLpVVANByfMgqf7OYPcZM4KiDnjGu7ITvAzBSa9Iwe14yoWLn8utrNsWCRaQEB6kEqBGLPmvL7AKwkl8M2Gqg==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64@1.10.1:
-    resolution: {integrity: sha512-x1nloPR10fLElNCv17BKr0kCx/O5gse/UXAcVscMZH2tvRUtXrdBmut62uw2YU3J9hli2fszYjUWXkulVpQvFA==}
+  /turbo-darwin-arm64@1.10.2:
+    resolution: {integrity: sha512-TKG91DSoYQjsCft4XBx4lYycVT5n3UQB/nOKgv/WJCSfwshLWulya3yhP8JT5erv9rPF8gwgnx87lrCmT4EAVA==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64@1.10.1:
-    resolution: {integrity: sha512-abV+ODCeOlz0503OZlHhPWdy3VwJZc1jObf1VQj7uQM+JqJ/kXbMyqJIMQVz+m7QJUFdferYPRxGhYT/NbYK7Q==}
+  /turbo-linux-64@1.10.2:
+    resolution: {integrity: sha512-ZIzAkfrzjJFkSM/uEfxU6JjseCsT5PHRu0s0lmYce37ApQbv/HC7tI0cFhuosI30+O8109/mkyZykKE7AQfgqA==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64@1.10.1:
-    resolution: {integrity: sha512-zRC3nZbHQ63tofOmbuySzEn1ROISWTkemYYr1L98rpmT5aVa0kERlGiYcfDwZh3cBso/Ylg/wxexRAaPzcCJYQ==}
+  /turbo-linux-arm64@1.10.2:
+    resolution: {integrity: sha512-G4uZA+RBQ5S1X/oUxO5KoLL2NDMkrrBZF52+00jQv6UEb9lWDgwzqSwoAGjdXxeDCrqMW5rBVwb/IBIF2/yhwA==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64@1.10.1:
-    resolution: {integrity: sha512-Irqz8IU+o7Q/5V44qatZBTunk+FQAOII1hZTsEU54ah62f9Y297K6/LSp+yncmVQOZlFVccXb6MDqcETExIQtA==}
+  /turbo-windows-64@1.10.2:
+    resolution: {integrity: sha512-ObfQO37kGu1jBzFs/L+hybrCXBwdnimotJwzg7pCoSyGijKITlugrpJoPDKlg0eMr3/1Y6KUeHy26vZaDXrbuQ==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64@1.10.1:
-    resolution: {integrity: sha512-124IT15d2gyjC+NEn11pHOaVFvZDRHpxfF+LDUzV7YxfNIfV0mGkR3R/IyVXtQHOgqOdtQTbC4y411sm31+SEw==}
+  /turbo-windows-arm64@1.10.2:
+    resolution: {integrity: sha512-7S6dx4738R/FIT2cxbsunqgHN5LelXzuzkcaZgdkU33oswRf/6KOfOABzQLdTX7Uos59cBSdwayf6KQJxuOXUg==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo@1.10.1:
-    resolution: {integrity: sha512-wq0YeSv6P/eEDXOL42jkMUr+T4z34dM8mdHu5u6C6OOAq8JuLJ72F/v4EVR1JmY8icyTkFz10ICLV0haUUYhbQ==}
+  /turbo@1.10.2:
+    resolution: {integrity: sha512-m9sR5XHhuzxUQACf0vI2qCG5OqDYAZiPTaAsTwECnwUF4/cXwEmcYddbLJnO+K9orNvcnjjent5oBNBVQ/o0ow==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      turbo-darwin-64: 1.10.1
-      turbo-darwin-arm64: 1.10.1
-      turbo-linux-64: 1.10.1
-      turbo-linux-arm64: 1.10.1
-      turbo-windows-64: 1.10.1
-      turbo-windows-arm64: 1.10.1
+      turbo-darwin-64: 1.10.2
+      turbo-darwin-arm64: 1.10.2
+      turbo-linux-64: 1.10.2
+      turbo-linux-arm64: 1.10.2
+      turbo-windows-64: 1.10.2
+      turbo-windows-arm64: 1.10.2
     dev: true
 
   /type-check@0.4.0:
