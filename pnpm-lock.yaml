@@ -18,8 +18,8 @@ importers:
         specifier: ^4.7.4
         version: 4.7.4(graphql@16.6.0)
       '@nestjs/apollo':
-        specifier: ^11.0.6
-        version: 11.0.6(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@11.0.6)(graphql@16.6.0)
+        specifier: ^12.0.1
+        version: 12.0.1(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@11.0.6)(graphql@16.6.0)
       '@nestjs/common':
         specifier: ^9.4.3
         version: 9.4.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
@@ -1215,16 +1215,16 @@ packages:
       os-filter-obj: 2.0.0
     dev: true
 
-  /@nestjs/apollo@11.0.6(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@11.0.6)(graphql@16.6.0):
-    resolution: {integrity: sha512-w9I8oZHkHcBdR2sXoag4USe5nCOqWVdINYZTAnsLq8tafIolkGQAI9O+o1cGLyyV+9wwh4GAty5b9+jx/x1sbA==}
+  /@nestjs/apollo@12.0.1(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@11.0.6)(graphql@16.6.0):
+    resolution: {integrity: sha512-qThl0gK3nFGohWh72FADM69JI6cW7tNDeox8zJpLtzxb8zCTncq5NOJpGjF8wlEyMgXnq7bdQw6aWmbWeSEgpw==}
     peerDependencies:
       '@apollo/gateway': ^2.0.0
       '@apollo/server': ^4.3.2
       '@apollo/subgraph': ^2.0.0
       '@as-integrations/fastify': ^1.3.0 || ^2.0.0
-      '@nestjs/common': ^9.0.0
-      '@nestjs/core': ^9.3.8
-      '@nestjs/graphql': ^11.0.0
+      '@nestjs/common': ^9.3.8 || ^10.0.0
+      '@nestjs/core': ^9.3.8 || ^10.0.0
+      '@nestjs/graphql': ^12.0.0
       graphql: ^16.6.0
     peerDependenciesMeta:
       '@apollo/gateway':
@@ -1242,7 +1242,7 @@ packages:
       graphql: 16.6.0
       iterall: 1.3.0
       lodash.omit: 4.5.0
-      tslib: 2.5.2
+      tslib: 2.5.3
     dev: false
 
   /@nestjs/cli@9.5.0(@swc/core@1.3.65):
