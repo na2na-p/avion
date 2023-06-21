@@ -42,7 +42,7 @@
   "devDependencies": {
     "@jest/types": "^29.5.0",
     "@mermaid-js/mermaid-cli": "^10.2.2",
-    "@nestjs/cli": "^9.5.0",
+    "@nestjs/cli": "^10.0.3",
     "@nestjs/graphql": "11.0.6",
     "@nestjs/schematics": "^9.2.0",
     "@nestjs/testing": "^9.4.3",
