@@ -9,17 +9,17 @@ importers:
   .:
     devDependencies:
       turbo:
-        specifier: ^1.10.3
-        version: 1.10.3
+        specifier: ^1.10.6
+        version: 1.10.6
 
   packages/backend:
     dependencies:
       '@apollo/server':
         specifier: ^4.7.4
-        version: 4.7.4(graphql@16.6.0)
+        version: 4.7.4(graphql@16.7.1)
       '@nestjs/apollo':
-        specifier: ^12.0.1
-        version: 12.0.1(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@12.0.3)(graphql@16.6.0)
+        specifier: ^12.0.3
+        version: 12.0.3(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@12.0.3)(graphql@16.7.1)
       '@nestjs/common':
         specifier: ^9.4.3
         version: 9.4.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
@@ -28,22 +28,22 @@ importers:
         version: 9.4.3(@nestjs/common@9.4.3)(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/graphql':
         specifier: ^12.0.3
-        version: 12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.6.0)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
+        version: 12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
       '@nestjs/mapped-types':
-        specifier: ^2.0.0
-        version: 2.0.0(@nestjs/common@9.4.3)(reflect-metadata@0.1.13)
+        specifier: ^2.0.2
+        version: 2.0.2(@nestjs/common@9.4.3)(reflect-metadata@0.1.13)
       '@nestjs/platform-express':
         specifier: ^9.4.3
         version: 9.4.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)
       '@prisma/client':
-        specifier: ^4.15.0
-        version: 4.15.0(prisma@4.15.0)
+        specifier: ^4.16.1
+        version: 4.16.1(prisma@4.16.1)
       graphql:
-        specifier: ^16.6.0
-        version: 16.6.0
+        specifier: ^16.7.1
+        version: 16.7.1
       prisma:
-        specifier: ^4.15.0
-        version: 4.15.0
+        specifier: ^4.16.1
+        version: 4.16.1
       reflect-metadata:
         specifier: ^0.1.13
         version: 0.1.13
@@ -59,7 +59,7 @@ importers:
         version: 10.2.2(typescript@5.1.3)
       '@nestjs/cli':
         specifier: ^10.0.3
-        version: 10.0.3(@swc/cli@0.1.62)(@swc/core@1.3.65)
+        version: 10.0.3(@swc/cli@0.1.62)(@swc/core@1.3.66)
       '@nestjs/schematics':
         specifier: ^9.2.0
         version: 9.2.0(typescript@5.1.3)
@@ -68,13 +68,13 @@ importers:
         version: 9.4.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/platform-express@9.4.3)
       '@swc/cli':
         specifier: ^0.1.62
-        version: 0.1.62(@swc/core@1.3.65)
+        version: 0.1.62(@swc/core@1.3.66)
       '@swc/core':
-        specifier: ^1.3.65
-        version: 1.3.65
+        specifier: ^1.3.66
+        version: 1.3.66
       '@swc/jest':
         specifier: ^0.2.26
-        version: 0.2.26(@swc/core@1.3.65)
+        version: 0.2.26(@swc/core@1.3.66)
       '@types/express':
         specifier: ^4.17.17
         version: 4.17.17
@@ -116,7 +116,7 @@ importers:
         version: 2.8.8
       prisma-erd-generator:
         specifier: ^1.7.0
-        version: 1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0)
+        version: 1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.16.1)(@prisma/generator-helper@4.12.0)
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -131,7 +131,7 @@ importers:
         version: 18.0.0
       ts-node:
         specifier: ^10.9.1
-        version: 10.9.1(@swc/core@1.3.65)(@types/node@18.16.18)(typescript@5.1.3)
+        version: 10.9.1(@swc/core@1.3.66)(@types/node@18.16.18)(typescript@5.1.3)
       tsconfig-paths:
         specifier: 4.2.0
         version: 4.2.0
@@ -145,11 +145,11 @@ importers:
   packages/graphql:
     devDependencies:
       graphql:
-        specifier: ^16.6.0
-        version: 16.6.0
+        specifier: ^16.7.1
+        version: 16.7.1
       graphql-schema-linter:
         specifier: ^3.0.1
-        version: 3.0.1(graphql@16.6.0)
+        version: 3.0.1(graphql@16.7.1)
 
 packages:
 
@@ -235,12 +235,12 @@ packages:
       - chokidar
     dev: true
 
-  /@apollo/cache-control-types@1.0.2(graphql@16.6.0):
+  /@apollo/cache-control-types@1.0.2(graphql@16.7.1):
     resolution: {integrity: sha512-Por80co1eUm4ATsvjCOoS/tIR8PHxqVjsA6z76I6Vw0rFn4cgyVElQcmQDIZiYsy41k8e5xkrMRECkM2WR8pNw==}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
   /@apollo/protobufjs@1.2.7:
@@ -262,7 +262,7 @@ packages:
       long: 4.0.0
     dev: false
 
-  /@apollo/server-gateway-interface@1.1.0(graphql@16.6.0):
+  /@apollo/server-gateway-interface@1.1.0(graphql@16.7.1):
     resolution: {integrity: sha512-0rhG++QtGfr4YhhIHgxZ9BdMFthaPY6LbhI9Au90osbfLMiZ7f8dmZsEX1mp7O1h8MJwCu6Dp0I/KcGbSvfUGA==}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
@@ -271,7 +271,7 @@ packages:
       '@apollo/utils.fetcher': 2.0.1
       '@apollo/utils.keyvaluecache': 2.1.1
       '@apollo/utils.logger': 2.0.1
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
   /@apollo/server-plugin-landing-page-graphql-playground@4.0.0(@apollo/server@4.7.4):
@@ -281,27 +281,27 @@ packages:
     peerDependencies:
       '@apollo/server': ^4.0.0
     dependencies:
-      '@apollo/server': 4.7.4(graphql@16.6.0)
+      '@apollo/server': 4.7.4(graphql@16.7.1)
       '@apollographql/graphql-playground-html': 1.6.29
     dev: false
 
-  /@apollo/server@4.7.4(graphql@16.6.0):
+  /@apollo/server@4.7.4(graphql@16.7.1):
     resolution: {integrity: sha512-7MwEsBR+4JRfjAzrFIOP0m/NdzNCyVOlRWCO/86zs73CC+trr08FklTD7JD0yx5BJDfyzjdhF2BZ1sEYvp/Waw==}
     engines: {node: '>=14.16.0'}
     peerDependencies:
       graphql: ^16.6.0
     dependencies:
-      '@apollo/cache-control-types': 1.0.2(graphql@16.6.0)
-      '@apollo/server-gateway-interface': 1.1.0(graphql@16.6.0)
+      '@apollo/cache-control-types': 1.0.2(graphql@16.7.1)
+      '@apollo/server-gateway-interface': 1.1.0(graphql@16.7.1)
       '@apollo/usage-reporting-protobuf': 4.1.0
       '@apollo/utils.createhash': 2.0.1
       '@apollo/utils.fetcher': 2.0.1
       '@apollo/utils.isnodelike': 2.0.1
       '@apollo/utils.keyvaluecache': 2.1.1
       '@apollo/utils.logger': 2.0.1
-      '@apollo/utils.usagereporting': 2.1.0(graphql@16.6.0)
+      '@apollo/utils.usagereporting': 2.1.0(graphql@16.7.1)
       '@apollo/utils.withrequired': 2.0.1
-      '@graphql-tools/schema': 9.0.18(graphql@16.6.0)
+      '@graphql-tools/schema': 9.0.18(graphql@16.7.1)
       '@josephg/resolvable': 1.0.1
       '@types/express': 4.17.17
       '@types/express-serve-static-core': 4.17.33
@@ -310,7 +310,7 @@ packages:
       body-parser: 1.20.2
       cors: 2.8.5
       express: 4.18.2
-      graphql: 16.6.0
+      graphql: 16.7.1
       loglevel: 1.8.1
       lru-cache: 7.18.3
       negotiator: 0.6.3
@@ -337,13 +337,13 @@ packages:
       sha.js: 2.4.11
     dev: false
 
-  /@apollo/utils.dropunuseddefinitions@2.0.1(graphql@16.6.0):
+  /@apollo/utils.dropunuseddefinitions@2.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-EsPIBqsSt2BwDsv8Wu76LK5R1KtsVkNoO4b0M5aK0hx+dGg9xJXuqlr7Fo34Dl+y83jmzn+UvEW+t1/GP2melA==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
   /@apollo/utils.fetcher@2.0.1:
@@ -369,56 +369,56 @@ packages:
     engines: {node: '>=14'}
     dev: false
 
-  /@apollo/utils.printwithreducedwhitespace@2.0.1(graphql@16.6.0):
+  /@apollo/utils.printwithreducedwhitespace@2.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-9M4LUXV/fQBh8vZWlLvb/HyyhjJ77/I5ZKu+NBWV/BmYGyRmoEP9EVAy7LCVoY3t8BDcyCAGfxJaLFCSuQkPUg==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
-  /@apollo/utils.removealiases@2.0.1(graphql@16.6.0):
+  /@apollo/utils.removealiases@2.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-0joRc2HBO4u594Op1nev+mUF6yRnxoUH64xw8x3bX7n8QBDYdeYgY4tF0vJReTy+zdn2xv6fMsquATSgC722FA==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
-  /@apollo/utils.sortast@2.0.1(graphql@16.6.0):
+  /@apollo/utils.sortast@2.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-eciIavsWpJ09za1pn37wpsCGrQNXUhM0TktnZmHwO+Zy9O4fu/WdB4+5BvVhFiZYOXvfjzJUcc+hsIV8RUOtMw==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
       lodash.sortby: 4.7.0
     dev: false
 
-  /@apollo/utils.stripsensitiveliterals@2.0.1(graphql@16.6.0):
+  /@apollo/utils.stripsensitiveliterals@2.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-QJs7HtzXS/JIPMKWimFnUMK7VjkGQTzqD9bKD1h3iuPAqLsxd0mUNVbkYOPTsDhUKgcvUOfOqOJWYohAKMvcSA==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
-  /@apollo/utils.usagereporting@2.1.0(graphql@16.6.0):
+  /@apollo/utils.usagereporting@2.1.0(graphql@16.7.1):
     resolution: {integrity: sha512-LPSlBrn+S17oBy5eWkrRSGb98sWmnEzo3DPTZgp8IQc8sJe0prDgDuppGq4NeQlpoqEHz0hQeYHAOA0Z3aQsxQ==}
     engines: {node: '>=14'}
     peerDependencies:
       graphql: 14.x || 15.x || 16.x
     dependencies:
       '@apollo/usage-reporting-protobuf': 4.1.0
-      '@apollo/utils.dropunuseddefinitions': 2.0.1(graphql@16.6.0)
-      '@apollo/utils.printwithreducedwhitespace': 2.0.1(graphql@16.6.0)
-      '@apollo/utils.removealiases': 2.0.1(graphql@16.6.0)
-      '@apollo/utils.sortast': 2.0.1(graphql@16.6.0)
-      '@apollo/utils.stripsensitiveliterals': 2.0.1(graphql@16.6.0)
-      graphql: 16.6.0
+      '@apollo/utils.dropunuseddefinitions': 2.0.1(graphql@16.7.1)
+      '@apollo/utils.printwithreducedwhitespace': 2.0.1(graphql@16.7.1)
+      '@apollo/utils.removealiases': 2.0.1(graphql@16.7.1)
+      '@apollo/utils.sortast': 2.0.1(graphql@16.7.1)
+      '@apollo/utils.stripsensitiveliterals': 2.0.1(graphql@16.7.1)
+      graphql: 16.7.1
     dev: false
 
   /@apollo/utils.withrequired@2.0.1:
@@ -816,79 +816,79 @@ packages:
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dev: true
 
-  /@graphql-tools/merge@8.4.1(graphql@16.6.0):
+  /@graphql-tools/merge@8.4.1(graphql@16.7.1):
     resolution: {integrity: sha512-hssnPpZ818mxgl5+GfyOOSnnflAxiaTn1A1AojZcIbh4J52sS1Q0gSuBR5VrnUDjuxiqoCotpXdAQl+K+U6KLQ==}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-tools/utils': 9.2.1(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-tools/utils': 9.2.1(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
     dev: false
 
-  /@graphql-tools/merge@9.0.0(graphql@16.6.0):
+  /@graphql-tools/merge@9.0.0(graphql@16.7.1):
     resolution: {integrity: sha512-J7/xqjkGTTwOJmaJQJ2C+VDBDOWJL3lKrHJN4yMaRLAJH3PosB7GiPRaSDZdErs0+F77sH2MKs2haMMkywzx7Q==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-tools/utils': 10.0.1(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-tools/utils': 10.0.1(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
     dev: false
 
-  /@graphql-tools/schema@10.0.0(graphql@16.6.0):
+  /@graphql-tools/schema@10.0.0(graphql@16.7.1):
     resolution: {integrity: sha512-kf3qOXMFcMs2f/S8Y3A8fm/2w+GaHAkfr3Gnhh2LOug/JgpY/ywgFVxO3jOeSpSEdoYcDKLcXVjMigNbY4AdQg==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-tools/merge': 9.0.0(graphql@16.6.0)
-      '@graphql-tools/utils': 10.0.1(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-tools/merge': 9.0.0(graphql@16.7.1)
+      '@graphql-tools/utils': 10.0.1(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
       value-or-promise: 1.0.12
     dev: false
 
-  /@graphql-tools/schema@9.0.18(graphql@16.6.0):
+  /@graphql-tools/schema@9.0.18(graphql@16.7.1):
     resolution: {integrity: sha512-Kckb+qoo36o5RSIVfBNU5XR5fOg4adNa1xuhhUgbQejDaI684tIJbTWwYbrDPVEGL/dqJJX3rrsq7RLufjNFoQ==}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-tools/merge': 8.4.1(graphql@16.6.0)
-      '@graphql-tools/utils': 9.2.1(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-tools/merge': 8.4.1(graphql@16.7.1)
+      '@graphql-tools/utils': 9.2.1(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
       value-or-promise: 1.0.12
     dev: false
 
-  /@graphql-tools/utils@10.0.1(graphql@16.6.0):
+  /@graphql-tools/utils@10.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-i1FozbDGHgdsFA47V/JvQZ0FE8NAy0Eiz7HGCJO2MkNdZAKNnwei66gOq0JWYVFztwpwbVQ09GkKhq7Kjcq5Cw==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-typed-document-node/core': 3.2.0(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
     dev: false
 
-  /@graphql-tools/utils@9.2.1(graphql@16.6.0):
+  /@graphql-tools/utils@9.2.1(graphql@16.7.1):
     resolution: {integrity: sha512-WUw506Ql6xzmOORlriNrD6Ugx+HjVgYxt9KCXD9mHAak+eaXSwuGGPyE60hy9xaDEoXKBsG7SkG69ybitaVl6A==}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      '@graphql-typed-document-node/core': 3.2.0(graphql@16.6.0)
-      graphql: 16.6.0
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.7.1)
+      graphql: 16.7.1
       tslib: 2.5.3
     dev: false
 
-  /@graphql-typed-document-node/core@3.2.0(graphql@16.6.0):
+  /@graphql-typed-document-node/core@3.2.0(graphql@16.7.1):
     resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
     peerDependencies:
       graphql: ^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
   /@humanwhocodes/config-array@0.11.10:
@@ -1244,8 +1244,8 @@ packages:
       os-filter-obj: 2.0.0
     dev: true
 
-  /@nestjs/apollo@12.0.1(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@12.0.3)(graphql@16.6.0):
-    resolution: {integrity: sha512-qThl0gK3nFGohWh72FADM69JI6cW7tNDeox8zJpLtzxb8zCTncq5NOJpGjF8wlEyMgXnq7bdQw6aWmbWeSEgpw==}
+  /@nestjs/apollo@12.0.3(@apollo/server@4.7.4)(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(@nestjs/graphql@12.0.3)(graphql@16.7.1):
+    resolution: {integrity: sha512-y0KNQlq+czlp4RQ06XVRb1/ST03+i/hBdGH9CJOGQf41KNV89Yn8OfTq7p+U6mE5TizTRbE53CFuD7FekJU2GQ==}
     peerDependencies:
       '@apollo/gateway': ^2.0.0
       '@apollo/server': ^4.3.2
@@ -1263,18 +1263,18 @@ packages:
       '@as-integrations/fastify':
         optional: true
     dependencies:
-      '@apollo/server': 4.7.4(graphql@16.6.0)
+      '@apollo/server': 4.7.4(graphql@16.7.1)
       '@apollo/server-plugin-landing-page-graphql-playground': 4.0.0(@apollo/server@4.7.4)
       '@nestjs/common': 9.4.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/core': 9.4.3(@nestjs/common@9.4.3)(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.1)
-      '@nestjs/graphql': 12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.6.0)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
-      graphql: 16.6.0
+      '@nestjs/graphql': 12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@18.0.0)
+      graphql: 16.7.1
       iterall: 1.3.0
       lodash.omit: 4.5.0
       tslib: 2.5.3
     dev: false
 
-  /@nestjs/cli@10.0.3(@swc/cli@0.1.62)(@swc/core@1.3.65):
+  /@nestjs/cli@10.0.3(@swc/cli@0.1.62)(@swc/core@1.3.66):
     resolution: {integrity: sha512-mmcc8NmYdMVwOkXkK9FZofk+dXYWYAEBIP9AOnI5/+idhPLLkjBUFdT5iP55hTE3NZ6OUGIBrteBe5iJEqyqRw==}
     engines: {node: '>= 16'}
     hasBin: true
@@ -1291,8 +1291,8 @@ packages:
       '@angular-devkit/schematics': 16.1.0(chokidar@3.5.3)
       '@angular-devkit/schematics-cli': 16.1.0(chokidar@3.5.3)
       '@nestjs/schematics': 10.0.1(chokidar@3.5.3)(typescript@5.1.3)
-      '@swc/cli': 0.1.62(@swc/core@1.3.65)
-      '@swc/core': 1.3.65
+      '@swc/cli': 0.1.62(@swc/core@1.3.66)
+      '@swc/core': 1.3.66
       chalk: 4.1.2
       chokidar: 3.5.3
       cli-table3: 0.6.3
@@ -1309,7 +1309,7 @@ packages:
       tsconfig-paths: 4.2.0
       tsconfig-paths-webpack-plugin: 4.0.1
       typescript: 5.1.3
-      webpack: 5.87.0(@swc/core@1.3.65)
+      webpack: 5.87.0(@swc/core@1.3.66)
       webpack-node-externals: 3.0.0
     transitivePeerDependencies:
       - esbuild
@@ -1370,7 +1370,7 @@ packages:
     transitivePeerDependencies:
       - encoding
 
-  /@nestjs/graphql@12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.6.0)(reflect-metadata@0.1.13)(ts-morph@18.0.0):
+  /@nestjs/graphql@12.0.3(@nestjs/common@9.4.3)(@nestjs/core@9.4.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@18.0.0):
     resolution: {integrity: sha512-EEB8SrH1mnIIO6N4JIA6a4GsxJsPk30jhB4Q/AnBtvkbf/dgcAAPzdF32FDrIHKNAfthxxwfV+9swkBshgaeOA==}
     peerDependencies:
       '@apollo/subgraph': ^2.0.0
@@ -1391,21 +1391,21 @@ packages:
       ts-morph:
         optional: true
     dependencies:
-      '@graphql-tools/merge': 9.0.0(graphql@16.6.0)
-      '@graphql-tools/schema': 10.0.0(graphql@16.6.0)
-      '@graphql-tools/utils': 10.0.1(graphql@16.6.0)
+      '@graphql-tools/merge': 9.0.0(graphql@16.7.1)
+      '@graphql-tools/schema': 10.0.0(graphql@16.7.1)
+      '@graphql-tools/utils': 10.0.1(graphql@16.7.1)
       '@nestjs/common': 9.4.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/core': 9.4.3(@nestjs/common@9.4.3)(@nestjs/platform-express@9.4.3)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/mapped-types': 2.0.2(@nestjs/common@9.4.3)(reflect-metadata@0.1.13)
       chokidar: 3.5.3
       fast-glob: 3.2.12
-      graphql: 16.6.0
-      graphql-tag: 2.12.6(graphql@16.6.0)
-      graphql-ws: 5.13.1(graphql@16.6.0)
+      graphql: 16.7.1
+      graphql-tag: 2.12.6(graphql@16.7.1)
+      graphql-ws: 5.13.1(graphql@16.7.1)
       lodash: 4.17.21
       normalize-path: 3.0.0
       reflect-metadata: 0.1.13
-      subscriptions-transport-ws: 0.11.0(graphql@16.6.0)
+      subscriptions-transport-ws: 0.11.0(graphql@16.7.1)
       ts-morph: 18.0.0
       tslib: 2.5.3
       uuid: 9.0.0
@@ -1413,23 +1413,6 @@ packages:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
-    dev: false
-
-  /@nestjs/mapped-types@2.0.0(@nestjs/common@9.4.3)(reflect-metadata@0.1.13):
-    resolution: {integrity: sha512-JyIOY1OE4x2t8Z2ImWLQJnHVqLCBHJZXm6RqcOG3+4rIsqMQxm5smHbb7H5C6tLAdDcRYd/fG2gYK1J1GiqKLw==}
-    peerDependencies:
-      '@nestjs/common': ^8.0.0 || ^9.0.0 || ^10.0.0
-      class-transformer: ^0.4.0 || ^0.5.0
-      class-validator: ^0.13.0 || ^0.14.0
-      reflect-metadata: ^0.1.12
-    peerDependenciesMeta:
-      class-transformer:
-        optional: true
-      class-validator:
-        optional: true
-    dependencies:
-      '@nestjs/common': 9.4.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
-      reflect-metadata: 0.1.13
     dev: false
 
   /@nestjs/mapped-types@2.0.2(@nestjs/common@9.4.3)(reflect-metadata@0.1.13):
@@ -1542,8 +1525,8 @@ packages:
     transitivePeerDependencies:
       - encoding
 
-  /@prisma/client@4.15.0(prisma@4.15.0):
-    resolution: {integrity: sha512-xnROvyABcGiwqRNdrObHVZkD9EjkJYHOmVdlKy1yGgI+XOzvMzJ4tRg3dz1pUlsyhKxXGCnjIQjWW+2ur+YXuw==}
+  /@prisma/client@4.16.1(prisma@4.16.1):
+    resolution: {integrity: sha512-CoDHu7Bt+NuDo40ijoeHP79EHtECsPBTy3yte5Yo3op8TqXt/kV0OT5OrsWewKvQGKFMHhYQ+ePed3zzjYdGAw==}
     engines: {node: '>=14.17'}
     requiresBuild: true
     peerDependencies:
@@ -1552,8 +1535,8 @@ packages:
       prisma:
         optional: true
     dependencies:
-      '@prisma/engines-version': 4.15.0-28.8fbc245156db7124f997f4cecdd8d1219e360944
-      prisma: 4.15.0
+      '@prisma/engines-version': 4.16.0-66.b20ead4d3ab9e78ac112966e242ded703f4a052c
+      prisma: 4.16.1
 
   /@prisma/debug@4.12.0:
     resolution: {integrity: sha512-mBTAGClWnxJpFSDSLF4+sVfVgS+KIs+y/Ncu3e+JkJ/gfJ1f591nRrclV1EmxnfTcvd8xoomhbiTy5mYDzzPEA==}
@@ -1565,11 +1548,11 @@ packages:
       - supports-color
     dev: true
 
-  /@prisma/engines-version@4.15.0-28.8fbc245156db7124f997f4cecdd8d1219e360944:
-    resolution: {integrity: sha512-sVOig4tjGxxlYaFcXgE71f/rtFhzyYrfyfNFUsxCIEJyVKU9rdOWIlIwQ2NQ7PntvGnn+x0XuFo4OC1jvPJKzg==}
+  /@prisma/engines-version@4.16.0-66.b20ead4d3ab9e78ac112966e242ded703f4a052c:
+    resolution: {integrity: sha512-tMWAF/qF00fbUH1HB4Yjmz6bjh7fzkb7Y3NRoUfMlHu6V+O45MGvqwYxqwBjn1BIUXkl3r04W351D4qdJjrgvA==}
 
-  /@prisma/engines@4.15.0:
-    resolution: {integrity: sha512-FTaOCGs0LL0OW68juZlGxFtYviZa4xdQj/rQEdat2txw0s3Vu/saAPKjNVXfIgUsGXmQ72HPgNr6935/P8FNAA==}
+  /@prisma/engines@4.16.1:
+    resolution: {integrity: sha512-gpZG0kGGxfemgvK/LghHdBIz+crHkZjzszja94xp4oytpsXrgt/Ice82MvPsWMleVIniKuARrowtsIsim0PFJQ==}
     requiresBuild: true
 
   /@prisma/generator-helper@4.12.0:
@@ -1670,7 +1653,7 @@ packages:
       '@sinonjs/commons': 2.0.0
     dev: true
 
-  /@swc/cli@0.1.62(@swc/core@1.3.65):
+  /@swc/cli@0.1.62(@swc/core@1.3.66):
     resolution: {integrity: sha512-kOFLjKY3XH1DWLfXL1/B5MizeNorHR8wHKEi92S/Zi9Md/AK17KSqR8MgyRJ6C1fhKHvbBCl8wboyKAFXStkYw==}
     engines: {node: '>= 12.13'}
     hasBin: true
@@ -1682,7 +1665,7 @@ packages:
         optional: true
     dependencies:
       '@mole-inc/bin-wrapper': 8.0.1
-      '@swc/core': 1.3.65
+      '@swc/core': 1.3.66
       commander: 7.2.0
       fast-glob: 3.2.12
       semver: 7.4.0
@@ -1690,8 +1673,8 @@ packages:
       source-map: 0.7.4
     dev: true
 
-  /@swc/core-darwin-arm64@1.3.65:
-    resolution: {integrity: sha512-fQIXZgr7CD/+1ADqrVbz/gHvSoIMmggHvPzguQjV8FggBuS9Efm1D1ZrdUSqptggKvuLLHMZf+49tENq8NWWcg==}
+  /@swc/core-darwin-arm64@1.3.66:
+    resolution: {integrity: sha512-UijJsvuLy73vxeVYEy7urIHksXS+3BdvJ9s9AY+bRMSQW483NO7RLp8g4FdTyJbRaN0BH15SQnY0dcjQBkVuHw==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [darwin]
@@ -1699,8 +1682,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-darwin-x64@1.3.65:
-    resolution: {integrity: sha512-kGuWP7OP9mwOiIcJpEVa+ydC3Wxf0fPQ1MK0hUIPFcR6tAUEdOvdAuCzP6U20RX/JbbgwfI/Qq6ugT7VL6omgg==}
+  /@swc/core-darwin-x64@1.3.66:
+    resolution: {integrity: sha512-xGsHKvViQnwTNLF30Y/5OqWdnN6RsiyUI8awZXfz1sHcXCEaLe+v+WLQ+/E8sgw0YUkYVHzzfV/sAN2CezJK5Q==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [darwin]
@@ -1708,8 +1691,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-linux-arm-gnueabihf@1.3.65:
-    resolution: {integrity: sha512-Bjbzldp8n4mWSdAvBt4VuLiHlfFM5pyftjJvJnmSY4H1IzbxkByyT60OHOedcIPRiZveD8NJzUJqutqrgTmtLg==}
+  /@swc/core-linux-arm-gnueabihf@1.3.66:
+    resolution: {integrity: sha512-gNbLcSIV2pq90BkMSpzvK4xPXOl8GEF3YR4NaqF0CYSzQsVXXTTqMuX/r26xNYudBKzH0345S1MpoRk2qricnA==}
     engines: {node: '>=10'}
     cpu: [arm]
     os: [linux]
@@ -1717,8 +1700,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-linux-arm64-gnu@1.3.65:
-    resolution: {integrity: sha512-GmxtcCymeQqEqT9n5mo857koRsUbEwmuijrBA4OeD5KOPW9gqAmUxr+ZgwgYHwyJ3CiN+UbK8uEqPsL6UVQmLg==}
+  /@swc/core-linux-arm64-gnu@1.3.66:
+    resolution: {integrity: sha512-cJSQ0oplyWbJqy4rzVcnBYLAi6z1QT3QCcR7iAey0aAmCvfRBZJfXlyjggMjn4iosuadkauwCZR1xYNhBDRn7w==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
@@ -1726,8 +1709,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-linux-arm64-musl@1.3.65:
-    resolution: {integrity: sha512-yv9jP3gbfMsYrqswT2MwK5Q1+avSwRXAKo+LYUknTeoLQNNlukDfqSLHajNq23XrVDRP4B3Pjn7kaqjxRcihbg==}
+  /@swc/core-linux-arm64-musl@1.3.66:
+    resolution: {integrity: sha512-GDQZpcB9aGxG9PTA2shdIkoMZlGK5omJ8NR49uoBTtLBVYiGeXAwV0U1Uaw8kXEZj9i7wZDkvjzjSaNH3evRsg==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
@@ -1735,8 +1718,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-linux-x64-gnu@1.3.65:
-    resolution: {integrity: sha512-GQkwysEPTlAOQ3jiTiedObzh6pBaf9RLaQqpGdCp+iKze9+BR+STBP0IIKhZDMPG/nWWNhrYFD/VMQxRoYPjfw==}
+  /@swc/core-linux-x64-gnu@1.3.66:
+    resolution: {integrity: sha512-lg8E4O/Pd9KfK0lajdinVMuGME8dSv7V9arhEpmlfGE2eXSDCWqDn5Htk5QVBstt9lt1lsRhWHJ/YYc2eQY30Q==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
@@ -1744,8 +1727,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-linux-x64-musl@1.3.65:
-    resolution: {integrity: sha512-ETzhOhtDluYFK4x73OTM9gVTMyzGd2WeWGlCu3WoT1EPPUwCqQpcAqI3TfEcP1ljFDG0pPkpYzVpwNf8yjQElg==}
+  /@swc/core-linux-x64-musl@1.3.66:
+    resolution: {integrity: sha512-lo8ZcAO/zL2pZWH+LZIyge8u2MklaeuT6+FpVVpBFktMVdYXbaVtzpvWbgRFBZHvL3SRDF+u8jxjtkXhvGUpTw==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
@@ -1753,8 +1736,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-win32-arm64-msvc@1.3.65:
-    resolution: {integrity: sha512-3weD0I6F8bggN0KOnbZkvYC1PBrT5wrvohpvtgijRsODxjoWwztozjawJxF3rqgVqlSI/+nA+JkrN48e2cxJjQ==}
+  /@swc/core-win32-arm64-msvc@1.3.66:
+    resolution: {integrity: sha512-cQoVwBuJY5WkHbfpCOlndNwYr1ZThatRjQQvKy540NUIeAEk9Fa6ozlDBtU75UdaWKtUG6YQ/bWz+KTemheVxw==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [win32]
@@ -1762,8 +1745,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-win32-ia32-msvc@1.3.65:
-    resolution: {integrity: sha512-i6c3D7E9Ca41HteW3+hn1OKQfjIabc2P0p1mJRXBkn+igwb+Ba6gXJc7NqhrlF8uZsDhhcGZTsAqBBtfcfTuHQ==}
+  /@swc/core-win32-ia32-msvc@1.3.66:
+    resolution: {integrity: sha512-y/FrAIINK4UBeUQQknGlWXEyjo+MBvjF7WkUf2KP7sNr9EHHy8+dXohAGd5Anz0eJrqOM1ZXR/GEjxRp7bGQ1Q==}
     engines: {node: '>=10'}
     cpu: [ia32]
     os: [win32]
@@ -1771,8 +1754,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core-win32-x64-msvc@1.3.65:
-    resolution: {integrity: sha512-tQ9hEDtwPZxQ2sYb2n8ypfmdMjobKAf6VSnChteLMktofU7o562op5pLS6D6QCP2AtL3lcwe1piTCgIhk4vmjA==}
+  /@swc/core-win32-x64-msvc@1.3.66:
+    resolution: {integrity: sha512-yI64ACzS14qFLrfyO12qW+f/UROTotzDeEbuyJAaPD2IZexoT1cICznI3sBmIfrSt33mVuW8eF5m3AG/NUImzw==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [win32]
@@ -1780,8 +1763,8 @@ packages:
     dev: true
     optional: true
 
-  /@swc/core@1.3.65:
-    resolution: {integrity: sha512-d5iDiKWf12FBo6h9Fro2pcnLK6HSPbyZ7A1U5iFNpRRx8XEd4uGdKtf5NoXJ3GDLQDLXnNSLA82Cl6SfrJ1lyw==}
+  /@swc/core@1.3.66:
+    resolution: {integrity: sha512-Hpf91kH5ly7fHkWnApwryTQryT+TO4kMMPH3WyciUSQOWLE3UuQz1PtETHQQk7PZ/b1QF0qQurJrgfBr5bSKUA==}
     engines: {node: '>=10'}
     requiresBuild: true
     peerDependencies:
@@ -1790,26 +1773,26 @@ packages:
       '@swc/helpers':
         optional: true
     optionalDependencies:
-      '@swc/core-darwin-arm64': 1.3.65
-      '@swc/core-darwin-x64': 1.3.65
-      '@swc/core-linux-arm-gnueabihf': 1.3.65
-      '@swc/core-linux-arm64-gnu': 1.3.65
-      '@swc/core-linux-arm64-musl': 1.3.65
-      '@swc/core-linux-x64-gnu': 1.3.65
-      '@swc/core-linux-x64-musl': 1.3.65
-      '@swc/core-win32-arm64-msvc': 1.3.65
-      '@swc/core-win32-ia32-msvc': 1.3.65
-      '@swc/core-win32-x64-msvc': 1.3.65
+      '@swc/core-darwin-arm64': 1.3.66
+      '@swc/core-darwin-x64': 1.3.66
+      '@swc/core-linux-arm-gnueabihf': 1.3.66
+      '@swc/core-linux-arm64-gnu': 1.3.66
+      '@swc/core-linux-arm64-musl': 1.3.66
+      '@swc/core-linux-x64-gnu': 1.3.66
+      '@swc/core-linux-x64-musl': 1.3.66
+      '@swc/core-win32-arm64-msvc': 1.3.66
+      '@swc/core-win32-ia32-msvc': 1.3.66
+      '@swc/core-win32-x64-msvc': 1.3.66
     dev: true
 
-  /@swc/jest@0.2.26(@swc/core@1.3.65):
+  /@swc/jest@0.2.26(@swc/core@1.3.66):
     resolution: {integrity: sha512-7lAi7q7ShTO3E5Gt1Xqf3pIhRbERxR1DUxvtVa9WKzIB+HGQ7wZP5sYx86zqnaEoKKGhmOoZ7gyW0IRu8Br5+A==}
     engines: {npm: '>= 7.0.0'}
     peerDependencies:
       '@swc/core': '*'
     dependencies:
       '@jest/create-cache-key-function': 27.5.1
-      '@swc/core': 1.3.65
+      '@swc/core': 1.3.66
       jsonc-parser: 3.2.0
     dev: true
 
@@ -3939,7 +3922,7 @@ packages:
       semver: 7.4.0
       tapable: 2.2.1
       typescript: 5.1.3
-      webpack: 5.87.0(@swc/core@1.3.65)
+      webpack: 5.87.0(@swc/core@1.3.66)
     dev: true
 
   /form-data@3.0.1:
@@ -4173,7 +4156,7 @@ packages:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
     dev: true
 
-  /graphql-schema-linter@3.0.1(graphql@16.6.0):
+  /graphql-schema-linter@3.0.1(graphql@16.7.1):
     resolution: {integrity: sha512-+k4TGaWu1Ry740XiI/OZbzAC4omna5+S1rLjE0puPFSB99yORRdlX4U0+CWnwJuxh8FxLj5Ek2pDhsrSh9j5cQ==}
     hasBin: true
     peerDependencies:
@@ -4184,30 +4167,30 @@ packages:
       commander: 3.0.2
       cosmiconfig: 5.2.1
       glob: 7.2.3
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: true
 
-  /graphql-tag@2.12.6(graphql@16.6.0):
+  /graphql-tag@2.12.6(graphql@16.7.1):
     resolution: {integrity: sha512-FdSNcu2QQcWnM2VNvSCCDCVS5PpPqpzgFT8+GXzqJuoDd0CBncxCY278u4mhRO7tMgo2JjgJA5aZ+nWSQ/Z+xg==}
     engines: {node: '>=10'}
     peerDependencies:
       graphql: ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
       tslib: 2.5.3
     dev: false
 
-  /graphql-ws@5.13.1(graphql@16.6.0):
+  /graphql-ws@5.13.1(graphql@16.7.1):
     resolution: {integrity: sha512-eiX7ES/ZQr0q7hSM5UBOEIFfaAUmAY9/CSDyAnsETuybByU7l/v46drRg9DQoTvVABEHp3QnrvwgTRMhqy7zxQ==}
     engines: {node: '>=10'}
     peerDependencies:
       graphql: '>=0.11 <=16'
     dependencies:
-      graphql: 16.6.0
+      graphql: 16.7.1
     dev: false
 
-  /graphql@16.6.0:
-    resolution: {integrity: sha512-KPIBPDlW7NxrbT/eh4qPXz5FiFdL5UbaA0XUNz2Rp3Z3hqBSkbj0GVjwFDztsWVauZUWsbKHgMg++sk8UX0bkw==}
+  /graphql@16.7.1:
+    resolution: {integrity: sha512-DRYR9tf+UGU0KOsMcKAlXeFfX89UiiIZ0dRU3mR0yJfu6OjZqUcp68NnFLnqQU5RexygFoDy1EW+ccOYcPfmHg==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   /has-bigints@1.0.2:
@@ -4748,7 +4731,7 @@ packages:
       pretty-format: 29.5.0
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.1(@swc/core@1.3.65)(@types/node@18.16.18)(typescript@5.1.3)
+      ts-node: 10.9.1(@swc/core@1.3.66)(@types/node@18.16.18)(typescript@5.1.3)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -5779,7 +5762,7 @@ packages:
       react-is: 18.2.0
     dev: true
 
-  /prisma-erd-generator@1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.15.0)(@prisma/generator-helper@4.12.0):
+  /prisma-erd-generator@1.7.0(@mermaid-js/mermaid-cli@10.2.2)(@prisma/client@4.16.1)(@prisma/generator-helper@4.12.0):
     resolution: {integrity: sha512-YwFSMf83Cvly9QcWdEG+HYaCTBf9puV65QVVwXawqpS2KBi/xevUtTfwQ/KrbuCUPdypnwEu51aslfgZ4Sq88g==}
     engines: {node: '>=14'}
     hasBin: true
@@ -5789,18 +5772,18 @@ packages:
       '@prisma/generator-helper': ^4.0.0
     dependencies:
       '@mermaid-js/mermaid-cli': 10.2.2(typescript@5.1.3)
-      '@prisma/client': 4.15.0(prisma@4.15.0)
+      '@prisma/client': 4.16.1(prisma@4.16.1)
       '@prisma/generator-helper': 4.12.0
       dotenv: 16.0.3
     dev: true
 
-  /prisma@4.15.0:
-    resolution: {integrity: sha512-iKZZpobPl48gTcSZVawLMQ3lEy6BnXwtoMj7hluoGFYu2kQ6F9LBuBrUyF95zRVnNo8/3KzLXJXJ5TEnLSJFiA==}
+  /prisma@4.16.1:
+    resolution: {integrity: sha512-C2Xm7yxHxjFjjscBEW4tmoraPHH/Vyu/A0XABdbaFtoiOZARsxvOM7rwc2iZ0qVxbh0bGBGBWZUSXO/52/nHBQ==}
     engines: {node: '>=14.17'}
     hasBin: true
     requiresBuild: true
     dependencies:
-      '@prisma/engines': 4.15.0
+      '@prisma/engines': 4.16.1
 
   /process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
@@ -6416,7 +6399,7 @@ packages:
       peek-readable: 5.0.0
     dev: true
 
-  /subscriptions-transport-ws@0.11.0(graphql@16.6.0):
+  /subscriptions-transport-ws@0.11.0(graphql@16.7.1):
     resolution: {integrity: sha512-8D4C6DIH5tGiAIpp5I0wD/xRlNiZAPGHygzCe7VzyzUoxHtawzjNAY9SUTXU05/EY2NMY9/9GF0ycizkXr1CWQ==}
     deprecated: The `subscriptions-transport-ws` package is no longer maintained. We recommend you use `graphql-ws` instead. For help migrating Apollo software to `graphql-ws`, see https://www.apollographql.com/docs/apollo-server/data/subscriptions/#switching-from-subscriptions-transport-ws    For general help using `graphql-ws`, see https://github.com/enisdenjo/graphql-ws/blob/master/README.md
     peerDependencies:
@@ -6424,7 +6407,7 @@ packages:
     dependencies:
       backo2: 1.0.2
       eventemitter3: 3.1.2
-      graphql: 16.6.0
+      graphql: 16.7.1
       iterall: 1.3.0
       symbol-observable: 1.2.0
       ws: 7.5.9
@@ -6521,7 +6504,7 @@ packages:
       readable-stream: 3.6.2
     dev: true
 
-  /terser-webpack-plugin@5.3.7(@swc/core@1.3.65)(webpack@5.87.0):
+  /terser-webpack-plugin@5.3.7(@swc/core@1.3.66)(webpack@5.87.0):
     resolution: {integrity: sha512-AfKwIktyP7Cu50xNjXF/6Qb5lBNzYaWpU6YfoX3uZicTx0zTy0stDDCsvjDapKsSDvOeWo5MEq4TmdBy2cNoHw==}
     engines: {node: '>= 10.13.0'}
     peerDependencies:
@@ -6538,12 +6521,12 @@ packages:
         optional: true
     dependencies:
       '@jridgewell/trace-mapping': 0.3.18
-      '@swc/core': 1.3.65
+      '@swc/core': 1.3.66
       jest-worker: 27.5.1
       schema-utils: 3.3.0
       serialize-javascript: 6.0.1
       terser: 5.16.9
-      webpack: 5.87.0(@swc/core@1.3.65)
+      webpack: 5.87.0(@swc/core@1.3.66)
     dev: true
 
   /terser@5.16.9:
@@ -6635,7 +6618,7 @@ packages:
       micromatch: 4.0.5
       semver: 7.4.0
       typescript: 5.1.3
-      webpack: 5.87.0(@swc/core@1.3.65)
+      webpack: 5.87.0(@swc/core@1.3.66)
     dev: true
 
   /ts-morph@18.0.0:
@@ -6644,7 +6627,7 @@ packages:
       '@ts-morph/common': 0.19.0
       code-block-writer: 12.0.0
 
-  /ts-node@10.9.1(@swc/core@1.3.65)(@types/node@18.16.18)(typescript@5.1.3):
+  /ts-node@10.9.1(@swc/core@1.3.66)(@types/node@18.16.18)(typescript@5.1.3):
     resolution: {integrity: sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==}
     hasBin: true
     peerDependencies:
@@ -6659,7 +6642,7 @@ packages:
         optional: true
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
-      '@swc/core': 1.3.65
+      '@swc/core': 1.3.66
       '@tsconfig/node10': 1.0.9
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
@@ -6720,65 +6703,65 @@ packages:
       typescript: 5.1.3
     dev: true
 
-  /turbo-darwin-64@1.10.3:
-    resolution: {integrity: sha512-IIB9IomJGyD3EdpSscm7Ip1xVWtYb7D0x7oH3vad3gjFcjHJzDz9xZ/iw/qItFEW+wGFcLSRPd+1BNnuLM8AsA==}
+  /turbo-darwin-64@1.10.6:
+    resolution: {integrity: sha512-s2Gc7i9Ud+H9GDcrGJjPIyscJfzDGQ6il4Sl2snfvwngJs4/TaqKuBoX3HNt/7F4NiFRs7ZhlLV1/Yu9zGBRhw==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64@1.10.3:
-    resolution: {integrity: sha512-SBNmOZU9YEB0eyNIxeeQ+Wi0Ufd+nprEVp41rgUSRXEIpXjsDjyBnKnF+sQQj3+FLb4yyi/yZQckB+55qXWEsw==}
+  /turbo-darwin-arm64@1.10.6:
+    resolution: {integrity: sha512-tgl70t5PBLyRcNTdP9N6NjvdvQ5LUk8Z60JGUhBhnc+oCOdA4pltrDJNPyel3tQAXXt1dDpl8pp9vUrbwoVyGg==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64@1.10.3:
-    resolution: {integrity: sha512-kvAisGKE7xHJdyMxZLvg53zvHxjqPK1UVj4757PQqtx9dnjYHSc8epmivE6niPgDHon5YqImzArCjVZJYpIGHQ==}
+  /turbo-linux-64@1.10.6:
+    resolution: {integrity: sha512-h7eyAA3xtAVpamcYJYUwe0xm0LWdbv7/I7QiM09AZ67TTNpyUgqW8giFN3h793BHEQ2Rcnk9FNkpIbjWBbyamg==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64@1.10.3:
-    resolution: {integrity: sha512-Qgaqln0IYRgyL0SowJOi+PNxejv1I2xhzXOI+D+z4YHbgSx87ox1IsALYBlK8VRVYY8VCXl+PN12r1ioV09j7A==}
+  /turbo-linux-arm64@1.10.6:
+    resolution: {integrity: sha512-8cZhOeLqu3QZ27yLd6bw4FNaB8y5pLdWeRLJeiWHkIb/cptKnRKJFP+keBJzJi8ovaMqdBpabrxiBRN2lhau5Q==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64@1.10.3:
-    resolution: {integrity: sha512-rbH9wManURNN8mBnN/ZdkpUuTvyVVEMiUwFUX4GVE5qmV15iHtZfDLUSGGCP2UFBazHcpNHG1OJzgc55GFFrUw==}
+  /turbo-windows-64@1.10.6:
+    resolution: {integrity: sha512-qx5jcfCJodN1Mh0KtSVQau7pK8CxDvtif7+joPHI2HbQPAADgdUl0LHfA5tFHh6aWgfvhxbvIXqJd6v7Mqkj9g==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64@1.10.3:
-    resolution: {integrity: sha512-ThlkqxhcGZX39CaTjsHqJnqVe+WImjX13pmjnpChz6q5HHbeRxaJSFzgrHIOt0sUUVx90W/WrNRyoIt/aafniw==}
+  /turbo-windows-arm64@1.10.6:
+    resolution: {integrity: sha512-vTQaRG3/s2XTreOBr6J9HKFtjzusvwGQg0GtuW2+9Z7fizdzP8MuhaDbN6FhKHcWC81PQPD61TBIKTVTsYOEZg==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo@1.10.3:
-    resolution: {integrity: sha512-U4gKCWcKgLcCjQd4Pl8KJdfEKumpyWbzRu75A6FCj6Ctea1PIm58W6Ltw1QXKqHrl2pF9e1raAskf/h6dlrPCA==}
+  /turbo@1.10.6:
+    resolution: {integrity: sha512-0/wbjw4HvmPP1abVWHTdeFRfCA9cn5oxCPP5bDixagLzvDgGWE3xfdlsyGmq779Ekr9vjtDPgC2Y4JlXEhyryw==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      turbo-darwin-64: 1.10.3
-      turbo-darwin-arm64: 1.10.3
-      turbo-linux-64: 1.10.3
-      turbo-linux-arm64: 1.10.3
-      turbo-windows-64: 1.10.3
-      turbo-windows-arm64: 1.10.3
+      turbo-darwin-64: 1.10.6
+      turbo-darwin-arm64: 1.10.6
+      turbo-linux-64: 1.10.6
+      turbo-linux-arm64: 1.10.6
+      turbo-windows-64: 1.10.6
+      turbo-windows-arm64: 1.10.6
     dev: true
 
   /type-check@0.4.0:
@@ -6942,7 +6925,7 @@ packages:
     engines: {node: '>=10.13.0'}
     dev: true
 
-  /webpack@5.87.0(@swc/core@1.3.65):
+  /webpack@5.87.0(@swc/core@1.3.66):
     resolution: {integrity: sha512-GOu1tNbQ7p1bDEoFRs2YPcfyGs8xq52yyPBZ3m2VGnXGtV9MxjrkABHm4V9Ia280OefsSLzvbVoXcfLxjKY/Iw==}
     engines: {node: '>=10.13.0'}
     hasBin: true
@@ -6973,7 +6956,7 @@ packages:
       neo-async: 2.6.2
       schema-utils: 3.3.0
       tapable: 2.2.1
-      terser-webpack-plugin: 5.3.7(@swc/core@1.3.65)(webpack@5.87.0)
+      terser-webpack-plugin: 5.3.7(@swc/core@1.3.66)(webpack@5.87.0)
       watchpack: 2.4.0
       webpack-sources: 3.2.3
     transitivePeerDependencies:
