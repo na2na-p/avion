@@ -10,7 +10,10 @@
 	// HACK: pnpmがShell typeの判定に失敗してエラーになる
 	"postAttachCommand": "pnpm setup-backend",
 	// "features": {},
-	// "forwardPorts": [3000, 5432],
+	"forwardPorts": [
+		3000,
+		5432
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
