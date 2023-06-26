@@ -6,11 +6,10 @@
 	"remoteUser": "vscode",
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	// Features to add to the dev container. More info: https://containers.dev/features.
+	"postCreateCommand": "asdf install && pnpm store prune && pnpm install && pnpm setup-graphql",
+	// HACK: pnpmがShell typeの判定に失敗してエラーになる
+	"postAttachCommand": "pnpm setup-backend",
 	// "features": {},
-	"postCreateCommand": "asdf install && pnpm install && pnpm setup",
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// This can be used to network with other containers or with the host.
 	// "forwardPorts": [3000, 5432],
 	"customizations": {
 		"vscode": {
