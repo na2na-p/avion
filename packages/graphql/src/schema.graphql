@@ -5,7 +5,7 @@ type Query {
 	"""
 	ベース
 	"""
-  avion: String
+	avion: String
 }
 
 """
@@ -15,5 +15,15 @@ type Mutation {
 	"""
 	ベース
 	"""
-  avion: String
+	avion: String
+}
+
+"""
+ベース
+"""
+type Subscription {
+	"""
+	ベース
+	"""
+	avion: String
 }
