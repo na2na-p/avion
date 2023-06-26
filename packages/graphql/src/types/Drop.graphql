@@ -103,32 +103,6 @@ extend type Query {
 		"""
 		id: ID!
 	): Drop!
-
-	"""
-	タイムライン取得
-	"""
-	timeline(
-		"""
-		タイムライン種別
-		"""
-		type: TimelineType!
-
-		"""
-		最大取得件数
-		"""
-		limit: Int = 10
-
-		"""
-		最後に取得した投稿のID
-		"""
-		after: ID
-
-		"""
-		アンテナID
-		TimelineTypeがANTENNA_TIMELINEの場合のみ指定可能
-		"""
-		antennaId: ID
-	): [Drop!]!
 }
 
 extend type Mutation {
