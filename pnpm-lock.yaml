@@ -19,7 +19,7 @@ importers:
         version: 4.7.5(graphql@16.7.1)
       '@nestjs/apollo':
         specifier: ^12.0.4
-        version: 12.0.4(@apollo/server@4.7.5)(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(@nestjs/graphql@12.0.4)(graphql@16.7.1)
+        version: 12.0.4(@apollo/server@4.7.5)(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(@nestjs/graphql@12.0.6)(graphql@16.7.1)
       '@nestjs/common':
         specifier: ^10.0.3
         version: 10.0.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
@@ -27,8 +27,8 @@ importers:
         specifier: ^10.0.3
         version: 10.0.3(@nestjs/common@10.0.3)(@nestjs/platform-express@10.0.3)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/graphql':
-        specifier: ^12.0.4
-        version: 12.0.4(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0)
+        specifier: ^12.0.6
+        version: 12.0.6(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0)
       '@nestjs/mapped-types':
         specifier: ^2.0.2
         version: 2.0.2(@nestjs/common@10.0.3)(reflect-metadata@0.1.13)
@@ -124,8 +124,8 @@ importers:
         specifier: ^6.3.3
         version: 6.3.3
       ts-loader:
-        specifier: ^9.4.3
-        version: 9.4.3(typescript@5.1.5)(webpack@5.87.0)
+        specifier: ^9.4.4
+        version: 9.4.4(typescript@5.1.5)(webpack@5.87.0)
       ts-morph:
         specifier: ^19.0.0
         version: 19.0.0
@@ -1215,7 +1215,7 @@ packages:
       os-filter-obj: 2.0.0
     dev: true
 
-  /@nestjs/apollo@12.0.4(@apollo/server@4.7.5)(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(@nestjs/graphql@12.0.4)(graphql@16.7.1):
+  /@nestjs/apollo@12.0.4(@apollo/server@4.7.5)(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(@nestjs/graphql@12.0.6)(graphql@16.7.1):
     resolution: {integrity: sha512-42lQEsTPvynvqTs7E0e2C03DDEkak5e2uB9Lb9MCQkb9klRVVFC6icnNkMa81WgvqUJCiT9Od8BcfyC7TeKaiA==}
     peerDependencies:
       '@apollo/gateway': ^2.0.0
@@ -1238,7 +1238,7 @@ packages:
       '@apollo/server-plugin-landing-page-graphql-playground': 4.0.0(@apollo/server@4.7.5)
       '@nestjs/common': 10.0.3(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/core': 10.0.3(@nestjs/common@10.0.3)(@nestjs/platform-express@10.0.3)(reflect-metadata@0.1.13)(rxjs@7.8.1)
-      '@nestjs/graphql': 12.0.4(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0)
+      '@nestjs/graphql': 12.0.6(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0)
       graphql: 16.7.1
       iterall: 1.3.0
       lodash.omit: 4.5.0
@@ -1338,8 +1338,8 @@ packages:
     transitivePeerDependencies:
       - encoding
 
-  /@nestjs/graphql@12.0.4(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0):
-    resolution: {integrity: sha512-t3uG3XvPYHuYS8S0E6xhqvhibHmz6X7y0h3c98wCZqlNAmDNEeGlZA+ujxzz1hm+sjJL3HJOfdrs1S9UvP69eg==}
+  /@nestjs/graphql@12.0.6(@nestjs/common@10.0.3)(@nestjs/core@10.0.3)(graphql@16.7.1)(reflect-metadata@0.1.13)(ts-morph@19.0.0):
+    resolution: {integrity: sha512-2viILuWU4AHyf1kR/O6NqUWObwxp7iU3GsRgVxL7VhKtI/x+wsrT3iAN+eeO6MvujeyMg0FkM884DGIJsIbzAw==}
     peerDependencies:
       '@apollo/subgraph': ^2.0.0
       '@nestjs/common': ^9.3.8 || ^10.0.0
@@ -6575,8 +6575,8 @@ packages:
       escape-string-regexp: 5.0.0
     dev: true
 
-  /ts-loader@9.4.3(typescript@5.1.5)(webpack@5.87.0):
-    resolution: {integrity: sha512-n3hBnm6ozJYzwiwt5YRiJZkzktftRpMiBApHaJPoWLA+qetQBAXkHqCLM6nwSdRDimqVtA5ocIkcTRLMTt7yzA==}
+  /ts-loader@9.4.4(typescript@5.1.5)(webpack@5.87.0):
+    resolution: {integrity: sha512-MLukxDHBl8OJ5Dk3y69IsKVFRA/6MwzEqBgh+OXMPB/OD01KQuWPFd1WAQP8a5PeSCAxfnkhiuWqfmFJzJQt9w==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
       typescript: '*'
