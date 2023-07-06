@@ -43,30 +43,50 @@ extend type Query {
 
 extend type Subscription {
   """
-  タイムライン更新のサブスクリプション
+  タイムラインにDropが追加されたときのサブスクリプション
   """
-  timelineUpdated(
+  dropAddedToTimeline(
     """
     タイムライン種別
     """
     timelineType: TimelineType!
-  ): TimelineUpdate!
+  ): TimelineDropAdded!
+
+  """
+  タイムラインからDropが削除されたときのサブスクリプション
+  """
+  dropDeletedFromTimeline(
+    """
+    タイムライン種別
+    """
+    timelineType: TimelineType!
+  ): TimelineDropDeleted!
 }
 
 """
-タイムライン更新
+タイムラインに新しく追加されたDropを表す型
 """
-type TimelineUpdate {
+type TimelineDropAdded {
   """
   新たに追加されたDrop
   """
-  newDrop: Drop
+  newDrop: Drop!
 
+  """
+  更新されたタイムラインの種別
+  """
+  timelineType: TimelineType!
+}
+
+"""
+タイムラインから削除されたDropを表す型
+"""
+type TimelineDropDeleted {
   """
   削除されたDropのID
   削除されたDropはIDのみが送信される
   """
-  deletedDropId: ID
+  deletedDropId: ID!
 
   """
   更新されたタイムラインの種別
