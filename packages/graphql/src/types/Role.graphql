@@ -3,167 +3,167 @@
 TODO: ロールでやれること詰める
 """
 type Role implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	ベース種別
-	"""
-	baseType: BaseRoleType!
+  """
+  ベース種別
+  """
+  baseType: BaseRoleType!
 
-	"""
-	ロール名
-	"""
-	name: String!
+  """
+  ロール名
+  """
+  name: String!
 
-	"""
-	ロールの説明
-	"""
-	description: String
+  """
+  ロールの説明
+  """
+  description: String
 
-	"""
-	ロールに割り当てられているユーザ
-	"""
-	assignedUsers: [User!]
+  """
+  ロールに割り当てられているユーザ
+  """
+  assignedUsers: [User!]
 }
 
 extend type Query {
-	"""
-	ロールを取得する
-	"""
-	role(
-		"""
-		ロールID
-		"""
-		id: ID!
-	): Role!
+  """
+  ロールを取得する
+  """
+  role(
+    """
+    ロールID
+    """
+    id: ID!
+  ): Role!
 
-	"""
-	ロール一覧を取得する
-	"""
-	allRoles(
-		"""
-		ロールIDのリスト
-		"""
-		ids: [ID!]
-	): [Role!]
+  """
+  ロール一覧を取得する
+  """
+  allRoles(
+    """
+    ロールIDのリスト
+    """
+    ids: [ID!]
+  ): [Role!]
 }
 
 extend type Mutation {
-	"""
-	ロール作成
-	"""
-	createRole(
-		"""
-		ベース種別
-		"""
-		baseType: BaseRoleType!
+  """
+  ロール作成
+  """
+  createRole(
+    """
+    ベース種別
+    """
+    baseType: BaseRoleType!
 
-		"""
-		ロール名
-		"""
-		name: String!
+    """
+    ロール名
+    """
+    name: String!
 
-		"""
-		ロールの説明
-		"""
-		description: String
-	): Role!
+    """
+    ロールの説明
+    """
+    description: String
+  ): Role!
 
-	"""
-	ロール更新
-	"""
-	updateRole(
-		"""
-		ロールID
-		"""
-		id: ID!
+  """
+  ロール更新
+  """
+  updateRole(
+    """
+    ロールID
+    """
+    id: ID!
 
-		"""
-		ベース種別
-		"""
-		baseType: BaseRoleType!
+    """
+    ベース種別
+    """
+    baseType: BaseRoleType!
 
-		"""
-		ロール名
-		"""
-		name: String!
+    """
+    ロール名
+    """
+    name: String!
 
-		"""
-		ロールの説明
-		"""
-		description: String
-	): Role!
+    """
+    ロールの説明
+    """
+    description: String
+  ): Role!
 
-	"""
-	ロール削除
-	"""
-	deleteRole(
-		"""
-		ロールID
-		"""
-		id: ID!
-	): Role!
+  """
+  ロール削除
+  """
+  deleteRole(
+    """
+    ロールID
+    """
+    id: ID!
+  ): Role!
 
-	"""
-	ロールにアサイン
-	"""
-	assignRole(
-		"""
-		ロールID
-		"""
-		roleId: ID!
+  """
+  ロールにアサイン
+  """
+  assignRole(
+    """
+    ロールID
+    """
+    roleId: ID!
 
-		"""
-		ユーザID
-		"""
-		userId: ID!
-	): Role!
+    """
+    ユーザID
+    """
+    userId: ID!
+  ): Role!
 
-	"""
-	ロールからアサイン解除
-	"""
-	unassignRole(
-		"""
-		ロールID
-		"""
-		roleId: ID!
+  """
+  ロールからアサイン解除
+  """
+  unassignRole(
+    """
+    ロールID
+    """
+    roleId: ID!
 
-		"""
-		ユーザID
-		"""
-		userId: ID!
-	): Role!
+    """
+    ユーザID
+    """
+    userId: ID!
+  ): Role!
 
-	"""
-	まとめてアサイン
-	"""
-	assignMany(
-		"""
-		ロールID
-		"""
-		roleId: ID!
+  """
+  まとめてアサイン
+  """
+  assignMany(
+    """
+    ロールID
+    """
+    roleId: ID!
 
-		"""
-		ユーザIDのリスト
-		"""
-		userIds: [ID!]
-	): Role!
+    """
+    ユーザIDのリスト
+    """
+    userIds: [ID!]
+  ): Role!
 
-	"""
-	まとめてアサイン解除
-	"""
-	unassignMany(
-		"""
-		ロールID
-		"""
-		roleId: ID!
+  """
+  まとめてアサイン解除
+  """
+  unassignMany(
+    """
+    ロールID
+    """
+    roleId: ID!
 
-		"""
-		ユーザIDのリスト
-		"""
-		userIds: [ID!]
-	): Role!
+    """
+    ユーザIDのリスト
+    """
+    userIds: [ID!]
+  ): Role!
 }

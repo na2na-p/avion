@@ -2,127 +2,127 @@
 アンテナ
 """
 type Antenna implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	アンテナ名
-	"""
-	name: String!
+  """
+  アンテナ名
+  """
+  name: String!
 
-	"""
-	アンテナの検知条件(正規表現)
-	"""
-	conditions: [String!]!
+  """
+  アンテナの検知条件(正規表現)
+  """
+  conditions: [String!]!
 
-	"""
-	アンテナの除外条件(正規表現)
-	"""
-	exclusions: [String!]!
+  """
+  アンテナの除外条件(正規表現)
+  """
+  exclusions: [String!]!
 
-	"""
-	大文字小文字を区別するか
-	"""
-	caseSensitive: Boolean!
+  """
+  大文字小文字を区別するか
+  """
+  caseSensitive: Boolean!
 
-	"""
-	現在有効かどうか
-	"""
-	isActive: Boolean!
+  """
+  現在有効かどうか
+  """
+  isActive: Boolean!
 
-	"""
-	作成者
-	"""
-	createdBy: User!
+  """
+  作成者
+  """
+  createdBy: User!
 }
 
 extend type Query {
-	"""
-	アンテナを全て取得する
-	"""
-	allAntennas: [Antenna]!
+  """
+  アンテナを全て取得する
+  """
+  allAntennas: [Antenna]!
 }
 
 extend type Mutation {
-	"""
-	アンテナを作成する
-	"""
-	createAntenna(
-		"""
-		アンテナの名前
-		"""
-		name: String!
+  """
+  アンテナを作成する
+  """
+  createAntenna(
+    """
+    アンテナの名前
+    """
+    name: String!
 
-		"""
-		アンテナの検知条件(正規表現)
-		"""
-		conditions: [String!]!
+    """
+    アンテナの検知条件(正規表現)
+    """
+    conditions: [String!]!
 
-		"""
-		アンテナの除外条件(正規表現)
-		"""
-		exclusions: [String!]!
+    """
+    アンテナの除外条件(正規表現)
+    """
+    exclusions: [String!]!
 
-		"""
-		大文字小文字を区別するか
-		"""
-		caseSensitive: Boolean!
-	): Antenna!
+    """
+    大文字小文字を区別するか
+    """
+    caseSensitive: Boolean!
+  ): Antenna!
 
-	"""
-	アンテナを更新する
-	"""
-	updateAntenna(
-		"""
-		アンテナのID
-		"""
-		id: ID!
+  """
+  アンテナを更新する
+  """
+  updateAntenna(
+    """
+    アンテナのID
+    """
+    id: ID!
 
-		"""
-		アンテナの名前
-		"""
-		name: String!
+    """
+    アンテナの名前
+    """
+    name: String!
 
-		"""
-		アンテナの検知条件(正規表現)
-		"""
-		conditions: [String!]!
+    """
+    アンテナの検知条件(正規表現)
+    """
+    conditions: [String!]!
 
-		"""
-		アンテナの除外条件(正規表現)
-		"""
-		exclusions: [String!]!
+    """
+    アンテナの除外条件(正規表現)
+    """
+    exclusions: [String!]!
 
-		"""
-		大文字小文字を区別するか
-		"""
-		caseSensitive: Boolean!
+    """
+    大文字小文字を区別するか
+    """
+    caseSensitive: Boolean!
 
-		"""
-		現在有効かどうか
-		"""
-		isActive: Boolean!
-	): Antenna!
+    """
+    現在有効かどうか
+    """
+    isActive: Boolean!
+  ): Antenna!
 
-	"""
-	アンテナを複数削除する
-	"""
-	deleteAntennas(
-		"""
-		削除対象のアンテナID
-		"""
-		ids: [ID!]!
-	): [ID!]!
+  """
+  アンテナを複数削除する
+  """
+  deleteAntennas(
+    """
+    削除対象のアンテナID
+    """
+    ids: [ID!]!
+  ): [ID!]!
 
-	"""
-	アンテナを1件削除する
-	"""
-	deleteAntenna(
-		"""
-		削除対象のアンテナID
-		"""
-		id: ID!
-	): ID!
+  """
+  アンテナを1件削除する
+  """
+  deleteAntenna(
+    """
+    削除対象のアンテナID
+    """
+    id: ID!
+  ): ID!
 }

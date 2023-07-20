@@ -8,6 +8,9 @@
 		"lint": {
 			"dependsOn": ["^lint"]
 		},
+		"fmt": {
+			"dependsOn": ["^fmt"]
+		},
 		"test": {
 			"dependsOn": ["^test"]
 		},

@@ -31,6 +31,8 @@ jobs:
         shell: bash
       - name: lint
         run: pnpm lint
+      - name: fmt
+        run: pnpm fmt
   Test:
     timeout-minutes: 60
     runs-on: ubuntu-latest

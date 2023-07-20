@@ -2,116 +2,116 @@
 リアクションのマスタ
 """
 type Emoji implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	ユーザが利用時に指定する一意な名前
-	"""
-	name: String!
+  """
+  ユーザが利用時に指定する一意な名前
+  """
+  name: String!
 
-	"""
-	Terminal
-	"""
-	terminal: Terminal!
+  """
+  Terminal
+  """
+  terminal: Terminal!
 
-	"""
-	絵文字情報
-	createdByはMediumから取得する
-	"""
-	medium: Medium!
+  """
+  絵文字情報
+  createdByはMediumから取得する
+  """
+  medium: Medium!
 
-	"""
-	登録日時
-	"""
-	createdAt: DateTime!
+  """
+  登録日時
+  """
+  createdAt: DateTime!
 
-	"""
-	カテゴリ
-	複数のカテゴリに属することができる
-	"""
-	categories: [String]!
+  """
+  カテゴリ
+  複数のカテゴリに属することができる
+  """
+  categories: [String]!
 }
 
 extend type Query {
-	"""
-	絵文字全件取得
-	"""
-	emojis: [Emoji!]!
+  """
+  絵文字全件取得
+  """
+  emojis: [Emoji!]!
 
-	"""
-	絵文字取得
-	"""
-	emoji(
-		"""
-		ID
-		"""
-		id: ID!
-	): Emoji!
+  """
+  絵文字取得
+  """
+  emoji(
+    """
+    ID
+    """
+    id: ID!
+  ): Emoji!
 
-	"""
-	絵文字カテゴリ一覧取得
-	"""
-	emojiCategories: [String!]!
+  """
+  絵文字カテゴリ一覧取得
+  """
+  emojiCategories: [String!]!
 }
 
 extend type Mutation {
-	"""
-	絵文字登録
-	"""
-	createEmoji(
-		"""
-		ユーザが利用時に指定する一意な名前
-		"""
-		name: String!
+  """
+  絵文字登録
+  """
+  createEmoji(
+    """
+    ユーザが利用時に指定する一意な名前
+    """
+    name: String!
 
-		"""
-		絵文字情報
-		"""
-		medium: ID!
+    """
+    絵文字情報
+    """
+    medium: ID!
 
-		"""
-		カテゴリ
-		複数のカテゴリに属することができる
-		"""
-		categories: [String]!
-	): Emoji!
+    """
+    カテゴリ
+    複数のカテゴリに属することができる
+    """
+    categories: [String]!
+  ): Emoji!
 
-	"""
-	絵文字情報更新
-	"""
-	updateEmoji(
-		"""
-		ID
-		"""
-		id: ID!
+  """
+  絵文字情報更新
+  """
+  updateEmoji(
+    """
+    ID
+    """
+    id: ID!
 
-		"""
-		ユーザが利用時に指定する一意な名前
-		"""
-		name: String!
+    """
+    ユーザが利用時に指定する一意な名前
+    """
+    name: String!
 
-		"""
-		絵文字情報
-		"""
-		medium: ID!
+    """
+    絵文字情報
+    """
+    medium: ID!
 
-		"""
-		カテゴリ
-		複数のカテゴリに属することができる
-		"""
-		categories: [String]!
-	): Emoji!
+    """
+    カテゴリ
+    複数のカテゴリに属することができる
+    """
+    categories: [String]!
+  ): Emoji!
 
-	"""
-	絵文字削除
-	"""
-	deleteEmoji(
-		"""
-		ID
-		"""
-		id: ID!
-	): Boolean!
+  """
+  絵文字削除
+  """
+  deleteEmoji(
+    """
+    ID
+    """
+    id: ID!
+  ): Boolean!
 }
