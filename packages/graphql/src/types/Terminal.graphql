@@ -2,72 +2,72 @@
 リモートホストを意味する
 """
 type Terminal implements Node {
-	"""
-	ID
-	各ターミナルを指すホスト名は必ず一意になるため、IDとして利用
-	実態は`scalar Host`
-	"""
-	id: ID!
+  """
+  ID
+  各ターミナルを指すホスト名は必ず一意になるため、IDとして利用
+  実態は`scalar Host`
+  """
+  id: ID!
 
-	"""
-	ターミナル名
-	"""
-	name: String!
+  """
+  ターミナル名
+  """
+  name: String!
 
-	"""
-	初観測日時
-	"""
-	firstSeen: DateTime!
+  """
+  初観測日時
+  """
+  firstSeen: DateTime!
 
-	"""
-	更新日時
-	"""
-	updatedAt: DateTime!
+  """
+  更新日時
+  """
+  updatedAt: DateTime!
 
-	"""
-	ユーザ数
-	"""
-	userCount: Int!
+  """
+  ユーザ数
+  """
+  userCount: Int!
 
-	"""
-	投稿数
-	"""
-	dropCount: Int!
+  """
+  投稿数
+  """
+  dropCount: Int!
 
-	"""
-	自Terminalからフォローしているユーザ
-	"""
-	followees: [Follow]!
+  """
+  自Terminalからフォローしているユーザ
+  """
+  followees: [Follow]!
 
-	"""
-	自Terminalをフォローしているユーザ
-	"""
-	followers: [Follow]!
+  """
+  自Terminalをフォローしているユーザ
+  """
+  followers: [Follow]!
 
-	"""
-	登録解放状態
-	"""
-	isRegistrationOpen: Boolean!
+  """
+  登録解放状態
+  """
+  isRegistrationOpen: Boolean!
 
-	"""
-	ジョブキューの状態
-	"""
-	jobQueue: JobQueue!
+  """
+  ジョブキューの状態
+  """
+  jobQueue: JobQueue!
 }
 
 extend type Query {
-	"""
-	ターミナルを取得
-	"""
-	terminal(
-		"""
-		対象ホスト名
-		"""
-		id: ID!
-	): Terminal
+  """
+  ターミナルを取得
+  """
+  terminal(
+    """
+    対象ホスト名
+    """
+    id: ID!
+  ): Terminal
 
-	"""
-	ターミナル一覧を取得
-	"""
-	terminals: [Terminal]!
+  """
+  ターミナル一覧を取得
+  """
+  terminals: [Terminal]!
 }

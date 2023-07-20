@@ -2,127 +2,127 @@
 投稿
 """
 type Drop implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	投稿者
-	"""
-	user: User!
+  """
+  投稿者
+  """
+  user: User!
 
-	"""
-	投稿範囲
-	指定しない場合、PUBLICとなる
-	"""
-	scope: PostScope
+  """
+  投稿範囲
+  指定しない場合、PUBLICとなる
+  """
+  scope: PostScope
 
-	"""
-	Content Warning
-	空文字も許容
-	"""
-	cw: String
+  """
+  Content Warning
+  空文字も許容
+  """
+  cw: String
 
-	"""
-	投稿内容
-	メディアのみの投稿の場合があるのでnullable
-	"""
-	body: String
+  """
+  投稿内容
+  メディアのみの投稿の場合があるのでnullable
+  """
+  body: String
 
-	"""
-	添付メディア
-	"""
-	medium: [Medium]!
+  """
+  添付メディア
+  """
+  medium: [Medium]!
 
-	"""
-	リアクション
-	"""
-	reactions: [Reaction]!
+  """
+  リアクション
+  """
+  reactions: [Reaction]!
 
-	"""
-	投稿日時
-	"""
-	createdAt: DateTime!
+  """
+  投稿日時
+  """
+  createdAt: DateTime!
 
-	"""
-	有効期限
-	時限投稿の場合のみ設定される
-	"""
-	expiresAt: DateTime
+  """
+  有効期限
+  時限投稿の場合のみ設定される
+  """
+  expiresAt: DateTime
 
-	"""
-	削除日時
-	ユーザ自身による削除の場合は物理削除
-	モデレータ等による削除の場合は論理削除
-	"""
-	deletedAt: DateTime
+  """
+  削除日時
+  ユーザ自身による削除の場合は物理削除
+  モデレータ等による削除の場合は論理削除
+  """
+  deletedAt: DateTime
 }
 
 """
 投稿作成用Input
 """
 input CreateDropInput {
-	"""
-	投稿範囲
-	"""
-	scope: PostScope!
+  """
+  投稿範囲
+  """
+  scope: PostScope!
 
-	"""
-	Content Warning
-	空文字も許容
-	"""
-	cw: String
+  """
+  Content Warning
+  空文字も許容
+  """
+  cw: String
 
-	"""
-	投稿内容
-	メディアのみの投稿の場合があるのでnullable
-	"""
-	body: String
+  """
+  投稿内容
+  メディアのみの投稿の場合があるのでnullable
+  """
+  body: String
 
-	"""
-	添付メディア
-	MediumのIDの配列
-	"""
-	mediums: [ID!]
+  """
+  添付メディア
+  MediumのIDの配列
+  """
+  mediums: [ID!]
 
-	"""
-	有効期限
-	時限投稿の場合のみ設定する
-	"""
-	expiresAt: DateTime
+  """
+  有効期限
+  時限投稿の場合のみ設定する
+  """
+  expiresAt: DateTime
 }
 
 extend type Query {
-	"""
-	投稿を取得
-	"""
-	drop(
-		"""
-		投稿ID
-		"""
-		id: ID!
-	): Drop!
+  """
+  投稿を取得
+  """
+  drop(
+    """
+    投稿ID
+    """
+    id: ID!
+  ): Drop!
 }
 
 extend type Mutation {
-	"""
-	投稿
-	"""
-	createDrop(
-		"""
-		投稿内容
-		"""
-		input: CreateDropInput!
-	): Drop!
+  """
+  投稿
+  """
+  createDrop(
+    """
+    投稿内容
+    """
+    input: CreateDropInput!
+  ): Drop!
 
-	"""
-	投稿削除
-	"""
-	deleteDrop(
-		"""
-		投稿ID
-		"""
-		id: ID!
-	): Boolean!
+  """
+  投稿削除
+  """
+  deleteDrop(
+    """
+    投稿ID
+    """
+    id: ID!
+  ): Boolean!
 }

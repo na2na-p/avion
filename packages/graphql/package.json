@@ -6,6 +6,8 @@
 	"private": true,
 	"scripts": {
 		"lint": "pnpm build && graphql-schema-linter",
+		"fmt": "prettier --config ./.prettierrc  --list-different \"src/**/*.graphql\"",
+		"fmt:fix": "yarn fmt --write",
 		"build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/common.graphql ./src/types/*.graphql >./dist/schema.graphql"
 	},
 	"devDependencies": {

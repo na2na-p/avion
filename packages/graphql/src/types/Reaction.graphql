@@ -2,40 +2,40 @@
 リアクションの履歴
 """
 type Reaction implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	対象Drop
-	"""
-	drop: Drop!
+  """
+  対象Drop
+  """
+  drop: Drop!
 
-	"""
-	リアクションをしたユーザー
-	"""
-	reactedBy: User!
+  """
+  リアクションをしたユーザー
+  """
+  reactedBy: User!
 
-	"""
-	リアクションに使用したEmoji
-	"""
-	emoji: Emoji!
+  """
+  リアクションに使用したEmoji
+  """
+  emoji: Emoji!
 }
 
 extend type Mutation {
-	"""
-	リアクションをする
-	"""
-	createReaction(
-		"""
-		リアクションをするDropのID
-		"""
-		dropId: ID!
+  """
+  リアクションをする
+  """
+  createReaction(
+    """
+    リアクションをするDropのID
+    """
+    dropId: ID!
 
-		"""
-		リアクションに使用するEmojiのID
-		"""
-		emojiId: ID!
-	): Reaction!
+    """
+    リアクションに使用するEmojiのID
+    """
+    emojiId: ID!
+  ): Reaction!
 }

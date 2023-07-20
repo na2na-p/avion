@@ -2,168 +2,168 @@
 投稿範囲種別
 """
 enum PostScope {
-	"""
-	全体投稿
-	"""
-	PUBLIC
+  """
+  全体投稿
+  """
+  PUBLIC
 
-	"""
-	ホーム投稿
-	"""
-	HOME
+  """
+  ホーム投稿
+  """
+  HOME
 
-	"""
-	フォロワー限定投稿
-	"""
-	FOLLOWERS_ONLY
+  """
+  フォロワー限定投稿
+  """
+  FOLLOWERS_ONLY
 }
 
 """
 タイムライン種別
 """
 enum TimelineType {
-	"""
-	ホームタイムライン
-	"""
-	HOME_TIMELINE
+  """
+  ホームタイムライン
+  """
+  HOME_TIMELINE
 
-	"""
-	ローカルタイムライン
-	"""
-	LOCAL_TIMELINE
+  """
+  ローカルタイムライン
+  """
+  LOCAL_TIMELINE
 
-	"""
-	グローバルタイムライン
-	"""
-	GLOBAL_TIMELINE
+  """
+  グローバルタイムライン
+  """
+  GLOBAL_TIMELINE
 
-	"""
-	アンテナタイムライン
-	"""
-	ANTENNA_TIMELINE
+  """
+  アンテナタイムライン
+  """
+  ANTENNA_TIMELINE
 }
 
 """
 ユーザ種別
 """
 enum BaseRoleType {
-	"""
-	管理者
-	"""
-	ADMIN
+  """
+  管理者
+  """
+  ADMIN
 
-	"""
-	モデレータ
-	"""
-	MODERATOR
+  """
+  モデレータ
+  """
+  MODERATOR
 
-	"""
-	一般ユーザ
-	"""
-	USER
+  """
+  一般ユーザ
+  """
+  USER
 
-	"""
-	Bot
-	"""
-	BOT
+  """
+  Bot
+  """
+  BOT
 }
 
 """
 ファイル拡張子種別
 """
 enum MediumExtensionType {
-	"""
-	png
-	"""
-	PNG
+  """
+  png
+  """
+  PNG
 
-	"""
-	jpeg
-	"""
+  """
+  jpeg
+  """
   JPEG
 
-	"""
-	jpg
-	"""
+  """
+  jpg
+  """
   JPG
 
-	"""
-	gif
-	"""
+  """
+  gif
+  """
   GIF
 
-	"""
-	mp4
-	"""
+  """
+  mp4
+  """
   MP4
 
-	"""
-	mp3
-	"""
+  """
+  mp3
+  """
   MP3
 
-	"""
-	webm
-	"""
+  """
+  webm
+  """
   WEBM
 
-	"""
-	webp
-	"""
+  """
+  webp
+  """
   WEBP
 
-	"""
-	wav
-	"""
+  """
+  wav
+  """
   WMV
 
-	"""
-	avi
-	"""
+  """
+  avi
+  """
   AVI
 
-	"""
-	mov
-	"""
+  """
+  mov
+  """
   MOV
 
-	"""
-	mkv
-	"""
+  """
+  mkv
+  """
   MKV
 
-	"""
-	flv
-	"""
+  """
+  flv
+  """
   FLV
 
-	"""
-	swf
-	"""
+  """
+  swf
+  """
   SWF
 
-	"""
-	ogg
-	"""
+  """
+  ogg
+  """
   OGG
 
-	"""
-	不明
-	"""
-	UNKNOWN
+  """
+  不明
+  """
+  UNKNOWN
 }
 
 """
 ジョブキュー種別
 """
 enum JobQueueType {
-	"""
-	Inbox
-	"""
-	INBOX
+  """
+  Inbox
+  """
+  INBOX
 
-	"""
-	Deliver
-	"""
-	DELIVER
+  """
+  Deliver
+  """
+  DELIVER
 }

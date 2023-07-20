@@ -2,93 +2,93 @@
 ユーザ
 """
 type User implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	ユーザID
-	ユーザが登録時に指定可能かつ、サーバ内で一意
-	"""
-	userId: ID!
+  """
+  ユーザID
+  ユーザが登録時に指定可能かつ、サーバ内で一意
+  """
+  userId: ID!
 
-	"""
-	Terminal
-	"""
-	terminal: Terminal!
+  """
+  Terminal
+  """
+  terminal: Terminal!
 
-	"""
-	Icon
-	登録時にデフォルトのアイコンを設定
-	"""
-	icon: Medium!
+  """
+  Icon
+  登録時にデフォルトのアイコンを設定
+  """
+  icon: Medium!
 
-	"""
-	Email
-	登録するしないは運営者に委ねる
-	"""
-	email: Email
+  """
+  Email
+  登録するしないは運営者に委ねる
+  """
+  email: Email
 
-	"""
-	自己紹介
-	"""
-	introduction: String
+  """
+  自己紹介
+  """
+  introduction: String
 
-	"""
-	ユーザ名
-	nullの場合はuserIdを表示する
-	"""
-	name: String
+  """
+  ユーザ名
+  nullの場合はuserIdを表示する
+  """
+  name: String
 
-	"""
-	アサイン済みのロール
-	"""
-	assignedRoles: [Role!]!
+  """
+  アサイン済みのロール
+  """
+  assignedRoles: [Role!]!
 
-	"""
-	登録日時
-	"""
-	createdAt: DateTime!
+  """
+  登録日時
+  """
+  createdAt: DateTime!
 
-	"""
-	削除日時
-	"""
-	deletedAt: DateTime
+  """
+  削除日時
+  """
+  deletedAt: DateTime
 }
 
 extend type Query {
-	"""
-	ユーザを取得する
-	"""
-	user(
-		"""
-		ユーザID
-		"""
-		id: ID!
-	): User!
+  """
+  ユーザを取得する
+  """
+  user(
+    """
+    ユーザID
+    """
+    id: ID!
+  ): User!
 
-	"""
-	ユーザ一覧を取得する
-	"""
-	allUsers(
-		"""
-		ユーザID
-		"""
-		ids: [ID!]
-		"""
-		ロールID
-		"""
-		roleIds: [ID!]
-		"""
-		所属Terminal
-		"""
-		terminalId: [ID!]
-		"""
-		Email登録状況
-		"""
-		hasEmail: Boolean
-	): [User!]!
+  """
+  ユーザ一覧を取得する
+  """
+  allUsers(
+    """
+    ユーザID
+    """
+    ids: [ID!]
+    """
+    ロールID
+    """
+    roleIds: [ID!]
+    """
+    所属Terminal
+    """
+    terminalId: [ID!]
+    """
+    Email登録状況
+    """
+    hasEmail: Boolean
+  ): [User!]!
 }
 
 """
@@ -96,105 +96,105 @@ extend type Query {
 フロントエンドからリモートユーザが作られることはない
 """
 input CreateUserInput {
-	"""
-	ユーザID
-	"""
-	userId: ID!
+  """
+  ユーザID
+  """
+  userId: ID!
 
-	"""
-	Email
-	"""
-	email: Email
+  """
+  Email
+  """
+  email: Email
 
-	"""
-	パスワード
-	"""
-	password: Password!
+  """
+  パスワード
+  """
+  password: Password!
 }
 
 """
 ユーザ情報更新用Input
 """
 input UpdateUserInput {
-	"""
-	ユーザID
-	"""
-	userId: ID!
+  """
+  ユーザID
+  """
+  userId: ID!
 
-	"""
-	ユーザ名
-	"""
-	userName: String
+  """
+  ユーザ名
+  """
+  userName: String
 
-	"""
-	Icon
-	"""
-	icon: URI!
+  """
+  Icon
+  """
+  icon: URI!
 
-	"""
-	Email
-	"""
-	email: Email
+  """
+  Email
+  """
+  email: Email
 
-	"""
-	自己紹介
-	"""
-	introduction: String
+  """
+  自己紹介
+  """
+  introduction: String
 }
 
 """
 パスワード更新用Input
 """
 input UpdatePasswordInput {
-	"""
-	ユーザID
-	"""
-	id: ID!
+  """
+  ユーザID
+  """
+  id: ID!
 
-	"""
-	パスワード
-	"""
-	password: Password!
+  """
+  パスワード
+  """
+  password: Password!
 }
 
 extend type Mutation {
-	"""
-	ユーザを作成
-	"""
-	createUser(
-		"""
-		初回登録用Input
-		"""
-		input: CreateUserInput!
-	): User!
+  """
+  ユーザを作成
+  """
+  createUser(
+    """
+    初回登録用Input
+    """
+    input: CreateUserInput!
+  ): User!
 
-	"""
-	ユーザ情報更新
-	"""
-	updateUser(
-		"""
-		ユーザ情報更新用Input
-		"""
-		input: UpdateUserInput!
-	): User!
+  """
+  ユーザ情報更新
+  """
+  updateUser(
+    """
+    ユーザ情報更新用Input
+    """
+    input: UpdateUserInput!
+  ): User!
 
-	"""
-	パスワード更新
-	"""
-	updatePassword(
-		"""
-		パスワード更新用Input
-		"""
-		input: UpdatePasswordInput!
-	): User!
+  """
+  パスワード更新
+  """
+  updatePassword(
+    """
+    パスワード更新用Input
+    """
+    input: UpdatePasswordInput!
+  ): User!
 
-	"""
-	ユーザを削除
-	"""
-	deleteUser(
-		"""
-		ユーザID
-		"""
-		id: ID!
-	): User!
+  """
+  ユーザを削除
+  """
+  deleteUser(
+    """
+    ユーザID
+    """
+    id: ID!
+  ): User!
 }

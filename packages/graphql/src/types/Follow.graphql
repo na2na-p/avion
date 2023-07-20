@@ -2,57 +2,57 @@
 ユーザによるフォローに関係するエンティティ
 """
 type Follow implements Node {
-	"""
-	ID
-	"""
-	id: ID!
+  """
+  ID
+  """
+  id: ID!
 
-	"""
-	フォローしているユーザ
-	"""
-	followee: User!
+  """
+  フォローしているユーザ
+  """
+  followee: User!
 
-	"""
-	フォローされているユーザ
-	"""
-	follower: User!
+  """
+  フォローされているユーザ
+  """
+  follower: User!
 
-	"""
-	フォローした日時
-	"""
-	createdAt: DateTime!
+  """
+  フォローした日時
+  """
+  createdAt: DateTime!
 }
 
 extend type Query {
-	"""
-	フォローしているユーザ一覧を取得する
-	"""
-	followees: [User!]!
+  """
+  フォローしているユーザ一覧を取得する
+  """
+  followees: [User!]!
 
-	"""
-	フォローされているユーザ一覧を取得する
-	"""
-	followers: [User!]!
+  """
+  フォローされているユーザ一覧を取得する
+  """
+  followers: [User!]!
 }
 
 extend type Mutation {
-	"""
-	ユーザをフォローする
-	"""
-	follow(
-		"""
-		フォローするユーザのID
-		"""
-		followeeId: ID!
-	): Follow!
+  """
+  ユーザをフォローする
+  """
+  follow(
+    """
+    フォローするユーザのID
+    """
+    followeeId: ID!
+  ): Follow!
 
-	"""
-	ユーザのフォローを解除する
-	"""
-	unfollow(
-		"""
-		フォローを解除するユーザのID
-		"""
-		followeeId: ID!
-	): Follow!
+  """
+  ユーザのフォローを解除する
+  """
+  unfollow(
+    """
+    フォローを解除するユーザのID
+    """
+    followeeId: ID!
+  ): Follow!
 }
