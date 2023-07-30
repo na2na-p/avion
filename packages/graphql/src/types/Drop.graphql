@@ -21,17 +21,20 @@ type Drop implements Node {
   """
   Content Warning
   空文字も許容
+  Max: 300文字
   """
   cw: String
 
   """
   投稿内容
   メディアのみの投稿の場合があるのでnullable
+  Max: 3000文字
   """
   body: String
 
   """
   添付メディア
+  Max: 4
   """
   medium: [Medium]!
 
