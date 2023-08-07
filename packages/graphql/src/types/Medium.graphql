@@ -37,6 +37,16 @@ type Medium implements Node {
   NSFW Flag
   """
   isNsfw: Boolean!
+
+  """
+  画像/動画の場合のみ non-nullable
+  """
+  height: Int
+
+  """
+  画像/動画の場合のみ non-nullable
+  """
+  width: Int
 }
 
 """
@@ -102,6 +112,7 @@ extend type Query {
 
   """
   メディアの複数件取得
+  デフォルトでは15件取得
   """
   mediums(
     """
