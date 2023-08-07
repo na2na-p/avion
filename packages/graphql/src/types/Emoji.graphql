@@ -99,10 +99,10 @@ extend type Mutation {
     medium: ID!
 
     """
-    カテゴリ
-    複数のカテゴリに属することができる
+      カテゴリ
+    無ければ「その他」としてグルーピング
     """
-    categories: [String]!
+    categories: String
   ): Emoji!
 
   """
