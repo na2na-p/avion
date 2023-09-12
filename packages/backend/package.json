@@ -20,10 +20,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r tsx/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "graphql-build": "cd ../graphql && pnpm build ",
-    "graphql-codegen": "pnpm graphql-build && ts-node ./scripts/generate-typings.ts",
+    "graphql-codegen": "pnpm graphql-build && tsx ./scripts/generate-typings.ts",
     "postinstall": "pnpm graphql-codegen",
     "type-check": "pnpm tsc --noEmit"
   },
