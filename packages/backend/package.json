@@ -68,8 +68,8 @@
     "supertest": "^6.3.3",
     "ts-loader": "^9.4.4",
     "ts-morph": "^19.0.0",
-    "ts-node": "^10.9.1",
     "tsconfig-paths": "4.2.0",
+    "tsx": "^3.12.8",
     "typescript": "^5.2.2",
     "yargs": "^17.7.2"
   }
