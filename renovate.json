@@ -19,6 +19,16 @@
 		{
 			"matchUpdateTypes": ["major"],
 			"addLabels": ["major update"]
+		},
+		{
+			"groupName": "nestjs",
+			"matchPackageNames": [
+				"@nestjs/cli",
+				"@nestjs/common",
+				"@nestjs/core",
+				"@nestjs/platform-express",
+				"@nestjs/testing"
+			]
 		}
 	],
 	"ignoreDeps": ["tibdex/github-app-token"],
