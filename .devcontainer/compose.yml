@@ -15,7 +15,7 @@ services:
     # (Adding the "ports" property to this file will not forward from a Codespace.)
 
   db:
-    image: postgres:15.4-bookworm
+    image: postgres:16.0-bookworm
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
