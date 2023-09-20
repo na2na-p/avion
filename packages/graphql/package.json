@@ -11,7 +11,7 @@
 		"build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/common.graphql ./src/types/*.graphql >./dist/schema.graphql"
 	},
 	"devDependencies": {
-		"graphql": "^16.8.0",
+		"graphql": "^16.8.1",
 		"graphql-schema-linter": "^3.0.1"
 	}
 }

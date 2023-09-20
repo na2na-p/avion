@@ -4,9 +4,9 @@
 	"repository": "https://github.com/na2na-p/avion",
 	"author": "na2na",
 	"private": true,
-	"packageManager": "pnpm@8.7.5",
+	"packageManager": "pnpm@8.7.6",
 	"engines": {
-		"pnpm": ">=8.7.5",
+		"pnpm": ">=8.7.6",
 		"npm": "use pnpm instead.",
 		"yarn": "use pnpm instead."
 	},
@@ -22,6 +22,6 @@
 		"setup": "pnpm setup-graphql && pnpm setup-backend"
 	},
 	"devDependencies": {
-		"turbo": "^1.10.13"
+		"turbo": "^1.10.14"
 	}
 }
