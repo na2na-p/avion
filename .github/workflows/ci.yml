@@ -19,11 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v2
+        uses: asdf-vm/actions/setup@v3
         # 2回目以降エラーが出るが問題なし
         continue-on-error: true
       - name: asdf install
-        uses: asdf-vm/actions/install@v2
+        uses: asdf-vm/actions/install@v3
       - name: Setup
         run: pnpm setup-ci
       - name: Install dependencies
@@ -40,11 +40,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v2
+        uses: asdf-vm/actions/setup@v3
         # 2回目以降エラーが出るが問題なし
         continue-on-error: true
       - name: asdf install
-        uses: asdf-vm/actions/install@v2
+        uses: asdf-vm/actions/install@v3
       - name: Setup
         run: pnpm setup-ci
       - name: Install dependencies
@@ -60,11 +60,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v2
+        uses: asdf-vm/actions/setup@v3
         # 2回目以降エラーが出るが問題なし
         continue-on-error: true
       - name: asdf install
-        uses: asdf-vm/actions/install@v2
+        uses: asdf-vm/actions/install@v3
       - name: Setup
         run: pnpm setup-ci
       - name: Install dependencies
