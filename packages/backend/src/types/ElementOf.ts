@@ -4,5 +4,5 @@
 export type ElementOf<T> = T extends ReadonlyArray<infer E>
   ? E
   : T extends Iterable<infer E>
-  ? E
-  : never;
+    ? E
+    : never;
