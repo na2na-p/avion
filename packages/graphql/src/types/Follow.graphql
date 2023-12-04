@@ -55,4 +55,14 @@ extend type Mutation {
     """
     followeeId: ID!
   ): Follow!
+
+	"""
+	ユーザからのフォローを解除する
+	"""
+	unfollowByFollower(
+		"""
+		フォローを解除するユーザのID
+		"""
+		followerId: ID!
+	): Follow!
 }
