@@ -4,7 +4,7 @@
 type JobQueue implements Node {
   """
   ID
-  基本的に適当なUUID返します
+   ジョブキュー種別を返すが、IDとしても利用できる
   """
   id: ID!
 
@@ -32,4 +32,38 @@ type JobQueue implements Node {
   遅延
   """
   delayed: Int
+}
+
+extend type Query {
+  """
+  ジョブキュー一覧
+  """
+  jobQueues(
+    """
+    ジョブキュー種別
+    """
+    type: JobQueueType!
+  ): [JobQueue]
+}
+
+extend type Mutation {
+  """
+  キューのクリア
+  """
+  clearJobQueue(
+    """
+    ジョブキュー種別
+    """
+    type: [JobQueueType!]
+  ): Boolean
+
+  """
+  キューの再試行
+  """
+  retryJobQueue(
+    """
+    ジョブキュー種別
+    """
+    type: [JobQueueType!]
+  ): Boolean
 }
