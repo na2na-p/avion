@@ -1,0 +1,27 @@
+{
+	"name": "avion",
+	"version": "0.0.0",
+	"repository": "https://github.com/na2na-p/avion",
+	"author": "na2na",
+	"private": true,
+	"packageManager": "pnpm@8.12.0",
+	"engines": {
+		"pnpm": ">=8.12.0",
+		"npm": "use pnpm instead.",
+		"yarn": "use pnpm instead."
+	},
+	"scripts": {
+		"build": "turbo build",
+		"lint": "turbo lint",
+		"fmt": "turbo fmt",
+		"test": "turbo test",
+		"type-check": "turbo type-check",
+		"setup-backend": "cd packages/backend && cp .env.example .env",
+		"setup-graphql": "cd packages/graphql && pnpm build",
+		"setup-ci": "pnpm setup-graphql && pnpm setup-backend",
+		"setup": "pnpm setup-graphql && pnpm setup-backend"
+	},
+	"devDependencies": {
+		"turbo": "^1.11.2"
+	}
+}
