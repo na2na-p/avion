@@ -1,0 +1,33 @@
+name: Lint
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    branches:
+      - main
+
+jobs:
+  Lint:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+        # 2回目以降エラーが出るが問題なし
+        continue-on-error: true
+      - name: asdf install
+        uses: asdf-vm/actions/install@v3
+      - name: Setup
+        run: pnpm setup-ci
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        shell: bash
+      - name: lint
+        run: pnpm lint
+      - name: fmt
+        run: pnpm fmt
