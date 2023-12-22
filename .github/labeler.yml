@@ -6,7 +6,7 @@ Backend:
       - any-glob-to-any-file: "packages/backend/**/*"
 Schema:
   - changed-files:
-      - any-glob-to-any-file: "packages/schema/**/*"
+      - any-glob-to-any-file: "packages/graphql/**/*"
 CI:
   - changed-files:
       - any-glob-to-any-file: ".github/**/*"

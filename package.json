@@ -16,10 +16,9 @@
 		"fmt": "turbo fmt",
 		"test": "turbo test",
 		"type-check": "turbo type-check",
-		"setup-backend": "cd packages/backend && cp .env.example .env",
 		"setup-graphql": "cd packages/graphql && pnpm build",
-		"setup-ci": "pnpm setup-graphql && pnpm setup-backend",
-		"setup": "pnpm setup-graphql && pnpm setup-backend"
+		"setup-ci": "pnpm setup-graphql",
+		"setup": "pnpm setup-graphql"
 	},
 	"devDependencies": {
 		"turbo": "^1.11.2"

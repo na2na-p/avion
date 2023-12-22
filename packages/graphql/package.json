@@ -1,0 +1,18 @@
+{
+  "name": "avion-graphql",
+  "version": "0.0.0",
+  "repository": "https://github.com/na2na-p/avion",
+  "author": "na2na",
+  "private": true,
+  "scripts": {
+    "lint": "pnpm build && graphql-schema-linter",
+    "fmt": "prettier --config ./.prettierrc  --list-different \"src/**/*.graphql\"",
+    "fmt:fix": "yarn fmt --write",
+    "build": "mkdir -p dist && cat ./src/schema.graphql ./src/interfaces/*.graphql ./src/scalars.graphql ./src/enums.graphql ./src/common.graphql ./src/types/*.graphql >./dist/schema.graphql"
+  },
+  "devDependencies": {
+    "graphql": "^16.8.1",
+    "graphql-schema-linter": "^3.0.1",
+    "prettier": "^3.1.1"
+  }
+}
