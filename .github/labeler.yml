@@ -1,12 +1,12 @@
 Frontend:
-  - changed-files
-    - "packages/frontend/**/*"
+  - changed-files:
+      - any-glob-to-any-file: "packages/frontend/**/*"
 Backend:
-  - changed-files
-    - "packages/backend/**/*"
+  - changed-files:
+      - any-glob-to-any-file: "packages/backend/**/*"
 Schema:
-  - changed-files
-    - "packages/schema/**/*"
+  - changed-files:
+      - any-glob-to-any-file: "packages/schema/**/*"
 CI:
-  - changed-files
-    - ".github/**/*"
+  - changed-files:
+      - any-glob-to-any-file: ".github/**/*"
