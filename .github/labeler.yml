@@ -1,0 +1,12 @@
+Frontend:
+  - changed-files
+    - "packages/frontend/**/*"
+Backend:
+  - changed-files
+    - "packages/backend/**/*"
+Schema:
+  - changed-files
+    - "packages/schema/**/*"
+CI:
+  - changed-files
+    - ".github/**/*"
