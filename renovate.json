@@ -1,0 +1,36 @@
+{
+	"extends": [
+		"config:base",
+		"group:allNonMajor",
+		":timezone(Asia/Tokyo)",
+		":prHourlyLimitNone"
+	],
+	"schedule": ["after 9am", "before 12am"],
+	"rangeStrategy": "bump",
+	"postUpdateOptions": ["pnpmDedupe"],
+	"packageRules": [
+		{
+			"groupName": "vite",
+			"matchSourceUrlPrefixes": [
+				"https://github.com/vitejs/vite",
+				"https://github.com/vitest-dev/vitest"
+			]
+		},
+		{
+			"matchUpdateTypes": ["major"],
+			"addLabels": ["major update"]
+		},
+		{
+			"groupName": "nestjs",
+			"matchPackageNames": [
+				"@nestjs/cli",
+				"@nestjs/common",
+				"@nestjs/core",
+				"@nestjs/platform-express",
+				"@nestjs/testing"
+			]
+		}
+	],
+	"ignoreDeps": ["tibdex/github-app-token"],
+	"prConcurrentLimit": 4
+}
