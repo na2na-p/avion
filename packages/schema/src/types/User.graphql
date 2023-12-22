@@ -1,0 +1,160 @@
+"""
+ユーザ
+"""
+type User implements Node {
+  """
+  ID
+  """
+  id: ID!
+
+  """
+  ユーザID
+  ユーザが登録時に指定可能かつ、サーバ内で一意
+  """
+  userId: ID!
+
+  """
+  Terminal
+  """
+  terminal: Terminal!
+
+  """
+  Email
+  登録するしないは運営者に委ねる
+  """
+  email: Email
+
+  """
+  自己紹介
+  """
+  introduction: String
+
+  """
+  ユーザ名
+  初期値はuserIdと同値
+  """
+  name: String!
+
+  """
+  登録日時
+  """
+  createdAt: DateTime!
+
+  """
+  削除日時
+  """
+  deletedAt: DateTime
+}
+
+extend type Query {
+  """
+  ユーザを取得する
+  """
+  user(
+    """
+    ユーザID
+    """
+    id: ID!
+  ): User!
+
+  """
+  ユーザ一覧を取得する
+  """
+  allUsers(
+    """
+    ユーザID
+    """
+    ids: [ID!]
+    """
+    所属Terminal
+    """
+    terminalId: [ID!]
+    """
+    Email登録状況
+    """
+    hasEmail: Boolean
+  ): [User!]!
+}
+
+"""
+初回登録用Input
+フロントエンドからリモートユーザが作られることはない
+"""
+input CreateUserInput {
+  """
+  ユーザID
+  """
+  userId: ID!
+
+  """
+  Email
+  """
+  email: Email
+
+  """
+  パスワード
+  """
+  password: Password!
+}
+
+"""
+ユーザ情報更新用Input
+"""
+input UpdateUserInput {
+  """
+  ユーザID
+  """
+  userId: ID!
+
+  """
+  ユーザ名
+  """
+  userName: String
+
+  """
+  Email
+  """
+  email: Email
+
+  """
+  自己紹介
+  """
+  introduction: String
+
+  """
+  パスワード
+  """
+  password: Password
+}
+
+extend type Mutation {
+  """
+  ユーザを作成
+  """
+  createUser(
+    """
+    初回登録用Input
+    """
+    input: CreateUserInput!
+  ): User!
+
+  """
+  ユーザ情報更新
+  """
+  updateUser(
+    """
+    ユーザ情報更新用Input
+    """
+    input: UpdateUserInput!
+  ): User!
+
+  """
+  ユーザを削除
+  """
+  deleteUser(
+    """
+    ユーザID
+    """
+    id: ID!
+  ): User!
+}

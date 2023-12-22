@@ -1,0 +1,35 @@
+"""
+ジョブキュー
+"""
+type JobQueue implements Node {
+  """
+  ID
+  基本的に適当なUUID返します
+  """
+  id: ID!
+
+  """
+  ジョブキュー種別
+  """
+  type: JobQueueType
+
+  """
+  処理対象合計数
+  """
+  total: Int
+
+  """
+  処理中
+  """
+  processing: Int
+
+  """
+  待機中
+  """
+  waiting: Int
+
+  """
+  遅延
+  """
+  delayed: Int
+}

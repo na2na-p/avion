@@ -1,0 +1,26 @@
+"""
+Enumeration
+"""
+type Enumeration {
+  """
+  投稿範囲
+  """
+  postScopes: [Choice!]!
+
+  """
+  タイムライン種別
+  """
+  timelineTypes: [Choice!]!
+
+  """
+  ベースロール種別
+  """
+  baseRoleTypes: [Choice!]!
+}
+
+extend type Query {
+  """
+  Enumeration
+  """
+  enumeration: Enumeration!
+}

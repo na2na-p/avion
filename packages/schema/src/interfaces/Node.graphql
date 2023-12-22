@@ -1,0 +1,9 @@
+"""
+全てのTypeのInterface
+"""
+interface Node {
+  """
+  ID
+  """
+  id: ID!
+}

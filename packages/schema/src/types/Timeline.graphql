@@ -1,0 +1,85 @@
+"""
+タイムライン
+"""
+type Timeline {
+  """
+  タイムラインに含まれるDropのリスト
+  """
+  drops: [Drop]!
+}
+
+extend type Query {
+  """
+  特定のタイムラインのDropを取得
+  """
+  timeline(
+    """
+    最大取得件数
+    """
+    limit: Int
+
+    """
+    最後に取得した投稿のID
+    """
+    after: ID
+
+    """
+    アンテナID
+    TimelineTypeがANTENNA_TIMELINEの場合のみ指定可能
+    """
+    antennaId: ID
+  ): Timeline!
+}
+
+extend type Subscription {
+  """
+  タイムラインにDropが追加されたときのサブスクリプション
+  """
+  dropAddedToTimeline(
+    """
+    タイムライン種別
+    """
+    timelineType: TimelineType!
+  ): TimelineDropAdded!
+
+  """
+  タイムラインからDropが削除されたときのサブスクリプション
+  """
+  dropDeletedFromTimeline(
+    """
+    タイムライン種別
+    """
+    timelineType: TimelineType!
+  ): TimelineDropDeleted!
+}
+
+"""
+タイムラインに新しく追加されたDropを表す型
+"""
+type TimelineDropAdded {
+  """
+  新たに追加されたDrop
+  """
+  newDrop: Drop!
+
+  """
+  更新されたタイムラインの種別
+  """
+  timelineType: TimelineType!
+}
+
+"""
+タイムラインから削除されたDropを表す型
+"""
+type TimelineDropDeleted {
+  """
+  削除されたDropのID
+  削除されたDropはIDのみが送信される
+  """
+  deletedDropId: ID!
+
+  """
+  更新されたタイムラインの種別
+  """
+  timelineType: TimelineType!
+}

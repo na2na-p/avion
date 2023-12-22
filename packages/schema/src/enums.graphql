@@ -1,0 +1,59 @@
+"""
+投稿範囲種別
+"""
+enum PostScope {
+  """
+  全体投稿
+  """
+  PUBLIC
+
+  """
+  ホーム投稿
+  """
+  HOME
+
+  """
+  フォロワー限定投稿
+  """
+  FOLLOWERS_ONLY
+}
+
+"""
+タイムライン種別
+"""
+enum TimelineType {
+  """
+  ホームタイムライン
+  """
+  HOME_TIMELINE
+
+  """
+  ローカルタイムライン
+  """
+  LOCAL_TIMELINE
+
+  """
+  グローバルタイムライン
+  """
+  GLOBAL_TIMELINE
+
+  """
+  アンテナタイムライン
+  """
+  ANTENNA_TIMELINE
+}
+
+"""
+ジョブキュー種別
+"""
+enum JobQueueType {
+  """
+  Inbox
+  """
+  INBOX
+
+  """
+  Deliver
+  """
+  DELIVER
+}
