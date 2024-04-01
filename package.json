@@ -21,6 +21,6 @@
 		"setup": "pnpm setup-graphql"
 	},
 	"devDependencies": {
-		"turbo": "^1.13.0"
+		"turbo": "^1.13.1"
 	}
 }
