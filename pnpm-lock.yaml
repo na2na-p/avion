@@ -15,11 +15,11 @@ importers:
   packages/graphql:
     devDependencies:
       graphql:
-        specifier: ^16.8.2
-        version: 16.8.2
+        specifier: ^16.9.0
+        version: 16.9.0
       graphql-schema-linter:
         specifier: ^3.0.1
-        version: 3.0.1(graphql@16.8.2)
+        version: 3.0.1(graphql@16.9.0)
       prettier:
         specifier: ^3.3.2
         version: 3.3.2
@@ -111,8 +111,8 @@ packages:
     peerDependencies:
       graphql: ^15.0.0 || ^16.0.0
 
-  graphql@16.8.2:
-    resolution: {integrity: sha512-cvVIBILwuoSyD54U4cF/UXDh5yAobhNV/tPygI4lZhgOIJQE/WLWC4waBRb4I6bDVYb3OVx3lfHbaQOEoUD5sg==}
+  graphql@16.9.0:
+    resolution: {integrity: sha512-GGTKBX4SD7Wdb8mqeDLni2oaRGYQWjWHGKPQ24ZMnUtKfcsVoiv4uX8+LJr1K6U5VW2Lu1BwJnj7uiori0YtRw==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   has-flag@3.0.0:
@@ -300,16 +300,16 @@ snapshots:
       once: 1.4.0
       path-is-absolute: 1.0.1
 
-  graphql-schema-linter@3.0.1(graphql@16.8.2):
+  graphql-schema-linter@3.0.1(graphql@16.9.0):
     dependencies:
       chalk: 2.4.2
       columnify: 1.6.0
       commander: 3.0.2
       cosmiconfig: 5.2.1
       glob: 7.2.3
-      graphql: 16.8.2
+      graphql: 16.9.0
 
-  graphql@16.8.2: {}
+  graphql@16.9.0: {}
 
   has-flag@3.0.0: {}
 
