@@ -21,8 +21,8 @@ importers:
         specifier: ^3.0.1
         version: 3.0.1(graphql@16.9.0)
       prettier:
-        specifier: ^3.3.3
-        version: 3.3.3
+        specifier: ^3.4.0
+        version: 3.4.0
 
 packages:
 
@@ -158,8 +158,8 @@ packages:
     resolution: {integrity: sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==}
     engines: {node: '>=0.10.0'}
 
-  prettier@3.3.3:
-    resolution: {integrity: sha512-i2tDNA0O5IrMO757lfrdQZCc2jPNDVntV0m/+4whiDfWaTKfMNgR7Qz0NAeGz/nRqF4m5/6CLzbP4/liHt12Ew==}
+  prettier@3.4.0:
+    resolution: {integrity: sha512-/OXNZcLyWkfo13ofOW5M7SLh+k5pnIs07owXK2teFpnfaOEcycnSy7HQxldaVX1ZP/7Q8oO1eDuQJNwbomQq5Q==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -351,7 +351,7 @@ snapshots:
 
   path-is-absolute@1.0.1: {}
 
-  prettier@3.3.3: {}
+  prettier@3.4.0: {}
 
   resolve-from@3.0.0: {}
 
