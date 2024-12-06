@@ -13,6 +13,6 @@
   "devDependencies": {
     "graphql": "^16.9.0",
     "graphql-schema-linter": "^3.0.1",
-    "prettier": "^3.4.1"
+    "prettier": "^3.4.2"
   }
 }
