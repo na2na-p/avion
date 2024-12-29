@@ -4,9 +4,9 @@
 	"repository": "https://github.com/na2na-p/avion",
 	"author": "na2na",
 	"private": true,
-	"packageManager": "pnpm@9.15.1",
+	"packageManager": "pnpm@9.15.2",
 	"engines": {
-		"pnpm": ">=9.15.1",
+		"pnpm": ">=9.15.2",
 		"npm": "use pnpm instead.",
 		"yarn": "use pnpm instead."
 	},
