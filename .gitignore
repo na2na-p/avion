@@ -1,0 +1,6 @@
+.env
+built
+.idea
+.DS_Store
+.turbo
+.clinerules
