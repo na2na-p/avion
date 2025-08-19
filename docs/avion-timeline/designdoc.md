@@ -1,153 +1,1211 @@
 # Design Doc: avion-timeline
 
-**Author:** Cline
-**Last Updated:** 2025/03/30
+**Author:** Avion Team
+**Last Updated:** 2025/01/19
+**Status:** APPROVED
 
-## 1. Summary (これは何？)
+## 1. Summary
 
-- **一言で:** Avionにおける各種タイムライン（ホーム、ローカル、グローバル）の生成および取得、リアルタイム更新 (SSE) を行うマイクロサービスを実装します。
-- **目的:** ユーザーに関連性の高いDropを効率的に集約し、高速に提供します。Redisキャッシュを積極的に活用し、SSEを通じてリアルタイムな体験を提供します。
+avion-timelineは、Avionプラットフォームにおける各種タイムライン（HOME、LOCAL、GLOBAL、SOCIAL、LIST、HASHTAG、MEDIA）の生成、取得、リアルタイム更新を担当するマイクロサービスです。DDD 4層アーキテクチャとCQRSパターンに厳密に準拠し、高性能かつスケーラブルなタイムライン機能を提供します。
 
-## 2. Background & Links (背景と関連リンク)
+### 主要な責務
+- 7種類のタイムライン生成と管理
+- ハイブリッドFan-out戦略による効率的な配信
+- Server-Sent Events (SSE) によるリアルタイム更新
+- Redisベースの高性能キャッシング
+- カーソルベースページネーション
 
-- SNSの主要なユーザー体験であるタイムライン機能を提供するため。
-- ホームタイムラインのパーソナライズ、ローカル/グローバルタイムラインの集約、リアルタイム更新といった要求に応えるため、独立したサービスとする。
+## 2. Architecture (4層アーキテクチャ)
+
+### 2.1 Handler Layer (プレゼンテーション層)
+
+#### gRPC Handlers
+
+```go
+// TimelineServiceHandler - gRPCサービスハンドラー
+type TimelineServiceHandler struct {
+    getHomeTimelineUseCase       query.GetHomeTimelineQueryUseCase
+    getLocalTimelineUseCase      query.GetLocalTimelineQueryUseCase
+    getGlobalTimelineUseCase     query.GetGlobalTimelineQueryUseCase
+    getSocialTimelineUseCase     query.GetSocialTimelineQueryUseCase
+    getListTimelineUseCase       query.GetListTimelineQueryUseCase
+    getHashtagTimelineUseCase    query.GetHashtagTimelineQueryUseCase
+    getMediaTimelineUseCase      query.GetMediaTimelineQueryUseCase
+    createListCommandUseCase     command.CreateListCommandUseCase
+    updateListCommandUseCase     command.UpdateListCommandUseCase
+    deleteListCommandUseCase     command.DeleteListCommandUseCase
+    logger                       *slog.Logger
+    metricsCollector            *metrics.Collector
+}
+
+// GetHomeTimeline - ホームタイムライン取得エンドポイント
+func (h *TimelineServiceHandler) GetHomeTimeline(
+    ctx context.Context,
+    req *pb.GetHomeTimelineRequest,
+) (*pb.GetHomeTimelineResponse, error) {
+    // 認証・認可チェック
+    userID, err := auth.ExtractUserID(ctx)
+    if err != nil {
+        return nil, status.Error(codes.Unauthenticated, "unauthorized")
+    }
+
+    // Query UseCase呼び出し
+    result, err := h.getHomeTimelineUseCase.Execute(ctx, query.GetHomeTimelineQuery{
+        UserID: userID,
+        Cursor: req.GetCursor(),
+        Limit:  req.GetLimit(),
+        Filter: convertFilter(req.GetFilter()),
+    })
+    
+    if err != nil {
+        return nil, handleError(err)
+    }
+
+    return &pb.GetHomeTimelineResponse{
+        Entries:    convertEntries(result.Entries),
+        NextCursor: result.NextCursor,
+        HasMore:    result.HasMore,
+    }, nil
+}
+```
+
+#### SSE Handlers
+
+```go
+// SSEHandler - Server-Sent Events ハンドラー
+type SSEHandler struct {
+    establishConnectionUseCase   command.EstablishSSEConnectionCommandUseCase
+    subscribeTimelineUseCase     command.SubscribeTimelineCommandUseCase
+    unsubscribeTimelineUseCase   command.UnsubscribeTimelineCommandUseCase
+    closeConnectionUseCase       command.CloseSSEConnectionCommandUseCase
+    connectionManager            *sse.ConnectionManager
+    logger                       *slog.Logger
+}
+
+// HandleSSE - SSE接続処理
+func (h *SSEHandler) HandleSSE(w http.ResponseWriter, r *http.Request) {
+    // SSEヘッダー設定
+    w.Header().Set("Content-Type", "text/event-stream")
+    w.Header().Set("Cache-Control", "no-cache")
+    w.Header().Set("Connection", "keep-alive")
+    
+    // 接続確立
+    connectionID, err := h.establishConnectionUseCase.Execute(r.Context(), command.EstablishSSEConnectionCommand{
+        UserID:       extractUserID(r),
+        LastEventID:  r.Header.Get("Last-Event-ID"),
+        TimelineTypes: parseTimelineTypes(r.URL.Query().Get("types")),
+    })
+    
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // イベントストリーミング
+    h.streamEvents(w, r.Context(), connectionID)
+}
+```
+
+### 2.2 UseCase Layer (アプリケーション層)
+
+#### Command UseCases (CQRS Command側)
+
+```go
+// ProcessDropEventCommandUseCase - Drop作成イベント処理
+type ProcessDropEventCommandUseCase struct {
+    fanoutOperationRepo      repository.FanoutOperationRepository
+    timelineRepo            repository.TimelineRepository
+    fanoutStrategyService   domain.FanoutStrategyService
+    timelinePolicyService   domain.TimelinePolicyService
+    eventPublisher          event.Publisher
+    logger                  *slog.Logger
+}
+
+func (uc *ProcessDropEventCommandUseCase) Execute(
+    ctx context.Context,
+    cmd ProcessDropEventCommand,
+) error {
+    // FanoutOperation集約の生成
+    fanoutOp := domain.NewFanoutOperation(
+        domain.NewFanoutOperationID(),
+        cmd.DropEvent,
+    )
+    
+    // Fan-out戦略の決定
+    strategy := uc.fanoutStrategyService.DetermineStrategy(
+        cmd.DropEvent.AuthorID,
+        cmd.DropEvent.FollowerCount,
+    )
+    
+    // 配信対象タイムラインの決定
+    targets := uc.timelinePolicyService.DetermineUpdateTargets(
+        cmd.DropEvent,
+        strategy,
+    )
+    
+    // Fan-out処理の実行
+    if err := fanoutOp.StartFanout(cmd.DropEvent); err != nil {
+        return err
+    }
+    
+    for _, target := range targets {
+        if err := uc.processTimelineUpdate(ctx, target, cmd.DropEvent); err != nil {
+            fanoutOp.FailFanout(err.Error())
+            return err
+        }
+        fanoutOp.MarkAsDelivered(target.TimelineID)
+    }
+    
+    // 完了
+    if err := fanoutOp.CompleteFanout(); err != nil {
+        return err
+    }
+    
+    // イベント発行
+    uc.eventPublisher.Publish(ctx, domain.FanoutCompletedEvent{
+        OperationID: fanoutOp.GetID(),
+        ProcessedCount: len(targets),
+    })
+    
+    return uc.fanoutOperationRepo.Save(ctx, fanoutOp)
+}
+
+// CreateListCommandUseCase - リスト作成
+type CreateListCommandUseCase struct {
+    userListRepo     repository.UserListRepository
+    userService      external.UserService
+    eventPublisher   event.Publisher
+    logger          *slog.Logger
+}
+
+func (uc *CreateListCommandUseCase) Execute(
+    ctx context.Context,
+    cmd CreateListCommand,
+) (*CreateListResult, error) {
+    // ユーザーのリスト作成上限チェック
+    existingLists, err := uc.userListRepo.FindByOwnerID(ctx, cmd.OwnerID)
+    if err != nil {
+        return nil, err
+    }
+    
+    if len(existingLists) >= domain.MaxListsPerUser {
+        return nil, domain.ErrMaxListsExceeded
+    }
+    
+    // UserList集約の生成
+    list := domain.NewUserList(
+        domain.NewListID(),
+        cmd.Name,
+        cmd.Description,
+        cmd.OwnerID,
+        cmd.Visibility,
+    )
+    
+    // 永続化
+    if err := uc.userListRepo.Save(ctx, list); err != nil {
+        return nil, err
+    }
+    
+    // イベント発行
+    uc.eventPublisher.Publish(ctx, domain.ListCreatedEvent{
+        ListID:     list.GetID(),
+        OwnerID:    list.GetOwnerID(),
+        CreatedAt:  time.Now(),
+    })
+    
+    return &CreateListResult{
+        ListID: list.GetID(),
+    }, nil
+}
+```
+
+#### Query UseCases (CQRS Query側)
+
+```go
+// GetHomeTimelineQueryUseCase - ホームタイムライン取得
+type GetHomeTimelineQueryUseCase struct {
+    timelineQueryService    query.TimelineQueryService
+    cacheQueryService      query.CacheQueryService
+    userQueryService       external.UserQueryService
+    dropQueryService       external.DropQueryService
+    logger                 *slog.Logger
+}
+
+func (uc *GetHomeTimelineQueryUseCase) Execute(
+    ctx context.Context,
+    query GetHomeTimelineQuery,
+) (*GetHomeTimelineResult, error) {
+    // キャッシュチェック
+    cached, err := uc.cacheQueryService.GetCachedTimeline(ctx, 
+        fmt.Sprintf("home:%s", query.UserID))
+    if err == nil && cached != nil {
+        return uc.buildResultFromCache(cached, query.Cursor, query.Limit), nil
+    }
+    
+    // キャッシュミス時は再構築
+    followedUsers, err := uc.userQueryService.GetFollowedUserIDs(ctx, query.UserID)
+    if err != nil {
+        return nil, err
+    }
+    
+    // タイムライン構築
+    entries, err := uc.timelineQueryService.BuildHomeTimeline(ctx, TimelineBuildQuery{
+        UserID:        query.UserID,
+        FollowedUsers: followedUsers,
+        Cursor:        query.Cursor,
+        Limit:         query.Limit,
+        Filter:        query.Filter,
+    })
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    // Drop詳細情報の取得
+    dropIDs := extractDropIDs(entries)
+    drops, err := uc.dropQueryService.GetDropsByIDs(ctx, dropIDs)
+    if err != nil {
+        return nil, err
+    }
+    
+    // キャッシュ更新（非同期）
+    go uc.updateCache(ctx, query.UserID, entries)
+    
+    return &GetHomeTimelineResult{
+        Entries:    enrichEntries(entries, drops),
+        NextCursor: generateNextCursor(entries),
+        HasMore:    len(entries) == query.Limit,
+    }, nil
+}
+
+// GetListTimelineQueryUseCase - リストタイムライン取得
+type GetListTimelineQueryUseCase struct {
+    listQueryService       query.ListQueryService
+    timelineQueryService   query.TimelineQueryService
+    cacheQueryService     query.CacheQueryService
+    dropQueryService      external.DropQueryService
+    logger               *slog.Logger
+}
+
+func (uc *GetListTimelineQueryUseCase) Execute(
+    ctx context.Context,
+    query GetListTimelineQuery,
+) (*GetListTimelineResult, error) {
+    // リストアクセス権限チェック
+    list, err := uc.listQueryService.GetList(ctx, query.ListID)
+    if err != nil {
+        return nil, err
+    }
+    
+    if !list.CanViewList(query.RequesterID) {
+        return nil, domain.ErrListAccessDenied
+    }
+    
+    // リストメンバーの取得
+    memberIDs := list.GetMemberIDs()
+    
+    // タイムライン構築
+    entries, err := uc.timelineQueryService.BuildListTimeline(ctx, TimelineBuildQuery{
+        ListID:     query.ListID,
+        MemberIDs:  memberIDs,
+        Cursor:     query.Cursor,
+        Limit:      query.Limit,
+    })
+    
+    if err != nil {
+        return nil, err
+    }
+    
+    return &GetListTimelineResult{
+        Entries:    entries,
+        NextCursor: generateNextCursor(entries),
+        HasMore:    len(entries) == query.Limit,
+    }, nil
+}
+```
+
+### 2.3 Domain Layer (ドメイン層)
+
+#### Domain Services
+
+```go
+// FanoutStrategyService - Fan-out戦略決定サービス
+type FanoutStrategyService struct {
+    userStatsRepo repository.UserStatsRepository
+    config        *FanoutConfig
+}
+
+func (s *FanoutStrategyService) DetermineStrategy(
+    authorID UserID,
+    followerCount int,
+) FanoutStrategy {
+    // フォロワー数に基づく戦略決定
+    if followerCount < s.config.PushThreshold { // < 1000
+        return PushFanout
+    } else if followerCount > s.config.PullThreshold { // > 10000
+        return PullFanout
+    }
+    return HybridFanout
+}
+
+func (s *FanoutStrategyService) ExecutePushFanout(
+    ctx context.Context,
+    dropEvent DropEvent,
+    targetTimelines []TimelineID,
+) error {
+    // Push型: 即座に全フォロワーのタイムラインに配信
+    for _, timelineID := range targetTimelines {
+        timeline, err := s.loadTimeline(ctx, timelineID)
+        if err != nil {
+            continue
+        }
+        
+        entry := NewTimelineEntry(
+            dropEvent.DropID,
+            dropEvent.Timestamp,
+            dropEvent.AuthorID,
+        )
+        
+        if err := timeline.AddEntry(entry); err != nil {
+            return err
+        }
+        
+        if err := s.saveTimeline(ctx, timeline); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+// TimelinePolicyService - タイムライン表示ポリシー
+type TimelinePolicyService struct {
+    muteRepo       repository.MuteRepository
+    blockRepo      repository.BlockRepository
+    privacyService external.PrivacyService
+}
+
+func (s *TimelinePolicyService) ShouldIncludeInTimeline(
+    drop Drop,
+    timelineType TimelineType,
+    viewerID UserID,
+) bool {
+    // ミュートチェック
+    if s.isMuted(drop.AuthorID, viewerID) {
+        return false
+    }
+    
+    // ブロックチェック
+    if s.isBlocked(drop.AuthorID, viewerID) {
+        return false
+    }
+    
+    // 可視性チェック
+    switch drop.Visibility {
+    case VisibilityPublic:
+        return true
+    case VisibilityUnlisted:
+        return timelineType != TimelineTypeGlobal
+    case VisibilityFollowersOnly:
+        return s.isFollowing(viewerID, drop.AuthorID)
+    case VisibilityPrivate:
+        return drop.AuthorID == viewerID
+    default:
+        return false
+    }
+}
+
+// TimelineBuilderService - タイムライン構築サービス
+type TimelineBuilderService struct {
+    dropRepo         repository.DropRepository
+    followRepo       external.FollowRepository
+    policyService    *TimelinePolicyService
+    cacheService     *CacheManagementService
+}
+
+func (s *TimelineBuilderService) BuildHomeTimeline(
+    ctx context.Context,
+    userID UserID,
+    cursor TimelineCursor,
+    limit int,
+) (*Timeline, error) {
+    // フォロー中ユーザーの取得
+    followedUsers, err := s.followRepo.GetFollowedUserIDs(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Timeline集約の生成
+    timeline := NewTimeline(
+        NewTimelineID(userID, TimelineTypeHome),
+        TimelineTypeHome,
+        userID,
+    )
+    
+    // 各フォローユーザーの最新投稿を収集
+    for _, followedUserID := range followedUsers {
+        drops, err := s.dropRepo.FindByAuthorID(ctx, followedUserID, cursor, limit)
+        if err != nil {
+            continue
+        }
+        
+        for _, drop := range drops {
+            if s.policyService.ShouldIncludeInTimeline(drop, TimelineTypeHome, userID) {
+                entry := NewTimelineEntry(drop.ID, drop.Timestamp, drop.AuthorID)
+                timeline.AddEntry(entry)
+            }
+        }
+    }
+    
+    // ソートとトリミング
+    timeline.SortByTimestamp()
+    timeline.TruncateToLimit(limit)
+    
+    return timeline, nil
+}
+```
+
+### 2.4 Infrastructure Layer (インフラストラクチャ層)
+
+#### Repository Implementations
+
+```go
+// TimelineRepositoryImpl - Timeline集約のリポジトリ実装
+type TimelineRepositoryImpl struct {
+    redisClient  *redis.Client
+    pgClient     *pgx.Pool
+    serializer   Serializer
+    logger       *slog.Logger
+}
+
+func (r *TimelineRepositoryImpl) FindByID(
+    ctx context.Context,
+    id domain.TimelineID,
+) (*domain.Timeline, error) {
+    // Redisから取得を試みる
+    key := fmt.Sprintf("timeline:%s", id)
+    data, err := r.redisClient.Get(ctx, key).Bytes()
+    if err == nil {
+        timeline := &domain.Timeline{}
+        if err := r.serializer.Unmarshal(data, timeline); err == nil {
+            return timeline, nil
+        }
+    }
+    
+    // キャッシュミスの場合はPostgreSQLから再構築
+    return r.reconstructFromDB(ctx, id)
+}
+
+func (r *TimelineRepositoryImpl) Save(
+    ctx context.Context,
+    timeline *domain.Timeline,
+) error {
+    // Redis Sorted Setに保存
+    key := fmt.Sprintf("timeline:%s", timeline.GetID())
+    
+    pipe := r.redisClient.Pipeline()
+    
+    // エントリーをSorted Setに追加
+    for _, entry := range timeline.GetEntries() {
+        score := float64(entry.GetTimestamp().Unix())
+        member := entry.GetDropID().String()
+        pipe.ZAdd(ctx, key, redis.Z{
+            Score:  score,
+            Member: member,
+        })
+    }
+    
+    // TTL設定（24時間）
+    pipe.Expire(ctx, key, 24*time.Hour)
+    
+    _, err := pipe.Exec(ctx)
+    return err
+}
+
+// UserListRepositoryImpl - UserList集約のリポジトリ実装
+type UserListRepositoryImpl struct {
+    db     *pgx.Pool
+    logger *slog.Logger
+}
+
+func (r *UserListRepositoryImpl) Save(
+    ctx context.Context,
+    list *domain.UserList,
+) error {
+    query := `
+        INSERT INTO user_lists (
+            list_id, name, description, owner_id, 
+            visibility, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (list_id) DO UPDATE SET
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            visibility = EXCLUDED.visibility,
+            updated_at = EXCLUDED.updated_at
+    `
+    
+    _, err := r.db.Exec(ctx, query,
+        list.GetID(),
+        list.GetName(),
+        list.GetDescription(),
+        list.GetOwnerID(),
+        list.GetVisibility(),
+        list.GetCreatedAt(),
+        list.GetUpdatedAt(),
+    )
+    
+    if err != nil {
+        return err
+    }
+    
+    // メンバーの保存
+    return r.saveMembers(ctx, list.GetID(), list.GetMembers())
+}
+
+// SSEConnectionManagerImpl - SSE接続管理
+type SSEConnectionManagerImpl struct {
+    connections  sync.Map // ConnectionID -> *Connection
+    redisClient  *redis.Client
+    logger       *slog.Logger
+}
+
+func (m *SSEConnectionManagerImpl) AddConnection(
+    ctx context.Context,
+    conn *domain.RealtimeConnection,
+) error {
+    // メモリに保存
+    m.connections.Store(conn.GetID(), conn)
+    
+    // Redisにメタデータを保存（Pod間共有用）
+    key := fmt.Sprintf("sse:connection:%s", conn.GetID())
+    data := map[string]interface{}{
+        "user_id":     conn.GetUserID(),
+        "pod_name":    conn.GetPodName(),
+        "created_at":  conn.GetCreatedAt(),
+        "subscribed":  conn.GetSubscribedTypes(),
+    }
+    
+    return m.redisClient.HMSet(ctx, key, data).Err()
+}
+
+func (m *SSEConnectionManagerImpl) BroadcastEvent(
+    ctx context.Context,
+    event domain.TimelineEvent,
+) error {
+    // 該当するタイムラインタイプを購読している接続を検索
+    m.connections.Range(func(key, value interface{}) bool {
+        conn := value.(*domain.RealtimeConnection)
+        if conn.IsSubscribedTo(event.GetTimelineType()) {
+            if err := conn.SendEvent(event); err != nil {
+                m.logger.Error("failed to send event",
+                    "connection_id", conn.GetID(),
+                    "error", err)
+            }
+        }
+        return true
+    })
+    
+    return nil
+}
+```
+
+#### External Service Clients
+
+```go
+// UserServiceClient - avion-userサービスクライアント
+type UserServiceClient struct {
+    grpcClient pb.UserServiceClient
+    cache      *cache.LRU
+    logger     *slog.Logger
+}
+
+func (c *UserServiceClient) GetFollowedUserIDs(
+    ctx context.Context,
+    userID string,
+) ([]string, error) {
+    // キャッシュチェック
+    if cached, ok := c.cache.Get(fmt.Sprintf("follows:%s", userID)); ok {
+        return cached.([]string), nil
+    }
+    
+    // gRPC呼び出し
+    resp, err := c.grpcClient.GetFollows(ctx, &pb.GetFollowsRequest{
+        UserId: userID,
+    })
+    
+    if err != nil {
+        return nil, fmt.Errorf("failed to get follows: %w", err)
+    }
+    
+    followedIDs := make([]string, len(resp.Follows))
+    for i, follow := range resp.Follows {
+        followedIDs[i] = follow.FollowedUserId
+    }
+    
+    // キャッシュ更新
+    c.cache.Set(fmt.Sprintf("follows:%s", userID), followedIDs, 5*time.Minute)
+    
+    return followedIDs, nil
+}
+
+// DropServiceClient - avion-dropサービスクライアント
+type DropServiceClient struct {
+    grpcClient pb.DropServiceClient
+    cache      *cache.LRU
+    logger     *slog.Logger
+}
+
+func (c *DropServiceClient) GetDropsByIDs(
+    ctx context.Context,
+    dropIDs []string,
+) (map[string]*Drop, error) {
+    drops := make(map[string]*Drop)
+    uncachedIDs := []string{}
+    
+    // キャッシュから取得
+    for _, id := range dropIDs {
+        if cached, ok := c.cache.Get(fmt.Sprintf("drop:%s", id)); ok {
+            drops[id] = cached.(*Drop)
+        } else {
+            uncachedIDs = append(uncachedIDs, id)
+        }
+    }
+    
+    // キャッシュにないものをgRPCで取得
+    if len(uncachedIDs) > 0 {
+        resp, err := c.grpcClient.GetDropsByIds(ctx, &pb.GetDropsByIdsRequest{
+            DropIds: uncachedIDs,
+        })
+        
+        if err != nil {
+            return nil, fmt.Errorf("failed to get drops: %w", err)
+        }
+        
+        for _, pbDrop := range resp.Drops {
+            drop := convertFromProto(pbDrop)
+            drops[drop.ID] = drop
+            c.cache.Set(fmt.Sprintf("drop:%s", drop.ID), drop, 10*time.Minute)
+        }
+    }
+    
+    return drops, nil
+}
+```
+
+#### Event Subscribers
+
+```go
+// DropEventSubscriber - Drop作成イベントの購読
+type DropEventSubscriber struct {
+    redisClient              *redis.Client
+    processDropEventUseCase  command.ProcessDropEventCommandUseCase
+    logger                   *slog.Logger
+}
+
+func (s *DropEventSubscriber) Subscribe(ctx context.Context) error {
+    pubsub := s.redisClient.Subscribe(ctx, "drops:created", "drops:deleted")
+    defer pubsub.Close()
+    
+    ch := pubsub.Channel()
+    for msg := range ch {
+        go s.handleMessage(ctx, msg)
+    }
+    
+    return nil
+}
+
+func (s *DropEventSubscriber) handleMessage(ctx context.Context, msg *redis.Message) {
+    switch msg.Channel {
+    case "drops:created":
+        var event DropCreatedEvent
+        if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
+            s.logger.Error("failed to unmarshal event", "error", err)
+            return
+        }
+        
+        if err := s.processDropEventUseCase.Execute(ctx, command.ProcessDropEventCommand{
+            DropEvent: event,
+        }); err != nil {
+            s.logger.Error("failed to process drop event", "error", err)
+        }
+        
+    case "drops:deleted":
+        // Drop削除処理
+        s.handleDropDeleted(ctx, msg.Payload)
+    }
+}
+```
+
+## 3. Database Schema
+
+### PostgreSQL Schema
+
+```sql
+-- ユーザーリスト
+CREATE TABLE user_lists (
+    list_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    owner_id VARCHAR(26) NOT NULL,
+    visibility VARCHAR(20) NOT NULL CHECK (visibility IN ('PUBLIC', 'PRIVATE', 'UNLISTED')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    CONSTRAINT fk_owner FOREIGN KEY (owner_id) 
+        REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_visibility (visibility),
+    INDEX idx_created_at (created_at DESC)
+);
+
+-- リストメンバー
+CREATE TABLE list_members (
+    member_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    list_id UUID NOT NULL,
+    user_id VARCHAR(26) NOT NULL,
+    added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    added_by VARCHAR(26) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    notification_enabled BOOLEAN DEFAULT true,
+    
+    CONSTRAINT fk_list FOREIGN KEY (list_id) 
+        REFERENCES user_lists(list_id) ON DELETE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) 
+        REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY uk_list_user (list_id, user_id),
+    INDEX idx_list_id (list_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- Fan-out操作ログ
+CREATE TABLE fanout_operations (
+    operation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drop_id VARCHAR(26) NOT NULL,
+    strategy VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    failure_reason TEXT,
+    processed_count INTEGER DEFAULT 0,
+    retry_count INTEGER DEFAULT 0,
+    
+    INDEX idx_drop_id (drop_id),
+    INDEX idx_status (status),
+    INDEX idx_started_at (started_at DESC)
+);
+
+-- タイムラインメタデータ（バックアップ用）
+CREATE TABLE timeline_metadata (
+    timeline_id VARCHAR(100) PRIMARY KEY,
+    timeline_type VARCHAR(20) NOT NULL,
+    owner_id VARCHAR(26),
+    last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    entry_count INTEGER DEFAULT 0,
+    cache_version INTEGER DEFAULT 1,
+    
+    INDEX idx_owner_id (owner_id),
+    INDEX idx_type (timeline_type),
+    INDEX idx_last_updated (last_updated DESC)
+);
+```
+
+### Redis Data Structures
+
+```redis
+# Timeline Sorted Set
+# Key: timeline:{user_id}:{type}
+# Score: timestamp (Unix epoch)
+# Member: drop_id
+ZADD timeline:user123:HOME 1704067200 "drop456"
+ZRANGE timeline:user123:HOME 0 99 WITHSCORES
+
+# SSE Connection Metadata
+# Key: sse:connection:{connection_id}
+HSET sse:connection:conn789 user_id "user123" pod_name "timeline-pod-1" 
+
+# Cache Management
+# Key: cache:timeline:{timeline_id}:meta
+HSET cache:timeline:user123:HOME:meta hit_count 1523 size_bytes 45678
+
+# List Timeline Members Cache
+# Key: list:members:{list_id}
+SADD list:members:list456 "user123" "user789"
+
+# Active SSE Connections per User
+# Key: sse:user:{user_id}:connections
+SADD sse:user:user123:connections "conn789" "conn012"
+```
+
+## 4. API Specifications
+
+### gRPC Service Definition
+
+```protobuf
+syntax = "proto3";
+package timeline.v1;
+
+service TimelineService {
+    // Timeline Query Operations
+    rpc GetHomeTimeline(GetHomeTimelineRequest) returns (GetHomeTimelineResponse);
+    rpc GetLocalTimeline(GetLocalTimelineRequest) returns (GetLocalTimelineResponse);
+    rpc GetGlobalTimeline(GetGlobalTimelineRequest) returns (GetGlobalTimelineResponse);
+    rpc GetSocialTimeline(GetSocialTimelineRequest) returns (GetSocialTimelineResponse);
+    rpc GetListTimeline(GetListTimelineRequest) returns (GetListTimelineResponse);
+    rpc GetHashtagTimeline(GetHashtagTimelineRequest) returns (GetHashtagTimelineResponse);
+    rpc GetMediaTimeline(GetMediaTimelineRequest) returns (GetMediaTimelineResponse);
+    
+    // List Management Operations
+    rpc CreateList(CreateListRequest) returns (CreateListResponse);
+    rpc UpdateList(UpdateListRequest) returns (UpdateListResponse);
+    rpc DeleteList(DeleteListRequest) returns (DeleteListResponse);
+    rpc AddListMember(AddListMemberRequest) returns (AddListMemberResponse);
+    rpc RemoveListMember(RemoveListMemberRequest) returns (RemoveListMemberResponse);
+    rpc GetUserLists(GetUserListsRequest) returns (GetUserListsResponse);
+}
+
+message GetHomeTimelineRequest {
+    string cursor = 1;
+    int32 limit = 2;
+    TimelineFilter filter = 3;
+}
+
+message GetHomeTimelineResponse {
+    repeated TimelineEntry entries = 1;
+    string next_cursor = 2;
+    bool has_more = 3;
+}
+
+message TimelineEntry {
+    string entry_id = 1;
+    string drop_id = 2;
+    int64 timestamp = 3;
+    string author_id = 4;
+    bool has_media = 5;
+    bool is_repost = 6;
+    string original_author_id = 7;
+}
+
+message TimelineFilter {
+    bool media_only = 1;
+    bool remote_only = 2;
+    bool apply_mute = 3;
+}
+```
+
+### SSE Event Format
+
+```typescript
+// SSE Event Types
+interface TimelineEvent {
+    id: string;           // Event ID (単調増加)
+    type: 'message';      // SSE event type
+    data: {
+        event: 'ADD_DROP' | 'REMOVE_DROP' | 'UPDATE_DROP' | 'REFRESH_TIMELINE';
+        timeline: 'HOME' | 'LOCAL' | 'GLOBAL' | 'SOCIAL' | 'LIST' | 'HASHTAG' | 'MEDIA';
+        payload: {
+            dropId?: string;
+            timestamp?: number;
+            reason?: string;
+        };
+    };
+    retry?: number;       // 再接続待機時間（ミリ秒）
+}
+
+// Example SSE Stream
+id: 12345
+event: message
+data: {"event":"ADD_DROP","timeline":"HOME","payload":{"dropId":"drop789","timestamp":1704067200}}
+
+id: 12346
+event: message
+data: {"event":"REMOVE_DROP","timeline":"HOME","payload":{"dropId":"drop456","reason":"deleted"}}
+```
+
+## 5. Error Handling
+
+### Error Code Format
+
+すべてのエラーは `TIMELINE_[LAYER]_[ERROR_TYPE]` 形式に従います。
+
+```go
+// Domain Layer Errors
+var (
+    ErrTimelineNotFound         = errors.New("TIMELINE_DOMAIN_NOT_FOUND")
+    ErrTimelineExpired          = errors.New("TIMELINE_DOMAIN_EXPIRED")
+    ErrMaxEntriesExceeded       = errors.New("TIMELINE_DOMAIN_MAX_ENTRIES_EXCEEDED")
+    ErrInvalidCursor            = errors.New("TIMELINE_DOMAIN_INVALID_CURSOR")
+    ErrMaxListsExceeded         = errors.New("TIMELINE_DOMAIN_MAX_LISTS_EXCEEDED")
+    ErrMaxListMembersExceeded   = errors.New("TIMELINE_DOMAIN_MAX_MEMBERS_EXCEEDED")
+    ErrListAccessDenied         = errors.New("TIMELINE_DOMAIN_ACCESS_DENIED")
+    ErrDuplicateListMember      = errors.New("TIMELINE_DOMAIN_DUPLICATE_MEMBER")
+)
+
+// UseCase Layer Errors
+var (
+    ErrFanoutTimeout           = errors.New("TIMELINE_USECASE_FANOUT_TIMEOUT")
+    ErrInvalidTimelineType     = errors.New("TIMELINE_USECASE_INVALID_TYPE")
+    ErrConcurrentUpdate        = errors.New("TIMELINE_USECASE_CONCURRENT_UPDATE")
+    ErrEventProcessingFailed   = errors.New("TIMELINE_USECASE_EVENT_PROCESSING_FAILED")
+)
+
+// Infrastructure Layer Errors
+var (
+    ErrRedisConnection         = errors.New("TIMELINE_INFRA_REDIS_CONNECTION")
+    ErrDatabaseConnection      = errors.New("TIMELINE_INFRA_DATABASE_CONNECTION")
+    ErrCacheCorrupted          = errors.New("TIMELINE_INFRA_CACHE_CORRUPTED")
+    ErrSSEConnectionLost       = errors.New("TIMELINE_INFRA_SSE_CONNECTION_LOST")
+    ErrExternalServiceTimeout  = errors.New("TIMELINE_INFRA_EXTERNAL_TIMEOUT")
+)
+```
+
+## 6. Testing Strategy
+
+### Unit Tests (90%+ coverage)
+
+```go
+func TestTimeline_AddEntry(t *testing.T) {
+    tests := []struct {
+        name        string
+        timeline    *domain.Timeline
+        entry       *domain.TimelineEntry
+        wantErr     error
+        wantCount   int
+    }{
+        {
+            name:     "正常なエントリー追加",
+            timeline: domain.NewTimeline(/*...*/),
+            entry:    domain.NewTimelineEntry(/*...*/),
+            wantErr:  nil,
+            wantCount: 1,
+        },
+        {
+            name:     "重複エントリー",
+            timeline: timelineWithEntry,
+            entry:    duplicateEntry,
+            wantErr:  domain.ErrDuplicateEntry,
+            wantCount: 1,
+        },
+        {
+            name:     "最大エントリー数超過",
+            timeline: fullTimeline,
+            entry:    newEntry,
+            wantErr:  domain.ErrMaxEntriesExceeded,
+            wantCount: 1000,
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            err := tt.timeline.AddEntry(tt.entry)
+            assert.Equal(t, tt.wantErr, err)
+            assert.Equal(t, tt.wantCount, tt.timeline.GetEntryCount())
+        })
+    }
+}
+```
+
+### Integration Tests
+
+```go
+func TestTimelineService_Integration(t *testing.T) {
+    // テスト用のRedisとPostgreSQL
+    redisContainer := setupRedisContainer(t)
+    pgContainer := setupPostgreSQLContainer(t)
+    
+    // サービスの初期化
+    timelineService := setupTimelineService(redisContainer, pgContainer)
+    
+    t.Run("Drop作成からタイムライン更新まで", func(t *testing.T) {
+        // Drop作成イベントの発行
+        event := createDropEvent()
+        err := publishDropEvent(event)
+        assert.NoError(t, err)
+        
+        // タイムライン更新の確認
+        time.Sleep(100 * time.Millisecond)
+        timeline, err := timelineService.GetHomeTimeline(ctx, userID)
+        assert.NoError(t, err)
+        assert.Contains(t, timeline.Entries, event.DropID)
+    })
+}
+```
+
+## 7. Performance Requirements
+
+### レスポンスタイム
+- タイムライン取得（キャッシュヒット）: p50 < 50ms, p99 < 150ms
+- タイムライン取得（キャッシュミス）: p50 < 300ms, p99 < 800ms
+- SSE接続確立: p50 < 30ms, p99 < 100ms
+- Fan-out処理: 1000フォロワーで < 3秒
+
+### スループット
+- 同時接続数: 100万SSE接続
+- タイムライン取得: 10,000 req/s
+- イベント配信: 100,000 events/s
+
+### リソース使用量
+- Redis メモリ: < 80%
+- CPU使用率: 平均 < 70%
+- メモリ使用量: < 16GB/Pod
+
+## 8. Security Considerations
+
+### 認証・認可
+- JWT Bearer Token認証
+- タイムラインアクセス権限の検証
+- リスト可視性設定の厳密な実装
+
+### データ保護
+- TLS 1.3による通信暗号化
+- センシティブデータのログ出力禁止
+- 適切なCORS設定
+
+### レート制限
+- ユーザー毎: 600 req/10min
+- IP毎: 1200 req/10min
+- SSE接続数: 10 connections/user
+
+## 9. Monitoring & Observability
+
+### メトリクス
+```go
+// Prometheusメトリクス
+timeline_requests_total{method, status}
+timeline_request_duration_seconds{method, quantile}
+timeline_cache_hit_ratio
+timeline_fanout_duration_seconds{strategy}
+sse_active_connections
+sse_events_sent_total{timeline_type}
+```
+
+### ログ
+```json
+{
+    "timestamp": "2024-01-01T00:00:00Z",
+    "level": "INFO",
+    "service": "avion-timeline",
+    "version": "1.0.0",
+    "trace_id": "abc123",
+    "span_id": "def456",
+    "user_id": "user123",
+    "method": "GetHomeTimeline",
+    "duration_ms": 45,
+    "cache_hit": true
+}
+```
+
+### アラート
+- エラー率 > 1%
+- レスポンスタイム p99 > 1秒
+- Redis接続エラー
+- メモリ使用率 > 90%
+
+## 10. Deployment Configuration
+
+### Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: avion-timeline
+  namespace: avion
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    spec:
+      containers:
+      - name: timeline
+        image: avion/timeline:1.0.0
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: timeline-secrets
+              key: redis-url
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: timeline-secrets
+              key: database-url
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+### HorizontalPodAutoscaler
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: avion-timeline-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: avion-timeline
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+## 11. Migration Strategy
+
+### データ移行計画
+1. 既存タイムラインデータのバックアップ
+2. 新スキーマへの段階的移行
+3. デュアルライト期間（新旧両方に書き込み）
+4. 検証とロールバック計画
+
+### 互換性維持
+- APIバージョニング（v1, v2）
+- 後方互換性の保証（最低6ヶ月）
+- 段階的な機能デプロイ（Feature Flag使用）
+
+## 12. Appendix
+
+### 参考文献
+- [Domain-Driven Design by Eric Evans](https://www.domainlanguage.com/ddd/)
+- [Implementing Domain-Driven Design by Vaughn Vernon](https://www.informit.com/store/implementing-domain-driven-design-9780321834577)
+- [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
+- [Server-Sent Events Specification](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+
+### 関連ドキュメント
 - [PRD: avion-timeline](./prd.md)
-- [Avion アーキテクチャ概要](../architecture.md)
-
-## 3. Goals / Non-Goals (やること / やらないこと)
-
-### Goals (やること)
-
-- ホームタイムライン生成・取得API (gRPC) の実装 (フォロー中のユーザーのDrop)。
-- ローカルタイムライン生成・取得API (gRPC) の実装 (同一サーバー内の公開Drop)。
-- グローバルタイムライン生成・取得API (gRPC) の実装 (連合サーバー含む公開Drop)。
-- Redis (Sorted Set) を用いたタイムラインキャッシュの実装 (Drop IDをスコア=タイムスタンプで保持)。
-- Drop作成/削除イベント (Redis Pub/Sub) を購読し、関連タイムラインキャッシュを非同期で更新する (Fan-out on write)。
-- ActivityPubからのDrop受信イベント (`ap_drop_received`) を購読し、グローバルタイムラインキャッシュを更新する。
-- ホームタイムライン更新イベントをServer-Sent Events (SSE) で配信するエンドポイントの実装。
-- ページネーション機能 (カーソルベース) の実装。
-- Go言語で実装し、Kubernetes上でのステートレス運用を前提とする。
-- OpenTelemetryによるトレーシング・メトリクス・ロギング対応。
-
-### Non-Goals (やらないこと)
-
-- **Drop/ユーザー情報の永続化:** `avion-post`/`avion-user` が担当。本サービスはIDリスト等をキャッシュする。
-- **フォロー関係の管理:** `avion-user` が担当。本サービスは参照する。
-- **複雑なランキングアルゴリズム (初期):** 時系列順を基本とする。
-- **WebSocket:** SSEを優先。
-- **タイムライン内検索:** `avion-search` が担当。
-- **Fan-out on writeの厳密なスケーラビリティ保証 (初期):** モニタリングし、必要に応じて改善。
-
-## 4. Architecture (どうやって作る？)
-
-- **主要コンポーネント:**
-    - `avion-timeline (Go, Kubernetes Deployment)`: 本サービス。gRPCサーバー、SSEサーバー、Redis Pub/Sub購読者、非同期Fan-outワーカ。
-    - `avion-gateway (Go)`: gRPC/SSEリクエストのルーティング元。
-    - `avion-user (Go)`: フォローリスト取得 (gRPC)。
-    - `avion-post (Go)`: Drop詳細情報取得 (gRPC、キャッシュミス時など)。
-    - `avion-activitypub (Go)`: リモートDrop情報取得 (gRPC or イベント経由)。`ap_drop_received` イベント発行元。
-    - `Redis`: タイムラインキャッシュ (Sorted Set)、イベント通知 (Pub/Sub)、SSE接続管理。
-    - `Observability Stack`: メトリクス、トレース、ログ収集。
-- **構成図:** (アーキテクチャ概要図を参照)
-    - [Avion アーキテクチャ概要](../architecture.md)
-- **ポイント:**
-    - タイムライン取得リクエストに対し、主にRedisキャッシュからDrop IDリストを返す。
-    - Drop作成/削除/AP受信イベントを購読し、非同期ワーカで関連タイムラインキャッシュを更新 (Fan-out)。
-    - ホームタイムラインの更新はSSEでクライアントにプッシュする。
-    - ステートレス設計。SSE接続状態はRedisで管理。
-
-## 5. Use Cases / Key Flows (主な使い方・処理の流れ)
-
-- **フロー 1: ホームタイムライン取得 (キャッシュヒット)**
-    1. Gateway → `GetHomeTimeline` gRPC Call (user_id, limit, since_id/max_id, Metadata: Trace Context)
-    2. TimelineService: Redisで `timeline:home:{user_id}` (Sorted Set) を検索。
-    3. TimelineService: 指定されたカーソルに基づきDrop IDリストを取得 (`ZRANGEBYSCORE` or `ZREVRANGEBYSCORE` with `LIMIT`)。
-    4. TimelineService → Gateway: `GetHomeTimelineResponse { drop_ids: [...] }`
-- **フロー 2: ホームタイムライン取得 (キャッシュミス/再構築)**
-    1. Gateway → `GetHomeTimeline` gRPC Call (user_id, ...)
-    2. TimelineService: Redisキャッシュ検索 (ミス)。
-    3. TimelineService → UserService: `GetFollowingList` gRPC Call (user_id)
-    4. UserService → TimelineService: `GetFollowingListResponse { user_ids: [...] }`
-    5. TimelineService → PostService: `GetDropsByUserID` gRPC Call (各following_id, limit=N) // 並列実行
-    6. PostService → TimelineService: `GetDropsByUserIDResponse { drops: [...] }` // 各レスポンス
-    7. TimelineService: 取得したDropをマージし、タイムスタンプでソート。
-    8. TimelineService: Redisキャッシュ (`timeline:home:{user_id}`) にDrop IDとタイムスタンプを保存 (`ZADD`)。古いエントリを削除 (`ZREMRANGEBYRANK key 0 -(limit+1)`)。
-    9. TimelineService: 要求されたページのDrop IDリストを抽出。
-    10. TimelineService → Gateway: `GetHomeTimelineResponse { drop_ids: [...] }`
-- **フロー 3: Drop作成イベント受信 & キャッシュ更新 (Fan-out)**
-    1. TimelineService (Subscriber): Redis Pub/Subチャネル `drop_created` からイベント受信 (Payload: { drop_id, user_id, visibility, created_at })。
-    2. TimelineService (Async Worker): visibilityが `public` なら、`timeline:local` および `timeline:global` (Sorted Set) に `ZADD ... {created_at} {drop_id}` を実行。古いエントリ削除 (`ZREMRANGEBYRANK`)。
-    3. TimelineService (Async Worker) → UserService: `GetFollowersList` gRPC Call (user_id)
-    4. UserService → TimelineService (Async Worker): `GetFollowersListResponse { user_ids: [...] }`
-    5. TimelineService (Async Worker): 各フォロワー (`follower_id`) について、Redisキャッシュ `timeline:home:{follower_id}` に `ZADD ... {created_at} {drop_id}` を実行。古いエントリ削除 (`ZREMRANGEBYRANK`)。(※多数フォロワーの場合の負荷をモニタリング)
-    6. TimelineService (Async Worker): (SSE) 該当フォロワーのSSE接続があれば、更新イベントを送信。
-- **フロー 4: Drop削除イベント受信 & キャッシュ更新**
-    1. TimelineService (Subscriber): Redis Pub/Subチャネル `drop_deleted` からイベント受信 (Payload: { drop_id, user_id })。
-    2. TimelineService (Async Worker): `timeline:local`, `timeline:global` から `ZREM ... {drop_id}` を実行。
-    3. TimelineService (Async Worker) → UserService: `GetFollowersList` gRPC Call (user_id)
-    4. UserService → TimelineService (Async Worker): `GetFollowersListResponse { user_ids: [...] }`
-    5. TimelineService (Async Worker): 各フォロワー (`follower_id`) について、Redisキャッシュ `timeline:home:{follower_id}` から `ZREM ... {drop_id}` を実行。
-    6. TimelineService (Async Worker): (SSE) 該当フォロワーのSSE接続があれば、削除イベントを送信 (検討)。
-- **フロー 5: ActivityPub Drop受信イベント & キャッシュ更新**
-    1. TimelineService (Subscriber): Redis Pub/Subチャネル `ap_drop_received` からイベント受信 (Payload: { drop_id, created_at })。
-    2. TimelineService (Async Worker): `timeline:global` (Sorted Set) に `ZADD ... {created_at} {drop_id}` を実行。古いエントリ削除 (`ZREMRANGEBYRANK`)。
-- **フロー 6: SSE接続 & イベント送信**
-    1. Client (via BFF/Gateway) → SSE接続リクエスト (`/events/timeline/home`, Authヘッダー)
-    2. TimelineService: 認証情報からユーザーID取得。接続を確立し、Redisに接続情報を登録 (`sse_connections:user:{user_id}` に接続ID追加、`sse_connection:{connection_id}` にPod情報等保存)。
-    3. (フロー3-6の後) TimelineService: ユーザーIDに対応する接続情報 (接続ID、Pod情報) をRedisから取得。
-    4. TimelineService: 該当Pod上の接続を見つけ、`event: new_drop\ndata: {"drop_id": "..."}\n\n` のようなメッセージを送信。接続が存在しない場合は何もしない。
-
-## 6. Endpoints (API)
-
-- **gRPC Services (`avion.TimelineService`):**
-    - `GetHomeTimeline(GetTimelineRequest) returns (GetTimelineResponse)`
-    - `GetLocalTimeline(GetTimelineRequest) returns (GetTimelineResponse)`
-    - `GetGlobalTimeline(GetTimelineRequest) returns (GetTimelineResponse)`
-    - (Requestには `user_id`, `limit`, `since_id`, `max_id` などを含む)
-    - (Responseには `drop_ids` のリストを含む)
-- **HTTP Endpoints:**
-    - `/events/timeline/home`: ホームタイムライン更新用SSEストリームエンドポイント (認証要)。
-- Proto定義は別途管理する。
-
-## 7. Data Design (データ)
-
-- **Redis:**
-    - **タイムラインキャッシュ (Sorted Set):**
-        - `timeline:home:{user_id}`: ホームタイムライン (Score: timestamp(ms), Member: drop_id)
-        - `timeline:local`: ローカルタイムライン (Score: timestamp(ms), Member: drop_id)
-        - `timeline:global`: グローバルタイムライン (Score: timestamp(ms), Member: drop_id)
-        - ※ キャッシュ件数上限: 設定値 (例: 1000)。`ZADD` 後に `ZREMRANGEBYRANK key 0 -(limit+1)` で古いものを削除。上限値は要調整。
-    - **Pub/Sub Channels:** `drop_created`, `drop_deleted`, `ap_drop_received` (購読)
-    - **SSE接続管理 (Hash/Set):**
-        - `sse_connections:user:{user_id}` (Set): Member: connection_id
-        - `sse_connection:{connection_id}` (Hash): Field: pod_name, Field: created_at, ... (TTLを設定し、定期的な接続確認/クリーンアップが必要)
-
-## 8. Operations & Monitoring (運用と監視)
-
-- **主なオペレーション:**
-    - Redis接続情報、Pub/Sub設定。
-    - キャッシュ件数上限などのパラメータ調整。
-    - SSE接続情報のクリーンアップジョブ運用。
-    - (必要に応じて) キャッシュの手動クリア。
-- **監視/アラート:**
-    - **メトリクス:**
-        - gRPC/SSEリクエスト数、レイテンシ、エラーレート。
-        - Redisキャッシュヒット率、コマンド実行時間、メモリ使用量。
-        - Pub/Subイベント処理遅延、エラーレート。
-        - SSE接続数。
-        - Fan-out処理時間/キュー長 (多数フォロワー対応実装時)。
-    - **ログ:** API処理ログ、イベント処理ログ、SSE接続/切断ログ、エラーログ。
-    - **トレース:** API呼び出し、キャッシュアクセス、イベント処理、他サービス連携のトレース。
-    - **アラート:** gRPC/SSEエラーレート急増、高レイテンシ、Redis接続障害、Pub/Sub処理遅延大、SSE接続数異常、Fan-out処理遅延大。
-
-## 9. Concerns / Open Questions (懸念事項・相談したいこと)
-
-- **技術的負債リスク:**
-    - **Fan-out on writeのスケーラビリティ:** 多数フォロワーユーザーへの対応は依然として最大の懸念。初期実装はこの方式とするが、負荷状況に応じて非同期ワーカのスケールアウト、バッチ処理導入、シャーディング、最終的にはFan-out on readへの移行検討が必要となる可能性が高い。
-    - **キャッシュ上限:** 固定長キャッシュはシンプルだが、利用状況によってユーザー体験（古い投稿が見えない）とリソース消費（メモリ）のトレードオフ調整が運用後も続く可能性がある。
-    - **SSE接続管理:** ステートレスサービスでの多数接続管理は複雑化しやすく、接続情報の外部管理（Redis等）とそのスケーラビリティ、整合性維持（Pod障害時のクリーンアップ等）が将来的な課題となる可能性がある。
-- グローバルタイムラインの定義と実装方法 (`avion-activitypub` との連携詳細)。ActivityPubからのDropをどの程度キャッシュに保持するか。
-- Drop削除イベント受信時のキャッシュ削除処理の確実性。
-
----
+- [Error Catalog: avion-timeline](./error-catalog.md)
+- [DDD Improvement Guide](./ddd-improvement-guide.md)
+- [Avion Architecture Overview](../common/architecture/architecture.md)
