@@ -1,0 +1,59 @@
+# Environment
+.env
+.env.local
+*.env
+
+# Build output
+built/
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+go.work.sum
+*.test
+*.out
+coverage.html
+coverage.xml
+
+# Temporary
+*.tmp
+*.temp
+*.log
+*.backup
+*.bak
+
+# Project specific
+.turbo
+.clinerules
+.claude
+.mcp.json
+.serena
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Docker
+docker-compose.override.yml
+
+# Local configs
+/configs/local/
+/data/
