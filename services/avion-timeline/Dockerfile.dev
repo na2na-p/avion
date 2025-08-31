@@ -1,0 +1,46 @@
+# Development Dockerfile for avion-timeline service
+# This Dockerfile is optimized for development with hot reload using Air
+FROM golang:1.25-alpine AS development
+
+# Install required system dependencies
+RUN apk add --no-cache \
+    git \
+    make \
+    gcc \
+    musl-dev \
+    curl \
+    postgresql-client
+
+# Set working directory
+WORKDIR /app
+
+# Install Air for hot reload
+RUN go install github.com/air-verse/air@latest
+
+# Install development tools
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install go.uber.org/mock/mockgen@latest && \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest && \
+    go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Copy go.mod and go.sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy Air configuration
+COPY .air.toml ./
+
+# Copy the entire source code
+COPY . .
+
+# Expose ports
+EXPOSE 8084 9094
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8084/health || exit 1
+
+# Default command (can be overridden in docker-compose)
+CMD ["air", "-c", ".air.toml"]

@@ -1,0 +1,46 @@
+# avion-messageサービス用開発Dockerfile
+# Airを使用したホットリロード開発環境に最適化
+FROM golang:1.25-alpine AS development
+
+# 必要なシステム依存関係をインストール
+RUN apk add --no-cache \
+    git \
+    make \
+    gcc \
+    musl-dev \
+    curl \
+    postgresql-client
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# ホットリロード用Airをインストール
+RUN go install github.com/air-verse/air@latest
+
+# 開発ツールをインストール
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install go.uber.org/mock/mockgen@latest && \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest && \
+    go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# go.modとgo.sumファイルをコピー
+COPY go.mod go.sum ./
+
+# 依存関係をダウンロード
+RUN go mod download
+
+# Air設定をコピー
+COPY .air.toml ./
+
+# ソースコード全体をコピー
+COPY . .
+
+# ポートを公開
+EXPOSE 8092 9102
+
+# 開発用ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8092/health || exit 1
+
+# デフォルトコマンド（docker-composeでオーバーライド可能）
+CMD ["air", "-c", ".air.toml"]

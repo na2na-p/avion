@@ -1,0 +1,174 @@
+# Docker Compose V2 設定
+# このファイルはAvionプラットフォームの基盤インフラストラクチャサービスを定義します
+
+services:
+  # PostgreSQL 17 - 全サービス用メインデータベース
+  postgres:
+    image: postgres:17-alpine
+    container_name: avion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-avion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-avion}
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-avion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - avion-network
+
+  # Redis 8+ - キャッシュとPub/Sub
+  redis:
+    image: redis:8-alpine
+    container_name: avion-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-}
+      --maxmemory ${REDIS_MAX_MEMORY:-512mb}
+      --maxmemory-policy ${REDIS_EVICTION_POLICY:-allkeys-lru}
+      --appendonly ${REDIS_PERSISTENCE:-yes}
+      --appendfsync ${REDIS_FSYNC:-everysec}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - avion-network
+
+  # MeiliSearch 1.0+ - 全文検索エンジン
+  meilisearch:
+    image: getmeili/meilisearch:v1.19.1
+    container_name: avion-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-development_master_key_must_be_at_least_16_bytes}
+      MEILI_ENV: ${MEILISEARCH_ENV:-development}
+      MEILI_HTTP_ADDR: 0.0.0.0:7700
+      MEILI_NO_ANALYTICS: ${MEILISEARCH_NO_ANALYTICS:-true}
+      MEILI_LOG_LEVEL: ${MEILISEARCH_LOG_LEVEL:-INFO}
+      MEILI_DB_PATH: /meili_data
+    ports:
+      - "${MEILISEARCH_PORT:-7700}:7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - avion-network
+
+  # MinIO - メディアファイル用S3互換オブジェクトストレージ
+  minio:
+    image: minio/minio:latest
+    container_name: avion-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_DEFAULT_BUCKETS: ${MINIO_DEFAULT_BUCKETS:-avion-media:public,avion-backup:private}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - avion-network
+
+  # Jaeger - オブザーバビリティ用分散トレーシング
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: avion-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"  # Jaeger UI
+      - "${JAEGER_COLLECTOR_PORT:-14268}:14268"  # Collector HTTP
+      - "${JAEGER_OTLP_GRPC_PORT:-4317}:4317"  # OTLP gRPC
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"  # OTLP HTTP
+    networks:
+      - avion-network
+
+  # Prometheus - メトリクス収集
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: avion-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - avion-network
+
+  # Grafana - メトリクス可視化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: avion-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-}
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - avion-network
+
+# ネットワーク設定
+networks:
+  avion-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# データ永続化用ボリューム設定
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  meilisearch_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

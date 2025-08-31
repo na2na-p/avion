@@ -1,0 +1,76 @@
+# Air configuration for hot reload in development
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+  # Build command
+  cmd = "go build -o ./tmp/main ./cmd/server"
+  
+  # Binary to run
+  bin = "tmp/main"
+  
+  # Additional arguments
+  args_bin = []
+  
+  # Delay before rebuilding (milliseconds)
+  delay = 1000
+  
+  # Exclude these directories
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "docs", "scripts", ".git", ".github"]
+  
+  # Exclude these files
+  exclude_file = []
+  
+  # Exclude files matching these regex patterns
+  exclude_regex = ["_test.go"]
+  
+  # Exclude unchanged files
+  exclude_unchanged = false
+  
+  # Follow symlinks
+  follow_symlink = false
+  
+  # Full binary path
+  full_bin = ""
+  
+  # Include these directories
+  include_dir = []
+  
+  # Include these file extensions
+  include_ext = ["go", "tpl", "tmpl", "html", "yaml", "yml", "toml", "env"]
+  
+  # Include these files
+  include_file = []
+  
+  # Kill delay (nanoseconds)
+  kill_delay = "0s"
+  
+  # Log file
+  log = "build-errors.log"
+  
+  # Send Interrupt signal before killing process
+  send_interrupt = true
+  
+  # Stop on error
+  stop_on_error = true
+
+[color]
+  # Colorize air output
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  # Add time to log
+  time = true
+
+[misc]
+  # Clean tmp directory on exit
+  clean_on_exit = false
+
+[screen]
+  # Clear screen on rebuild
+  clear_on_rebuild = true

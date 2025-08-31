@@ -1,0 +1,45 @@
+# Development Dockerfile for avion-web (Next.js BFF)
+# This Dockerfile is optimized for development with hot reload
+FROM node:20-alpine AS development
+
+# Install dependencies for better performance
+RUN apk add --no-cache libc6-compat python3 make g++
+
+# Install pnpm globally
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies with pnpm
+RUN pnpm install --frozen-lockfile
+
+# Copy the entire source code
+COPY . .
+
+# Create .next directory with proper permissions
+RUN mkdir -p .next && chmod -R 755 .next
+
+# Expose ports
+# 3000 for Next.js application
+# 9229 for Node.js debugger
+EXPOSE 3000 9229
+
+# Set environment to development
+ENV NODE_ENV=development
+
+# Enable polling for file changes (for Docker on Windows/Mac)
+ENV WATCHPACK_POLLING=true
+
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {r.statusCode === 200 ? process.exit(0) : process.exit(1)})"
+
+# Default command (can be overridden in docker-compose)
+CMD ["pnpm", "dev"]
