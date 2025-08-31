@@ -1,0 +1,946 @@
+# 開発用Docker Compose オーバーライド設定
+# このファイルは存在する場合、Docker Composeによって自動的に読み込まれます
+# ベースのcompose.ymlを開発専用の設定で拡張します
+
+services:
+  # avion-auth サービス（ホットリロード対応）
+  avion-auth:
+    build:
+      context: ../../services/avion-auth
+      dockerfile: Dockerfile.dev
+    container_name: avion-auth-dev
+    environment:
+      # Server configuration
+      PORT: ${AUTH_HTTP_PORT:-8081}
+      GRPC_PORT: ${AUTH_GRPC_PORT:-9091}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      
+      # JWT configuration
+      JWT_SIGNING_KEY_PATH: /app/keys/jwt_key
+      JWT_ACCESS_TOKEN_TTL: 15m
+      JWT_REFRESH_TOKEN_TTL: 30d
+      
+      # WebAuthn configuration
+      WEBAUTHN_RP_NAME: Avion Development
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_RP_ORIGIN: http://localhost:3000
+      
+      # OAuth2 configuration
+      OAUTH2_AUTH_CODE_TTL: 10m
+      OAUTH2_PKCE_REQUIRED: "true"
+      OAUTH2_DYNAMIC_CLIENT_ENABLED: "true"
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-auth
+      METRICS_ENABLED: "true"
+    ports:
+      - "${AUTH_HTTP_PORT:-8081}:8081"
+      - "${AUTH_GRPC_PORT:-9091}:9091"
+    volumes:
+      - ../../services/avion-auth:/app
+      - /app/vendor  # vendorディレクトリの上書きを防ぐ
+      - auth_keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-user サービス（ホットリロード対応）
+  avion-user:
+    build:
+      context: ../../services/avion-user
+      dockerfile: Dockerfile.dev
+    container_name: avion-user-dev
+    environment:
+      # Server configuration
+      PORT: ${USER_HTTP_PORT:-8082}
+      GRPC_PORT: ${USER_GRPC_PORT:-9092}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 1
+      
+      # Service dependencies
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-user
+      METRICS_ENABLED: "true"
+    ports:
+      - "${USER_HTTP_PORT:-8082}:8082"
+      - "${USER_GRPC_PORT:-9092}:9092"
+    volumes:
+      - ../../services/avion-user:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-drop サービス（ホットリロード対応）
+  avion-drop:
+    build:
+      context: ../../services/avion-drop
+      dockerfile: Dockerfile.dev
+    container_name: avion-drop-dev
+    environment:
+      # Server configuration
+      PORT: ${DROP_HTTP_PORT:-8083}
+      GRPC_PORT: ${DROP_GRPC_PORT:-9093}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 2
+      
+      # Service dependencies
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      
+      # Content limits
+      DROP_MAX_LENGTH: 280
+      DROP_MAX_MEDIA_COUNT: 4
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-drop
+      METRICS_ENABLED: "true"
+    ports:
+      - "${DROP_HTTP_PORT:-8083}:8083"
+      - "${DROP_GRPC_PORT:-9093}:9093"
+    volumes:
+      - ../../services/avion-drop:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-timeline サービス（ホットリロード対応）
+  avion-timeline:
+    build:
+      context: ../../services/avion-timeline
+      dockerfile: Dockerfile.dev
+    container_name: avion-timeline-dev
+    environment:
+      # Server configuration
+      PORT: ${TIMELINE_HTTP_PORT:-8084}
+      GRPC_PORT: ${TIMELINE_GRPC_PORT:-9094}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # Database configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 3
+      
+      # Service dependencies
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      
+      # Timeline configuration
+      TIMELINE_MAX_ENTRIES: 1000
+      TIMELINE_CACHE_TTL: 7d
+      
+      # Fan-out configuration
+      FANOUT_CELEBRITY_THRESHOLD: 10000
+      FANOUT_BATCH_SIZE: 100
+      FANOUT_WORKER_COUNT: 10
+      FANOUT_ACTIVE_USER_WINDOW_DAYS: 7
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-timeline
+      METRICS_ENABLED: "true"
+    ports:
+      - "${TIMELINE_HTTP_PORT:-8084}:8084"
+      - "${TIMELINE_GRPC_PORT:-9094}:9094"
+    volumes:
+      - ../../services/avion-timeline:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-drop:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-activitypub サービス（ホットリロード対応）
+  avion-activitypub:
+    build:
+      context: ../../services/avion-activitypub
+      dockerfile: Dockerfile.dev
+    container_name: avion-activitypub-dev
+    environment:
+      # サーバー設定
+      PORT: ${ACTIVITYPUB_HTTP_PORT:-8085}
+      GRPC_PORT: ${ACTIVITYPUB_GRPC_PORT:-9095}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 4
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      
+      # ActivityPub設定
+      ACTIVITYPUB_DOMAIN: localhost:8085
+      ACTIVITYPUB_PROTOCOL: http
+      ACTIVITYPUB_PUBLIC_KEY_PATH: /app/keys/activitypub_public.pem
+      ACTIVITYPUB_PRIVATE_KEY_PATH: /app/keys/activitypub_private.pem
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-activitypub
+      METRICS_ENABLED: "true"
+    ports:
+      - "${ACTIVITYPUB_HTTP_PORT:-8085}:8085"
+      - "${ACTIVITYPUB_GRPC_PORT:-9095}:9095"
+    volumes:
+      - ../../services/avion-activitypub:/app
+      - /app/vendor
+      - activitypub_keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+      avion-drop:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-notification サービス（ホットリロード対応）
+  avion-notification:
+    build:
+      context: ../../services/avion-notification
+      dockerfile: Dockerfile.dev
+    container_name: avion-notification-dev
+    environment:
+      # サーバー設定
+      PORT: ${NOTIFICATION_HTTP_PORT:-8086}
+      GRPC_PORT: ${NOTIFICATION_GRPC_PORT:-9096}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 5
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      
+      # 通知設定
+      NOTIFICATION_BATCH_SIZE: 100
+      NOTIFICATION_WORKER_COUNT: 5
+      SSE_KEEPALIVE_INTERVAL: 30s
+      
+      # プッシュ通知設定
+      FCM_CREDENTIALS_PATH: /app/credentials/fcm.json
+      APNS_KEY_PATH: /app/credentials/apns.p8
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-notification
+      METRICS_ENABLED: "true"
+    ports:
+      - "${NOTIFICATION_HTTP_PORT:-8086}:8086"
+      - "${NOTIFICATION_GRPC_PORT:-9096}:9096"
+    volumes:
+      - ../../services/avion-notification:/app
+      - /app/vendor
+      - notification_credentials:/app/credentials
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-media サービス（ホットリロード対応）
+  avion-media:
+    build:
+      context: ../../services/avion-media
+      dockerfile: Dockerfile.dev
+    container_name: avion-media-dev
+    environment:
+      # サーバー設定
+      PORT: ${MEDIA_HTTP_PORT:-8087}
+      GRPC_PORT: ${MEDIA_GRPC_PORT:-9097}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 6
+      
+      # S3設定（MinIO）
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET_NAME: avion-media
+      S3_REGION: us-east-1
+      S3_USE_PATH_STYLE: "true"
+      
+      # メディア処理設定
+      MAX_FILE_SIZE: 104857600  # 100MB
+      ALLOWED_IMAGE_TYPES: jpg,jpeg,png,gif,webp
+      ALLOWED_VIDEO_TYPES: mp4,webm,mov
+      IMAGE_MAX_WIDTH: 4096
+      IMAGE_MAX_HEIGHT: 4096
+      VIDEO_MAX_DURATION: 300  # 5分
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-media
+      METRICS_ENABLED: "true"
+    ports:
+      - "${MEDIA_HTTP_PORT:-8087}:8087"
+      - "${MEDIA_GRPC_PORT:-9097}:9097"
+    volumes:
+      - ../../services/avion-media:/app
+      - /app/vendor
+      - media_temp:/app/temp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-search サービス（ホットリロード対応）
+  avion-search:
+    build:
+      context: ../../services/avion-search
+      dockerfile: Dockerfile.dev
+    container_name: avion-search-dev
+    environment:
+      # サーバー設定
+      PORT: ${SEARCH_HTTP_PORT:-8088}
+      GRPC_PORT: ${SEARCH_GRPC_PORT:-9098}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 7
+      
+      # MeiliSearch設定
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILISEARCH_MASTER_KEY:-development_master_key_must_be_at_least_16_bytes}
+      
+      # 検索設定
+      SEARCH_MAX_RESULTS: 100
+      SEARCH_DEFAULT_LIMIT: 20
+      SEARCH_INDEX_BATCH_SIZE: 1000
+      SEARCH_INDEX_WORKER_COUNT: 3
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-search
+      METRICS_ENABLED: "true"
+    ports:
+      - "${SEARCH_HTTP_PORT:-8088}:8088"
+      - "${SEARCH_GRPC_PORT:-9098}:9098"
+    volumes:
+      - ../../services/avion-search:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+      avion-drop:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-system-admin サービス（ホットリロード対応）
+  avion-system-admin:
+    build:
+      context: ../../services/avion-system-admin
+      dockerfile: Dockerfile.dev
+    container_name: avion-system-admin-dev
+    environment:
+      # サーバー設定
+      PORT: ${SYSTEM_ADMIN_HTTP_PORT:-8089}
+      GRPC_PORT: ${SYSTEM_ADMIN_GRPC_PORT:-9099}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 8
+      
+      # 管理者設定
+      ADMIN_DEFAULT_EMAIL: admin@localhost
+      ADMIN_DEFAULT_PASSWORD: admin_password_change_me
+      
+      # システム監視設定
+      HEALTH_CHECK_INTERVAL: 30s
+      METRICS_COLLECTION_INTERVAL: 60s
+      
+      # サービス依存関係（全サービスを監視）
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      TIMELINE_SERVICE_ADDR: avion-timeline:9094
+      ACTIVITYPUB_SERVICE_ADDR: avion-activitypub:9095
+      NOTIFICATION_SERVICE_ADDR: avion-notification:9096
+      MEDIA_SERVICE_ADDR: avion-media:9097
+      SEARCH_SERVICE_ADDR: avion-search:9098
+      MODERATION_SERVICE_ADDR: avion-moderation:9100
+      COMMUNITY_SERVICE_ADDR: avion-community:9101
+      MESSAGE_SERVICE_ADDR: avion-message:9102
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-system-admin
+      METRICS_ENABLED: "true"
+    ports:
+      - "${SYSTEM_ADMIN_HTTP_PORT:-8089}:8089"
+      - "${SYSTEM_ADMIN_GRPC_PORT:-9099}:9099"
+    volumes:
+      - ../../services/avion-system-admin:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-moderation サービス（ホットリロード対応）
+  avion-moderation:
+    build:
+      context: ../../services/avion-moderation
+      dockerfile: Dockerfile.dev
+    container_name: avion-moderation-dev
+    environment:
+      # サーバー設定
+      PORT: ${MODERATION_HTTP_PORT:-8090}
+      GRPC_PORT: ${MODERATION_GRPC_PORT:-9100}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 9
+      
+      # モデレーション設定
+      AUTO_MODERATION_ENABLED: "true"
+      SPAM_DETECTION_THRESHOLD: 0.8
+      HATE_SPEECH_DETECTION_THRESHOLD: 0.9
+      NSFW_DETECTION_THRESHOLD: 0.85
+      MODERATION_QUEUE_SIZE: 1000
+      MODERATION_WORKER_COUNT: 5
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      MEDIA_SERVICE_ADDR: avion-media:9097
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-moderation
+      METRICS_ENABLED: "true"
+    ports:
+      - "${MODERATION_HTTP_PORT:-8090}:8090"
+      - "${MODERATION_GRPC_PORT:-9100}:9100"
+    volumes:
+      - ../../services/avion-moderation:/app
+      - /app/vendor
+      - moderation_rules:/app/rules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+      avion-drop:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-community サービス（ホットリロード対応）
+  avion-community:
+    build:
+      context: ../../services/avion-community
+      dockerfile: Dockerfile.dev
+    container_name: avion-community-dev
+    environment:
+      # サーバー設定
+      PORT: ${COMMUNITY_HTTP_PORT:-8091}
+      GRPC_PORT: ${COMMUNITY_GRPC_PORT:-9101}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 10
+      
+      # コミュニティ設定
+      MAX_GROUP_SIZE: 10000
+      MAX_EVENT_PARTICIPANTS: 5000
+      MAX_CHANNEL_MEMBERS: 1000
+      GROUP_CREATION_LIMIT: 10  # ユーザーあたり
+      EVENT_CREATION_LIMIT: 20  # グループあたり
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      NOTIFICATION_SERVICE_ADDR: avion-notification:9096
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-community
+      METRICS_ENABLED: "true"
+    ports:
+      - "${COMMUNITY_HTTP_PORT:-8091}:8091"
+      - "${COMMUNITY_GRPC_PORT:-9101}:9101"
+    volumes:
+      - ../../services/avion-community:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+      avion-drop:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-message サービス（ホットリロード対応）
+  avion-message:
+    build:
+      context: ../../services/avion-message
+      dockerfile: Dockerfile.dev
+    container_name: avion-message-dev
+    environment:
+      # サーバー設定
+      PORT: ${MESSAGE_HTTP_PORT:-8092}
+      GRPC_PORT: ${MESSAGE_GRPC_PORT:-9102}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # データベース設定
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-avion}
+      DB_USER: ${POSTGRES_USER:-avion}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-avion_dev}
+      DB_SSL_MODE: disable
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 11
+      
+      # メッセージ設定
+      MESSAGE_MAX_LENGTH: 10000
+      MESSAGE_RETENTION_DAYS: 30
+      TYPING_INDICATOR_TTL: 10s
+      READ_RECEIPT_ENABLED: "true"
+      MESSAGE_ENCRYPTION_ENABLED: "true"
+      
+      # サービス依存関係
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      NOTIFICATION_SERVICE_ADDR: avion-notification:9096
+      MEDIA_SERVICE_ADDR: avion-media:9097
+      
+      # オブザーバビリティ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-message
+      METRICS_ENABLED: "true"
+    ports:
+      - "${MESSAGE_HTTP_PORT:-8092}:8092"
+      - "${MESSAGE_GRPC_PORT:-9102}:9102"
+    volumes:
+      - ../../services/avion-message:/app
+      - /app/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-gateway サービス（ホットリロード対応）
+  avion-gateway:
+    build:
+      context: ../../services/avion-gateway
+      dockerfile: Dockerfile.dev
+    container_name: avion-gateway-dev
+    environment:
+      # Server configuration
+      PORT: ${GATEWAY_HTTP_PORT:-8080}
+      GRPC_PORT: ${GATEWAY_GRPC_PORT:-9090}
+      ENVIRONMENT: development
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      
+      # GraphQL configuration
+      GRAPHQL_PLAYGROUND_ENABLED: "true"
+      GRAPHQL_INTROSPECTION_ENABLED: "true"
+      GRAPHQL_QUERY_DEPTH_LIMIT: 10
+      GRAPHQL_QUERY_COMPLEXITY_LIMIT: 1000
+      
+      # Rate limiting
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_REQUESTS_PER_MINUTE: 60
+      RATE_LIMIT_BURST_SIZE: 10
+      
+      # Circuit breaker
+      CIRCUIT_BREAKER_ENABLED: "true"
+      CIRCUIT_BREAKER_TIMEOUT: 30s
+      CIRCUIT_BREAKER_MAX_REQUESTS: 100
+      CIRCUIT_BREAKER_INTERVAL: 60s
+      
+      # サービスアドレス
+      AUTH_SERVICE_ADDR: avion-auth:9091
+      USER_SERVICE_ADDR: avion-user:9092
+      DROP_SERVICE_ADDR: avion-drop:9093
+      TIMELINE_SERVICE_ADDR: avion-timeline:9094
+      ACTIVITYPUB_SERVICE_ADDR: avion-activitypub:9095
+      NOTIFICATION_SERVICE_ADDR: avion-notification:9096
+      MEDIA_SERVICE_ADDR: avion-media:9097
+      SEARCH_SERVICE_ADDR: avion-search:9098
+      SYSTEM_ADMIN_SERVICE_ADDR: avion-system-admin:9099
+      MODERATION_SERVICE_ADDR: avion-moderation:9100
+      COMMUNITY_SERVICE_ADDR: avion-community:9101
+      MESSAGE_SERVICE_ADDR: avion-message:9102
+      
+      # Redis configuration (for rate limiting)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 15
+      
+      # CORS configuration
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001
+      CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS
+      CORS_ALLOWED_HEADERS: Content-Type,Authorization
+      CORS_MAX_AGE: 86400
+      
+      # Observability
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: avion-gateway
+      METRICS_ENABLED: "true"
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8080}:8080"
+      - "${GATEWAY_GRPC_PORT:-9090}:9090"
+    volumes:
+      - ../../services/avion-gateway:/app
+      - /app/vendor
+    depends_on:
+      redis:
+        condition: service_healthy
+      avion-auth:
+        condition: service_started
+      avion-user:
+        condition: service_started
+      avion-drop:
+        condition: service_started
+      avion-timeline:
+        condition: service_started
+      avion-activitypub:
+        condition: service_started
+      avion-notification:
+        condition: service_started
+      avion-media:
+        condition: service_started
+      avion-search:
+        condition: service_started
+      avion-moderation:
+        condition: service_started
+      avion-community:
+        condition: service_started
+      avion-message:
+        condition: service_started
+    networks:
+      - avion-network
+    command: air -c .air.toml
+
+  # avion-web (Next.js BFF) サービス（ホットリロード対応）
+  avion-web:
+    build:
+      context: ../../services/avion-web
+      dockerfile: Dockerfile.dev
+    container_name: avion-web-dev
+    environment:
+      # Node environment
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"  # For Docker on Windows/Mac
+      NEXT_TELEMETRY_DISABLED: 1
+      
+      # Server configuration
+      PORT: 3000
+      
+      # Gateway connection
+      GATEWAY_GRPC_URL: http://avion-gateway:9090
+      
+      # Session configuration
+      SESSION_SECRET: ${SESSION_SECRET:-development_session_secret_must_be_at_least_32_bytes}
+      
+      # Database URL (for Prisma if needed)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-avion}:${POSTGRES_PASSWORD:-avion_dev}@postgres:5432/${POSTGRES_DB:-avion}
+      
+      # Redis URL (for session store)
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/14
+      
+      # OAuth providers (example)
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      
+      # Public environment variables
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_WS_URL: ws://localhost:3000
+      NEXT_PUBLIC_ENABLE_PWA: "true"
+      NEXT_PUBLIC_GRAPHQL_ENDPOINT: http://localhost:8080/graphql
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugger port
+    volumes:
+      - ../../services/avion-web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - avion-gateway
+    networks:
+      - avion-network
+    command: pnpm dev
+
+  # Redis Commander - Redis管理UI（開発環境専用）
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: avion-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-}
+      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASSWORD:-admin}
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8091}:8081"
+    depends_on:
+      - redis
+    networks:
+      - avion-network
+
+# 開発用追加ボリューム
+volumes:
+  auth_keys:
+    driver: local
+  activitypub_keys:
+    driver: local
+  notification_credentials:
+    driver: local
+  media_temp:
+    driver: local
+  moderation_rules:
+    driver: local
