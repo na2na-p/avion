@@ -1,0 +1,804 @@
+syntax = "proto3";
+
+package avion.system_admin.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/na2na-p/avion/proto/avion/system_admin/v1;system_adminv1";
+
+// SystemHealth はシステムサービスのヘルス状態を表す
+message SystemHealth {
+  // サービスの一意な識別子
+  string service_id = 1;
+  
+  // サービス名
+  string service_name = 2;
+  
+  // ヘルス状態
+  HealthStatus status = 3;
+  
+  // バージョン情報
+  string version = 4;
+  
+  // リソース使用状況
+  ResourceUsage resource_usage = 5;
+  
+  // 最後のヘルスチェック時刻
+  google.protobuf.Timestamp last_check_at = 6;
+  
+  // 稼働時間
+  google.protobuf.Duration uptime = 7;
+  
+  // ヘルスチェックの詳細
+  map<string, string> details = 8;
+  
+  // アクティブな接続数
+  int32 active_connections = 9;
+  
+  // 1秒あたりのリクエスト率
+  double request_rate = 10;
+  
+  // エラー率（パーセンテージ）
+  double error_rate = 11;
+  
+  // レスポンス時間のパーセンタイル（ミリ秒）
+  ResponseTimeMetrics response_time = 12;
+}
+
+// HealthStatus はサービスのヘルス状態を表す
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;  // 未指定
+  HEALTH_STATUS_HEALTHY = 1;       // 正常
+  HEALTH_STATUS_DEGRADED = 2;      // 機能低下
+  HEALTH_STATUS_UNHEALTHY = 3;     // 異常
+  HEALTH_STATUS_OFFLINE = 4;       // オフライン
+}
+
+// ResourceUsage はシステムリソースの使用状況を表す
+message ResourceUsage {
+  // CPU使用率（パーセンテージ）
+  double cpu_percentage = 1;
+  
+  // メモリ使用量（バイト）
+  int64 memory_bytes = 2;
+  
+  // メモリ使用率（パーセンテージ）
+  double memory_percentage = 3;
+  
+  // ディスク使用量（バイト）
+  int64 disk_bytes = 4;
+  
+  // ディスク使用率（パーセンテージ）
+  double disk_percentage = 5;
+  
+  // ネットワーク受信バイト数（秒あたり）
+  int64 network_ingress_bps = 6;
+  
+  // ネットワーク送信バイト数（秒あたり）
+  int64 network_egress_bps = 7;
+  
+  // goroutineの数（Goサービス用）
+  int32 goroutines = 8;
+  
+  // オープンしているファイルディスクリプタの数
+  int32 open_fds = 9;
+}
+
+// ResponseTimeMetrics はレスポンス時間のパーセンタイルを表す
+message ResponseTimeMetrics {
+  // 50パーセンタイル（中央値）（ミリ秒）
+  double p50 = 1;
+  
+  // 90パーセンタイル（ミリ秒）
+  double p90 = 2;
+  
+  // 95パーセンタイル（ミリ秒）
+  double p95 = 3;
+  
+  // 99パーセンタイル（ミリ秒）
+  double p99 = 4;
+  
+  // 平均レスポンス時間（ミリ秒）
+  double average = 5;
+}
+
+// SystemConfig はシステム全体の設定を表す
+message SystemConfig {
+  // 設定キー
+  string key = 1;
+  
+  // 設定値（JSONエンコード）
+  google.protobuf.Value value = 2;
+  
+  // 設定タイプ
+  ConfigType type = 3;
+  
+  // 設定の説明
+  string description = 4;
+  
+  // この設定がフィーチャーフラグかどうか
+  bool is_feature_flag = 5;
+  
+  // この設定が再起動を必要とするかどうか
+  bool requires_restart = 6;
+  
+  // 最終更新時刻
+  google.protobuf.Timestamp updated_at = 7;
+  
+  // 最終更新者
+  string updated_by = 8;
+  
+  // 設定メタデータ
+  map<string, string> metadata = 9;
+}
+
+// ConfigType は設定のタイプを表す
+enum ConfigType {
+  CONFIG_TYPE_UNSPECIFIED = 0;  // 未指定
+  CONFIG_TYPE_STRING = 1;        // 文字列
+  CONFIG_TYPE_NUMBER = 2;        // 数値
+  CONFIG_TYPE_BOOLEAN = 3;       // 真偽値
+  CONFIG_TYPE_JSON = 4;          // JSON
+  CONFIG_TYPE_DURATION = 5;      // 期間
+}
+
+// AuditLog は監査ログエントリを表す
+message AuditLog {
+  // 監査ログの一意な識別子
+  string id = 1;
+  
+  // 実行されたアクション
+  string action = 2;
+  
+  // 影響を受けたリソースタイプ
+  string resource_type = 3;
+  
+  // 影響を受けたリソースID
+  string resource_id = 4;
+  
+  // アクションを実行したユーザー
+  string actor_id = 5;
+  
+  // アクタータイプ（ユーザー、システム、サービス）
+  ActorType actor_type = 6;
+  
+  // アクターのIPアドレス
+  string ip_address = 7;
+  
+  // ユーザーエージェント文字列
+  string user_agent = 8;
+  
+  // アクションの結果
+  ActionResult result = 9;
+  
+  // 失敗時のエラーメッセージ
+  string error_message = 10;
+  
+  // リクエストの詳細（JSON）
+  google.protobuf.Struct request_details = 11;
+  
+  // レスポンスの詳細（JSON）
+  google.protobuf.Struct response_details = 12;
+  
+  // アクションのタイムスタンプ
+  google.protobuf.Timestamp created_at = 13;
+  
+  // ログを生成したサービス名
+  string service_name = 14;
+  
+  // 分散トレーシング用のトレースID
+  string trace_id = 15;
+}
+
+// ActorType はアクションを実行するアクターのタイプを表す
+enum ActorType {
+  ACTOR_TYPE_UNSPECIFIED = 0;  // 未指定
+  ACTOR_TYPE_USER = 1;          // ユーザー
+  ACTOR_TYPE_ADMIN = 2;         // 管理者
+  ACTOR_TYPE_SYSTEM = 3;        // システム
+  ACTOR_TYPE_SERVICE = 4;       // サービス
+}
+
+// ActionResult はアクションの結果を表す
+enum ActionResult {
+  ACTION_RESULT_UNSPECIFIED = 0;  // 未指定
+  ACTION_RESULT_SUCCESS = 1;       // 成功
+  ACTION_RESULT_FAILURE = 2;       // 失敗
+  ACTION_RESULT_PARTIAL = 3;       // 部分的成功
+}
+
+// BackupInfo はバックアップ情報を表す
+message BackupInfo {
+  // バックアップの一意な識別子
+  string id = 1;
+  
+  // バックアップ名
+  string name = 2;
+  
+  // バックアップの説明
+  string description = 3;
+  
+  // バックアップタイプ
+  BackupType type = 4;
+  
+  // バックアップステータス
+  BackupStatus status = 5;
+  
+  // サイズ（バイト）
+  int64 size_bytes = 6;
+  
+  // バックアップに含まれるサービス
+  repeated string services = 7;
+  
+  // ストレージの場所
+  string storage_location = 8;
+  
+  // 暗号化ステータス
+  bool is_encrypted = 9;
+  
+  // 圧縮タイプ
+  string compression_type = 10;
+  
+  // 作成時刻
+  google.protobuf.Timestamp created_at = 11;
+  
+  // 完了時刻
+  google.protobuf.Timestamp completed_at = 12;
+  
+  // 有効期限
+  google.protobuf.Timestamp expires_at = 13;
+  
+  // 作成者
+  string created_by = 14;
+  
+  // バックアップメタデータ
+  map<string, string> metadata = 15;
+  
+  // 検証ステータス
+  VerificationStatus verification_status = 16;
+}
+
+// BackupType はバックアップのタイプを表す
+enum BackupType {
+  BACKUP_TYPE_UNSPECIFIED = 0;     // 未指定
+  BACKUP_TYPE_FULL = 1;             // フルバックアップ
+  BACKUP_TYPE_INCREMENTAL = 2;      // 増分バックアップ
+  BACKUP_TYPE_DIFFERENTIAL = 3;     // 差分バックアップ
+  BACKUP_TYPE_SNAPSHOT = 4;         // スナップショット
+}
+
+// BackupStatus はバックアップのステータスを表す
+enum BackupStatus {
+  BACKUP_STATUS_UNSPECIFIED = 0;   // 未指定
+  BACKUP_STATUS_PENDING = 1;        // 保留中
+  BACKUP_STATUS_IN_PROGRESS = 2;    // 実行中
+  BACKUP_STATUS_COMPLETED = 3;      // 完了
+  BACKUP_STATUS_FAILED = 4;         // 失敗
+  BACKUP_STATUS_CANCELLED = 5;      // キャンセル
+  BACKUP_STATUS_EXPIRED = 6;        // 期限切れ
+}
+
+// VerificationStatus はバックアップの検証ステータスを表す
+enum VerificationStatus {
+  VERIFICATION_STATUS_UNSPECIFIED = 0;   // 未指定
+  VERIFICATION_STATUS_NOT_VERIFIED = 1;  // 未検証
+  VERIFICATION_STATUS_VERIFIED = 2;      // 検証済み
+  VERIFICATION_STATUS_FAILED = 3;        // 検証失敗
+}
+
+// MaintenanceWindow はメンテナンスウィンドウを表す
+message MaintenanceWindow {
+  // メンテナンスウィンドウの一意な識別子
+  string id = 1;
+  
+  // メンテナンスのタイトル
+  string title = 2;
+  
+  // メンテナンスの説明
+  string description = 3;
+  
+  // メンテナンスタイプ
+  MaintenanceType type = 4;
+  
+  // メンテナンス開始時刻
+  google.protobuf.Timestamp start_time = 5;
+  
+  // メンテナンス終了時刻
+  google.protobuf.Timestamp end_time = 6;
+  
+  // 影響を受けるサービス
+  repeated string affected_services = 7;
+  
+  // 予想される影響レベル
+  ImpactLevel impact_level = 8;
+  
+  // システムが読み取り専用モードかどうか
+  bool read_only_mode = 9;
+  
+  // 通知送信ステータス
+  bool notification_sent = 10;
+  
+  // 作成者
+  string created_by = 11;
+  
+  // 作成時刻
+  google.protobuf.Timestamp created_at = 12;
+  
+  // 更新時刻
+  google.protobuf.Timestamp updated_at = 13;
+  
+  // メンテナンスステータス
+  MaintenanceStatus status = 14;
+  
+  // 追加メモ
+  string notes = 15;
+}
+
+// MaintenanceType はメンテナンスのタイプを表す
+enum MaintenanceType {
+  MAINTENANCE_TYPE_UNSPECIFIED = 0;  // 未指定
+  MAINTENANCE_TYPE_SCHEDULED = 1;     // 定期メンテナンス
+  MAINTENANCE_TYPE_EMERGENCY = 2;     // 緊急メンテナンス
+  MAINTENANCE_TYPE_ROUTINE = 3;       // ルーティンメンテナンス
+  MAINTENANCE_TYPE_UPGRADE = 4;       // アップグレード
+}
+
+// MaintenanceStatus はメンテナンスのステータスを表す
+enum MaintenanceStatus {
+  MAINTENANCE_STATUS_UNSPECIFIED = 0;  // 未指定
+  MAINTENANCE_STATUS_SCHEDULED = 1;     // スケジュール済み
+  MAINTENANCE_STATUS_IN_PROGRESS = 2;   // 実行中
+  MAINTENANCE_STATUS_COMPLETED = 3;     // 完了
+  MAINTENANCE_STATUS_CANCELLED = 4;     // キャンセル
+  MAINTENANCE_STATUS_EXTENDED = 5;      // 延長
+}
+
+// ImpactLevel は影響レベルを表す
+enum ImpactLevel {
+  IMPACT_LEVEL_UNSPECIFIED = 0;  // 未指定
+  IMPACT_LEVEL_NONE = 1;          // 影響なし
+  IMPACT_LEVEL_LOW = 2;           // 低
+  IMPACT_LEVEL_MEDIUM = 3;        // 中
+  IMPACT_LEVEL_HIGH = 4;          // 高
+  IMPACT_LEVEL_CRITICAL = 5;      // クリティカル
+}
+
+// SystemStats はシステム統計を表す
+message SystemStats {
+  // 統計期間
+  StatsPeriod period = 1;
+  
+  // 期間の開始時刻
+  google.protobuf.Timestamp start_time = 2;
+  
+  // 期間の終了時刻
+  google.protobuf.Timestamp end_time = 3;
+  
+  // ユーザー統計
+  UserStats user_stats = 4;
+  
+  // コンテンツ統計
+  ContentStats content_stats = 5;
+  
+  // アクティビティ統計
+  ActivityStats activity_stats = 6;
+  
+  // パフォーマンス統計
+  PerformanceStats performance_stats = 7;
+  
+  // ストレージ統計
+  StorageStats storage_stats = 8;
+  
+  // 生成時刻
+  google.protobuf.Timestamp generated_at = 9;
+}
+
+// StatsPeriod は統計期間を表す
+enum StatsPeriod {
+  STATS_PERIOD_UNSPECIFIED = 0;  // 未指定
+  STATS_PERIOD_HOURLY = 1;        // 時間単位
+  STATS_PERIOD_DAILY = 2;         // 日単位
+  STATS_PERIOD_WEEKLY = 3;        // 週単位
+  STATS_PERIOD_MONTHLY = 4;       // 月単位
+  STATS_PERIOD_YEARLY = 5;        // 年単位
+  STATS_PERIOD_CUSTOM = 6;        // カスタム
+}
+
+// UserStats はユーザー統計を表す
+message UserStats {
+  // 総ユーザー数
+  int64 total_users = 1;
+  
+  // アクティブユーザー数
+  int64 active_users = 2;
+  
+  // 新規ユーザー数
+  int64 new_users = 3;
+  
+  // 削除されたユーザー数
+  int64 deleted_users = 4;
+  
+  // 停止中のユーザー数
+  int64 suspended_users = 5;
+  
+  // ユーザー成長率（パーセンテージ）
+  double growth_rate = 6;
+  
+  // 平均セッション時間（秒）
+  int64 avg_session_duration = 7;
+  
+  // ユーザー保持率（パーセンテージ）
+  double retention_rate = 8;
+}
+
+// ContentStats はコンテンツ統計を表す
+message ContentStats {
+  // 総Drop数
+  int64 total_drops = 1;
+  
+  // 新規Drop数
+  int64 new_drops = 2;
+  
+  // 削除されたDrop数
+  int64 deleted_drops = 3;
+  
+  // 総リアクション数
+  int64 total_reactions = 4;
+  
+  // 総コメント数
+  int64 total_comments = 5;
+  
+  // ユーザーあたりの平均Drop数
+  double avg_drops_per_user = 6;
+  
+  // コンテンツモデレーション統計
+  ModerationStats moderation_stats = 7;
+}
+
+// ModerationStats はモデレーション統計を表す
+message ModerationStats {
+  // 報告されたアイテム数
+  int64 reported_items = 1;
+  
+  // レビューされたアイテム数
+  int64 reviewed_items = 2;
+  
+  // 削除されたアイテム数
+  int64 removed_items = 3;
+  
+  // 異議申し立てされたアイテム数
+  int64 appealed_items = 4;
+  
+  // 平均レビュー時間（秒）
+  int64 avg_review_time = 5;
+}
+
+// ActivityStats はアクティビティ統計を表す
+message ActivityStats {
+  // 総APIリクエスト数
+  int64 total_requests = 1;
+  
+  // 成功したリクエスト数
+  int64 successful_requests = 2;
+  
+  // 失敗したリクエスト数
+  int64 failed_requests = 3;
+  
+  // 平均レスポンス時間（ミリ秒）
+  double avg_response_time = 4;
+  
+  // ピーク時の秒間リクエスト数
+  int64 peak_rps = 5;
+  
+  // 使用された総帯域幅（バイト）
+  int64 total_bandwidth = 6;
+  
+  // キャッシュヒット率（パーセンテージ）
+  double cache_hit_rate = 7;
+}
+
+// PerformanceStats はパフォーマンス統計を表す
+message PerformanceStats {
+  // 平均CPU使用率（パーセンテージ）
+  double avg_cpu_usage = 1;
+  
+  // ピークCPU使用率（パーセンテージ）
+  double peak_cpu_usage = 2;
+  
+  // 平均メモリ使用量（バイト）
+  int64 avg_memory_usage = 3;
+  
+  // ピークメモリ使用量（バイト）
+  int64 peak_memory_usage = 4;
+  
+  // データベースクエリパフォーマンス
+  DatabaseStats database_stats = 5;
+  
+  // キャッシュパフォーマンス
+  CacheStats cache_stats = 6;
+}
+
+// DatabaseStats はデータベース統計を表す
+message DatabaseStats {
+  // 実行された総クエリ数
+  int64 total_queries = 1;
+  
+  // 平均クエリ時間（ミリ秒）
+  double avg_query_time = 2;
+  
+  // スロークエリ数
+  int64 slow_queries = 3;
+  
+  // データベース接続数
+  int32 active_connections = 4;
+  
+  // データベースサイズ（バイト）
+  int64 database_size = 5;
+}
+
+// CacheStats はキャッシュ統計を表す
+message CacheStats {
+  // キャッシュヒット数
+  int64 hits = 1;
+  
+  // キャッシュミス数
+  int64 misses = 2;
+  
+  // キャッシュ削除数
+  int64 evictions = 3;
+  
+  // キャッシュサイズ（バイト）
+  int64 size_bytes = 4;
+  
+  // キーの数
+  int64 key_count = 5;
+}
+
+// StorageStats はストレージ統計を表す
+message StorageStats {
+  // 使用中の総ストレージ（バイト）
+  int64 total_used = 1;
+  
+  // 利用可能なストレージ（バイト）
+  int64 available = 2;
+  
+  // メディアストレージ使用量（バイト）
+  int64 media_storage = 3;
+  
+  // データベースストレージ使用量（バイト）
+  int64 database_storage = 4;
+  
+  // ログストレージ使用量（バイト）
+  int64 log_storage = 5;
+  
+  // バックアップストレージ使用量（バイト）
+  int64 backup_storage = 6;
+}
+
+// Alert はシステムアラートを表す
+message Alert {
+  // アラートの一意な識別子
+  string id = 1;
+  
+  // アラートタイトル
+  string title = 2;
+  
+  // アラートメッセージ
+  string message = 3;
+  
+  // アラートの重要度
+  AlertSeverity severity = 4;
+  
+  // アラートタイプ
+  AlertType type = 5;
+  
+  // アラートをトリガーしたサービス名
+  string service_name = 6;
+  
+  // 影響を受けたリソース
+  string resource_id = 7;
+  
+  // アラートステータス
+  AlertStatus status = 8;
+  
+  // トリガー時刻
+  google.protobuf.Timestamp triggered_at = 9;
+  
+  // 確認時刻
+  google.protobuf.Timestamp acknowledged_at = 10;
+  
+  // 解決時刻
+  google.protobuf.Timestamp resolved_at = 11;
+  
+  // 確認したユーザー
+  string acknowledged_by = 12;
+  
+  // 解決したユーザー
+  string resolved_by = 13;
+  
+  // アラートメタデータ
+  map<string, string> metadata = 14;
+  
+  // 実施されたアクション
+  repeated string actions_taken = 15;
+  
+  // 関連アラートID
+  repeated string related_alert_ids = 16;
+}
+
+// AlertSeverity はアラートの重要度を表す
+enum AlertSeverity {
+  ALERT_SEVERITY_UNSPECIFIED = 0;  // 未指定
+  ALERT_SEVERITY_INFO = 1;          // 情報
+  ALERT_SEVERITY_WARNING = 2;       // 警告
+  ALERT_SEVERITY_ERROR = 3;         // エラー
+  ALERT_SEVERITY_CRITICAL = 4;      // クリティカル
+}
+
+// AlertType はアラートのタイプを表す
+enum AlertType {
+  ALERT_TYPE_UNSPECIFIED = 0;     // 未指定
+  ALERT_TYPE_PERFORMANCE = 1;      // パフォーマンス
+  ALERT_TYPE_SECURITY = 2;         // セキュリティ
+  ALERT_TYPE_AVAILABILITY = 3;     // 可用性
+  ALERT_TYPE_CAPACITY = 4;         // 容量
+  ALERT_TYPE_ERROR_RATE = 5;       // エラー率
+  ALERT_TYPE_COMPLIANCE = 6;       // コンプライアンス
+}
+
+// AlertStatus はアラートのステータスを表す
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;   // 未指定
+  ALERT_STATUS_ACTIVE = 1;         // アクティブ
+  ALERT_STATUS_ACKNOWLEDGED = 2;   // 確認済み
+  ALERT_STATUS_RESOLVED = 3;       // 解決済み
+  ALERT_STATUS_SUPPRESSED = 4;     // 抑制中
+}
+
+// AdminAction は管理アクションを表す
+message AdminAction {
+  // アクションの一意な識別子
+  string id = 1;
+  
+  // アクションタイプ
+  AdminActionType type = 2;
+  
+  // ターゲットリソースタイプ
+  string target_type = 3;
+  
+  // ターゲットリソースID
+  string target_id = 4;
+  
+  // アクションの理由
+  string reason = 5;
+  
+  // 追加メモ
+  string notes = 6;
+  
+  // アクションパラメータ（JSON）
+  google.protobuf.Struct parameters = 7;
+  
+  // アクションステータス
+  AdminActionStatus status = 8;
+  
+  // 実行した管理者ユーザー
+  string performed_by = 9;
+  
+  // 実行時刻
+  google.protobuf.Timestamp performed_at = 10;
+  
+  // 有効期限（一時的なアクション用）
+  google.protobuf.Timestamp expires_at = 11;
+  
+  // 取り消した管理者ユーザー（該当する場合）
+  string reversed_by = 12;
+  
+  // 取り消し時刻
+  google.protobuf.Timestamp reversed_at = 13;
+  
+  // 結果メッセージ
+  string result_message = 14;
+}
+
+// AdminActionType は管理アクションのタイプを表す
+enum AdminActionType {
+  ADMIN_ACTION_TYPE_UNSPECIFIED = 0;         // 未指定
+  ADMIN_ACTION_TYPE_USER_SUSPEND = 1;        // ユーザー停止
+  ADMIN_ACTION_TYPE_USER_UNSUSPEND = 2;      // ユーザー停止解除
+  ADMIN_ACTION_TYPE_USER_DELETE = 3;         // ユーザー削除
+  ADMIN_ACTION_TYPE_USER_RESTORE = 4;        // ユーザー復元
+  ADMIN_ACTION_TYPE_CONTENT_DELETE = 5;      // コンテンツ削除
+  ADMIN_ACTION_TYPE_CONTENT_RESTORE = 6;     // コンテンツ復元
+  ADMIN_ACTION_TYPE_CONTENT_HIDE = 7;        // コンテンツ非表示
+  ADMIN_ACTION_TYPE_CONTENT_UNHIDE = 8;      // コンテンツ表示
+  ADMIN_ACTION_TYPE_CACHE_CLEAR = 9;         // キャッシュクリア
+  ADMIN_ACTION_TYPE_SERVICE_RESTART = 10;    // サービス再起動
+  ADMIN_ACTION_TYPE_CONFIG_UPDATE = 11;      // 設定更新
+  ADMIN_ACTION_TYPE_BACKUP_CREATE = 12;      // バックアップ作成
+  ADMIN_ACTION_TYPE_BACKUP_RESTORE = 13;     // バックアップ復元
+  ADMIN_ACTION_TYPE_MAINTENANCE_START = 14;  // メンテナンス開始
+  ADMIN_ACTION_TYPE_MAINTENANCE_END = 15;    // メンテナンス終了
+}
+
+// AdminActionStatus は管理アクションのステータスを表す
+enum AdminActionStatus {
+  ADMIN_ACTION_STATUS_UNSPECIFIED = 0;    // 未指定
+  ADMIN_ACTION_STATUS_PENDING = 1;        // 保留中
+  ADMIN_ACTION_STATUS_IN_PROGRESS = 2;    // 実行中
+  ADMIN_ACTION_STATUS_COMPLETED = 3;      // 完了
+  ADMIN_ACTION_STATUS_FAILED = 4;         // 失敗
+  ADMIN_ACTION_STATUS_REVERSED = 5;       // 取り消し済み
+}
+
+// ServiceControl はサービス制御情報を表す
+message ServiceControl {
+  // サービス識別子
+  string service_id = 1;
+  
+  // サービス名
+  string service_name = 2;
+  
+  // 現在のステータス
+  ServiceStatus status = 3;
+  
+  // 希望するステータス
+  ServiceStatus desired_status = 4;
+  
+  // レプリカ数
+  int32 replicas = 5;
+  
+  // 希望するレプリカ数
+  int32 desired_replicas = 6;
+  
+  // サービスバージョン
+  string version = 7;
+  
+  // 最終更新時刻
+  google.protobuf.Timestamp updated_at = 8;
+  
+  // サービスメタデータ
+  map<string, string> metadata = 9;
+}
+
+// ServiceStatus はサービスのステータスを表す
+enum ServiceStatus {
+  SERVICE_STATUS_UNSPECIFIED = 0;  // 未指定
+  SERVICE_STATUS_STARTING = 1;      // 起動中
+  SERVICE_STATUS_RUNNING = 2;       // 実行中
+  SERVICE_STATUS_STOPPING = 3;      // 停止中
+  SERVICE_STATUS_STOPPED = 4;       // 停止済み
+  SERVICE_STATUS_RESTARTING = 5;    // 再起動中
+  SERVICE_STATUS_ERROR = 6;         // エラー
+}
+
+// CacheInfo はキャッシュ情報を表す
+message CacheInfo {
+  // キャッシュ名
+  string name = 1;
+  
+  // キャッシュタイプ
+  string type = 2;
+  
+  // キャッシュサイズ（バイト）
+  int64 size_bytes = 3;
+  
+  // エントリ数
+  int64 entry_count = 4;
+  
+  // ヒット率（パーセンテージ）
+  double hit_rate = 5;
+  
+  // ミス率（パーセンテージ）
+  double miss_rate = 6;
+  
+  // 削除数
+  int64 eviction_count = 7;
+  
+  // TTL（秒）
+  int32 ttl_seconds = 8;
+  
+  // 最終クリア時刻
+  google.protobuf.Timestamp last_cleared_at = 9;
+}

@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+package avion.user.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ユーザーステータス
+enum UserStatus {
+	// 未指定
+	USER_STATUS_UNSPECIFIED = 0;
+	// アクティブ
+	USER_STATUS_ACTIVE = 1;
+	// 停止中
+	USER_STATUS_SUSPENDED = 2;
+	// 削除済み
+	USER_STATUS_DELETED = 3;
+}
+
+// プロフィール公開設定
+enum ProfileVisibility {
+	// 未指定
+	PROFILE_VISIBILITY_UNSPECIFIED = 0;
+	// 公開
+	PROFILE_VISIBILITY_PUBLIC = 1;
+	// フォロワーのみ
+	PROFILE_VISIBILITY_FOLLOWERS_ONLY = 2;
+	// 非公開
+	PROFILE_VISIBILITY_PRIVATE = 3;
+}
+
+// ユーザー情報
+message User {
+	// ユーザーID
+	string id = 1;
+	// ユーザー名（一意）
+	string username = 2;
+	// 表示名
+	string display_name = 3;
+	// メールアドレス
+	string email = 4;
+	// 自己紹介
+	string bio = 5;
+	// アバター画像URL
+	string avatar_url = 6;
+	// ヘッダー画像URL
+	string header_url = 7;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 8;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 9;
+	// 認証済みフラグ
+	bool is_verified = 10;
+	// 非公開アカウントフラグ
+	bool is_private = 11;
+	// 停止フラグ
+	bool is_suspended = 12;
+	// ステータス
+	UserStatus status = 13;
+}
+
+// ユーザープロフィール
+message UserProfile {
+	// ユーザーID
+	string user_id = 1;
+	// ウェブサイト
+	string website = 2;
+	// 場所
+	string location = 3;
+	// 生年月日
+	google.protobuf.Timestamp birth_date = 4;
+	// 登録日時
+	google.protobuf.Timestamp joined_at = 5;
+	// フォロワー数
+	int64 follower_count = 6;
+	// フォロー数
+	int64 following_count = 7;
+	// Drop数
+	int64 drop_count = 8;
+}
+
+// ユーザープライバシー設定
+message UserPrivacySettings {
+	// プロフィール公開設定
+	ProfileVisibility profile_visibility = 1;
+	// Drop公開設定
+	ProfileVisibility drop_visibility = 2;
+	// DM許可設定
+	bool allow_dm = 3;
+	// メンション許可設定
+	bool allow_mentions = 4;
+}
+
+// フォロー関係
+message Follow {
+	// フォロワーID
+	string follower_id = 1;
+	// フォロー対象ID
+	string following_id = 2;
+	// フォロー日時
+	google.protobuf.Timestamp created_at = 3;
+	// 承認済みフラグ（非公開アカウントの場合）
+	bool is_approved = 4;
+}
+
+// ブロック関係
+message Block {
+	// ブロックしたユーザーID
+	string blocker_id = 1;
+	// ブロックされたユーザーID
+	string blocked_id = 2;
+	// ブロック日時
+	google.protobuf.Timestamp created_at = 3;
+}
+
+// ミュート関係
+message Mute {
+	// ミュートしたユーザーID
+	string muter_id = 1;
+	// ミュートされたユーザーID
+	string muted_id = 2;
+	// ミュート日時
+	google.protobuf.Timestamp created_at = 3;
+	// ミュート有効期限（nullの場合は無期限）
+	google.protobuf.Timestamp expires_at = 4;
+}
+
+// ユーザー通知設定
+message UserNotificationSettings {
+	// 新規フォロワー通知
+	bool notify_new_followers = 1;
+	// メンション通知
+	bool notify_mentions = 2;
+	// リアクション通知
+	bool notify_reactions = 3;
+	// DM通知
+	bool notify_direct_messages = 4;
+	// フォローリクエスト通知
+	bool notify_follow_requests = 5;
+}
+
+// ユーザーアクセシビリティ設定
+message UserAccessibilitySettings {
+	// ハイコントラストモード
+	bool high_contrast_mode = 1;
+	// モーション軽減
+	bool reduce_motion = 2;
+	// フォントサイズ設定（small, medium, large, x-large）
+	string font_size = 3;
+	// 言語設定
+	string language = 4;
+	// タイムゾーン
+	string timezone = 5;
+}
+
+// ユーザーリスト
+message UserList {
+	// リストID
+	string id = 1;
+	// リスト名
+	string name = 2;
+	// リスト説明
+	string description = 3;
+	// 作成者ID
+	string owner_id = 4;
+	// 公開設定
+	bool is_public = 5;
+	// メンバー数
+	int64 member_count = 6;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 7;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 8;
+}
+
+// キーワードミュート
+message MuteKeyword {
+	// キーワードID
+	string id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// ミュートするキーワード
+	string keyword = 3;
+	// 大文字小文字を区別するか
+	bool case_sensitive = 4;
+	// 完全一致のみか
+	bool whole_word = 5;
+	// 有効期限（nullの場合は無期限）
+	google.protobuf.Timestamp expires_at = 6;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 7;
+}
+
+// ユーザー統計情報
+message UserStats {
+	// ユーザーID
+	string user_id = 1;
+	// 総Drop数
+	int64 total_drops = 2;
+	// 総リアクション受信数
+	int64 total_reactions_received = 3;
+	// 総リアクション送信数
+	int64 total_reactions_given = 4;
+	// 総フォロワー数
+	int64 total_followers = 5;
+	// 総フォロー数
+	int64 total_following = 6;
+	// アカウント作成からの日数
+	int64 days_since_joined = 7;
+	// 平均Drop数/日
+	float avg_drops_per_day = 8;
+	// 最終更新日時
+	google.protobuf.Timestamp updated_at = 9;
+}

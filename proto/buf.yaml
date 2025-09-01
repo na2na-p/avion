@@ -1,0 +1,17 @@
+version: v2
+modules:
+  - path: .
+    name: buf.build/na2na-p/avion
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+  except:
+    - FIELD_NOT_REQUIRED
+    - PACKAGE_NO_IMPORT_CYCLE
+  ignore:
+    - google
+breaking:
+  use:
+    - FILE

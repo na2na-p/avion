@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "avion/auth/v1/auth.proto";
+import "avion/auth/v1/session.proto";
+import "avion/auth/v1/mfa.proto";
+import "avion/auth/v1/passkey.proto";
+import "avion/auth/v1/oauth.proto";
+import "avion/auth/v1/account.proto";
+import "avion/auth/v1/policy.proto";
+import "avion/auth/v1/jwt.proto";
+
+service AuthService {
+  // 認証関連
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  // ユーザー登録関連
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+  rpc ResendVerificationEmail(ResendVerificationEmailRequest) returns (ResendVerificationEmailResponse);
+  
+  // パスワード管理
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  
+  // アカウント管理
+  rpc ChangeEmail(ChangeEmailRequest) returns (ChangeEmailResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc CancelAccountDeletion(CancelAccountDeletionRequest) returns (CancelAccountDeletionResponse);
+  
+  // MFA/TOTP関連
+  rpc EnableMfa(EnableMfaRequest) returns (EnableMfaResponse);
+  rpc DisableMfa(DisableMfaRequest) returns (DisableMfaResponse);
+  rpc SetupTotp(SetupTotpRequest) returns (SetupTotpResponse);
+  rpc VerifyTotp(VerifyTotpRequest) returns (VerifyTotpResponse);
+  rpc GenerateBackupCodes(GenerateBackupCodesRequest) returns (GenerateBackupCodesResponse);
+  rpc VerifyBackupCode(VerifyBackupCodeRequest) returns (VerifyBackupCodeResponse);
+  rpc ListMfaDevices(ListMfaDevicesRequest) returns (ListMfaDevicesResponse);
+  rpc GetMfaDevice(GetMfaDeviceRequest) returns (GetMfaDeviceResponse);
+  rpc UpdateMfaDevice(UpdateMfaDeviceRequest) returns (UpdateMfaDeviceResponse);
+  rpc MfaChallenge(MfaChallengeRequest) returns (MfaChallengeResponse);
+  rpc VerifyMfaChallenge(VerifyMfaChallengeRequest) returns (VerifyMfaChallengeResponse);
+  
+  // Passkey/WebAuthn関連
+  rpc RegisterPasskeyOptions(RegisterPasskeyOptionsRequest) returns (RegisterPasskeyOptionsResponse);
+  rpc RegisterPasskey(RegisterPasskeyRequest) returns (RegisterPasskeyResponse);
+  rpc AuthenticatePasskeyOptions(AuthenticatePasskeyOptionsRequest) returns (AuthenticatePasskeyOptionsResponse);
+  rpc AuthenticatePasskey(AuthenticatePasskeyRequest) returns (AuthenticatePasskeyResponse);
+  rpc ListPasskeys(ListPasskeysRequest) returns (ListPasskeysResponse);
+  rpc GetPasskey(GetPasskeyRequest) returns (GetPasskeyResponse);
+  rpc UpdatePasskey(UpdatePasskeyRequest) returns (UpdatePasskeyResponse);
+  rpc DeletePasskey(DeletePasskeyRequest) returns (DeletePasskeyResponse);
+  rpc RevokePasskey(RevokePasskeyRequest) returns (RevokePasskeyResponse);
+  
+  // OAuth2.0/OIDC関連
+  rpc GetOAuthAuthorizationUrl(GetOAuthAuthorizationUrlRequest) returns (GetOAuthAuthorizationUrlResponse);
+  rpc HandleOAuthCallback(HandleOAuthCallbackRequest) returns (HandleOAuthCallbackResponse);
+  rpc ConnectOAuthAccount(ConnectOAuthAccountRequest) returns (ConnectOAuthAccountResponse);
+  rpc DisconnectOAuthAccount(DisconnectOAuthAccountRequest) returns (DisconnectOAuthAccountResponse);
+  rpc ListOAuthConnections(ListOAuthConnectionsRequest) returns (ListOAuthConnectionsResponse);
+  rpc GetOAuthConnection(GetOAuthConnectionRequest) returns (GetOAuthConnectionResponse);
+  rpc RefreshOAuthToken(RefreshOAuthTokenRequest) returns (RefreshOAuthTokenResponse);
+  rpc ListOAuthProviders(ListOAuthProvidersRequest) returns (ListOAuthProvidersResponse);
+  rpc GetOAuthUserInfo(GetOAuthUserInfoRequest) returns (GetOAuthUserInfoResponse);
+  
+  // セッション管理
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+  rpc UpdateSession(UpdateSessionRequest) returns (UpdateSessionResponse);
+  rpc ExtendSession(ExtendSessionRequest) returns (ExtendSessionResponse);
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+  rpc GetSessionStats(GetSessionStatsRequest) returns (GetSessionStatsResponse);
+  
+  // アカウント復旧
+  rpc RecoverAccount(RecoverAccountRequest) returns (RecoverAccountResponse);
+  
+  // アカウントエクスポート（GDPR対応）
+  rpc ExportAccountData(ExportAccountDataRequest) returns (ExportAccountDataResponse);
+  rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse);
+  
+  // アカウントインポート
+  rpc ImportAccountData(ImportAccountDataRequest) returns (ImportAccountDataResponse);
+  
+  // ログイン履歴とセキュリティ
+  rpc GetLoginHistory(GetLoginHistoryRequest) returns (GetLoginHistoryResponse);
+  rpc GetSecurityAuditLog(GetSecurityAuditLogRequest) returns (GetSecurityAuditLogResponse);
+  
+  // ユーザー設定管理
+  rpc GetUserPreferences(GetUserPreferencesRequest) returns (GetUserPreferencesResponse);
+  rpc UpdateUserPreferences(UpdateUserPreferencesRequest) returns (UpdateUserPreferencesResponse);
+  rpc ResetUserPreferences(ResetUserPreferencesRequest) returns (ResetUserPreferencesResponse);
+  
+  // ポリシー管理
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc AssignPolicy(AssignPolicyRequest) returns (AssignPolicyResponse);
+  rpc UnassignPolicy(UnassignPolicyRequest) returns (UnassignPolicyResponse);
+  rpc ListUserPolicies(ListUserPoliciesRequest) returns (ListUserPoliciesResponse);
+  
+  // JWT管理
+  rpc GenerateJwt(GenerateJwtRequest) returns (GenerateJwtResponse);
+  rpc VerifyJwt(VerifyJwtRequest) returns (VerifyJwtResponse);
+  rpc RefreshJwt(RefreshJwtRequest) returns (RefreshJwtResponse);
+  rpc RevokeJwt(RevokeJwtRequest) returns (RevokeJwtResponse);
+  rpc IntrospectJwt(IntrospectJwtRequest) returns (IntrospectJwtResponse);
+  rpc GetJwks(GetJwksRequest) returns (GetJwksResponse);
+  rpc GetJwtConfig(GetJwtConfigRequest) returns (GetJwtConfigResponse);
+}
+
+message LogoutRequest {
+  string access_token = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+// RefreshTokenRequest と RefreshTokenResponse は session.proto から使用
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  User user = 2;
+}

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// リクエストメタデータ
+message RequestMetadata {
+	// リクエストID
+	string request_id = 1;
+	// トレースID
+	string trace_id = 2;
+	// ユーザーエージェント
+	string user_agent = 3;
+	// クライアントIPアドレス
+	string client_ip = 4;
+}
+
+// レスポンスメタデータ
+message ResponseMetadata {
+	// サーバーバージョン
+	string server_version = 1;
+	// 処理時間（ミリ秒）
+	int64 processing_time_ms = 2;
+}
+
+// リソースメタデータ
+message ResourceMetadata {
+	// 作成日時
+	google.protobuf.Timestamp created_at = 1;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 2;
+	// バージョン番号（楽観的ロック制御に使用）
+	int64 version = 3;
+	// ETag値
+	string etag = 4;
+}

@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+
+// セッションの状態を表す列挙型
+enum SessionStatus {
+  // 未指定
+  SESSION_STATUS_UNSPECIFIED = 0;
+  // アクティブ
+  SESSION_STATUS_ACTIVE = 1;
+  // 期限切れ
+  SESSION_STATUS_EXPIRED = 2;
+  // 無効化済み
+  SESSION_STATUS_REVOKED = 3;
+}
+
+// セッションを表すメッセージ
+message Session {
+  // セッションID
+  string id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // アクセストークン
+  string token = 3;
+  // リフレッシュトークン
+  string refresh_token = 4;
+  // 有効期限
+  google.protobuf.Timestamp expires_at = 5;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 6;
+  // 最終アクセス日時
+  google.protobuf.Timestamp last_accessed_at = 7;
+  // IPアドレス
+  string ip_address = 8;
+  // ユーザーエージェント
+  string user_agent = 9;
+  // デバイスID（オプション）
+  string device_id = 10;
+  // デバイス名（オプション）
+  string device_name = 11;
+  // セッションの状態
+  SessionStatus status = 12;
+  // メタデータ（JSON形式の追加情報）
+  map<string, string> metadata = 13;
+  // 2要素認証完了フラグ
+  bool is_mfa_verified = 14;
+  // 認証方法（password, passkey, oauth等）
+  string auth_method = 15;
+}
+
+// リフレッシュトークンリクエスト
+message RefreshTokenRequest {
+  // リフレッシュトークン
+  string refresh_token = 1;
+  // デバイスID（オプション）
+  string device_id = 2;
+}
+
+// リフレッシュトークンレスポンス
+message RefreshTokenResponse {
+  // 新しいアクセストークン
+  string access_token = 1;
+  // 新しいリフレッシュトークン
+  string refresh_token = 2;
+  // トークンの有効期限
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// セッション無効化リクエスト
+message RevokeSessionRequest {
+  // セッションID（指定された場合、特定のセッションを無効化）
+  string session_id = 1;
+  // ユーザーID（指定された場合、そのユーザーの全セッションを無効化）
+  string user_id = 2;
+  // 現在のセッションを除外するフラグ
+  bool exclude_current = 3;
+}
+
+// セッション無効化レスポンス
+message RevokeSessionResponse {
+  // 無効化されたセッション数
+  int32 revoked_count = 1;
+  // 無効化成功フラグ
+  bool success = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// セッション作成リクエスト
+message CreateSessionRequest {
+  // ユーザーID
+  string user_id = 1;
+  // IPアドレス
+  string ip_address = 2;
+  // ユーザーエージェント
+  string user_agent = 3;
+  // デバイスID（オプション）
+  string device_id = 4;
+  // デバイス名（オプション）
+  string device_name = 5;
+  // 認証方法
+  string auth_method = 6;
+  // 2要素認証完了フラグ
+  bool is_mfa_verified = 7;
+  // メタデータ
+  map<string, string> metadata = 8;
+}
+
+// セッション作成レスポンス
+message CreateSessionResponse {
+  // 作成されたセッション
+  Session session = 1;
+  // アクセストークン
+  string access_token = 2;
+  // リフレッシュトークン
+  string refresh_token = 3;
+}
+
+// セッション取得リクエスト
+message GetSessionRequest {
+  // セッションID
+  string session_id = 1;
+}
+
+// セッション取得レスポンス
+message GetSessionResponse {
+  // セッション
+  Session session = 1;
+}
+
+// セッション一覧取得リクエスト
+message ListSessionsRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationRequest pagination = 2;
+  // アクティブなセッションのみを取得
+  bool active_only = 3;
+}
+
+// セッション一覧取得レスポンス
+message ListSessionsResponse {
+  // セッションのリスト
+  repeated Session sessions = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// セッション検証リクエスト
+message ValidateSessionRequest {
+  // アクセストークン
+  string access_token = 1;
+  // IPアドレス（オプション、セキュリティチェック用）
+  string ip_address = 2;
+}
+
+// セッション検証レスポンス
+message ValidateSessionResponse {
+  // 有効フラグ
+  bool is_valid = 1;
+  // セッション
+  Session session = 2;
+  // エラーメッセージ（無効な場合）
+  string error_message = 3;
+}
+
+// セッション更新リクエスト
+message UpdateSessionRequest {
+  // セッションID
+  string session_id = 1;
+  // 最終アクセス日時を更新
+  bool update_last_accessed = 2;
+  // 新しいIPアドレス（オプション）
+  string ip_address = 3;
+  // 新しいユーザーエージェント（オプション）
+  string user_agent = 4;
+  // メタデータの更新
+  map<string, string> metadata = 5;
+}
+
+// セッション更新レスポンス
+message UpdateSessionResponse {
+  // 更新されたセッション
+  Session session = 1;
+}
+
+// セッション延長リクエスト
+message ExtendSessionRequest {
+  // セッションID
+  string session_id = 1;
+  // 延長時間（秒）
+  int32 extension_seconds = 2;
+}
+
+// セッション延長レスポンス
+message ExtendSessionResponse {
+  // 更新されたセッション
+  Session session = 1;
+  // 新しい有効期限
+  google.protobuf.Timestamp new_expires_at = 2;
+}
+
+// アクティブセッション統計リクエスト
+message GetSessionStatsRequest {
+  // ユーザーID（指定された場合、特定ユーザーの統計）
+  string user_id = 1;
+  // 期間（過去N日間）
+  int32 days = 2;
+}
+
+// アクティブセッション統計レスポンス
+message GetSessionStatsResponse {
+  // アクティブセッション数
+  int32 active_sessions = 1;
+  // 期限切れセッション数
+  int32 expired_sessions = 2;
+  // 無効化されたセッション数
+  int32 revoked_sessions = 3;
+  // ユニークユーザー数
+  int32 unique_users = 4;
+  // デバイス別セッション数
+  map<string, int32> sessions_by_device = 5;
+  // 認証方法別セッション数
+  map<string, int32> sessions_by_auth_method = 6;
+}

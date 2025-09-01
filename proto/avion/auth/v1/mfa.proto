@@ -1,0 +1,299 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/error.proto";
+import "avion/common/v1/pagination.proto";
+
+// MFA（多要素認証）の種類
+enum MfaType {
+  // 未指定
+  MFA_TYPE_UNSPECIFIED = 0;
+  // TOTP（Time-based One-Time Password）
+  MFA_TYPE_TOTP = 1;
+  // SMS認証
+  MFA_TYPE_SMS = 2;
+  // メール認証
+  MFA_TYPE_EMAIL = 3;
+  // バックアップコード
+  MFA_TYPE_BACKUP_CODE = 4;
+  // Passkey/WebAuthn
+  MFA_TYPE_PASSKEY = 5;
+}
+
+// MFAの状態
+enum MfaStatus {
+  // 未指定
+  MFA_STATUS_UNSPECIFIED = 0;
+  // 無効
+  MFA_STATUS_DISABLED = 1;
+  // 有効化中（セットアップ中）
+  MFA_STATUS_PENDING = 2;
+  // 有効
+  MFA_STATUS_ENABLED = 3;
+}
+
+// MFAデバイス情報
+message MfaDevice {
+  // デバイスID
+  string id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // MFAタイプ
+  MfaType type = 3;
+  // デバイス名（ユーザーが設定）
+  string name = 4;
+  // 状態
+  MfaStatus status = 5;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 6;
+  // 最終使用日時
+  google.protobuf.Timestamp last_used_at = 7;
+  // デバイス固有のメタデータ
+  map<string, string> metadata = 8;
+}
+
+// TOTPセットアップ情報
+message TotpSetup {
+  // シークレットキー（Base32エンコード）
+  string secret = 1;
+  // QRコード用URI
+  string qr_code_uri = 2;
+  // 手動入力用のアカウント名
+  string account_name = 3;
+  // 発行者名
+  string issuer = 4;
+  // アルゴリズム（SHA1, SHA256, SHA512）
+  string algorithm = 5;
+  // 桁数（通常6桁）
+  int32 digits = 6;
+  // 有効期間（秒、通常30秒）
+  int32 period = 7;
+}
+
+// バックアップコード
+message BackupCode {
+  // コードID
+  string id = 1;
+  // コード値（ハッシュ化されていない場合のみ）
+  string code = 2;
+  // 使用済みフラグ
+  bool used = 3;
+  // 使用日時
+  google.protobuf.Timestamp used_at = 4;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// MFA有効化リクエスト
+message EnableMfaRequest {
+  // ユーザーID
+  string user_id = 1;
+  // MFAタイプ
+  MfaType mfa_type = 2;
+  // デバイス名
+  string device_name = 3;
+}
+
+// MFA有効化レスポンス
+message EnableMfaResponse {
+  // MFAデバイス
+  MfaDevice device = 1;
+  // TOTPセットアップ情報（MFA_TYPE_TOTPの場合）
+  TotpSetup totp_setup = 2;
+  // バックアップコード
+  repeated BackupCode backup_codes = 3;
+}
+
+// MFA無効化リクエスト
+message DisableMfaRequest {
+  // ユーザーID
+  string user_id = 1;
+  // デバイスID（特定のデバイスを無効化）
+  string device_id = 2;
+  // 全てのMFAを無効化
+  bool disable_all = 3;
+  // 確認用パスワード
+  string password = 4;
+}
+
+// MFA無効化レスポンス
+message DisableMfaResponse {
+  // 成功フラグ
+  bool success = 1;
+  // 無効化されたデバイス数
+  int32 disabled_count = 2;
+}
+
+// TOTPセットアップ開始リクエスト
+message SetupTotpRequest {
+  // ユーザーID
+  string user_id = 1;
+  // デバイス名
+  string device_name = 2;
+}
+
+// TOTPセットアップ開始レスポンス
+message SetupTotpResponse {
+  // セットアップID（確認時に使用）
+  string setup_id = 1;
+  // TOTPセットアップ情報
+  TotpSetup totp_setup = 2;
+}
+
+// TOTP確認リクエスト
+message VerifyTotpRequest {
+  // セットアップID（初回セットアップ時）
+  string setup_id = 1;
+  // ユーザーID（通常の認証時）
+  string user_id = 2;
+  // デバイスID（通常の認証時）
+  string device_id = 3;
+  // TOTPコード
+  string code = 4;
+}
+
+// TOTP確認レスポンス
+message VerifyTotpResponse {
+  // 検証成功フラグ
+  bool valid = 1;
+  // MFAデバイス（セットアップ完了時）
+  MfaDevice device = 2;
+  // バックアップコード（セットアップ完了時）
+  repeated BackupCode backup_codes = 3;
+}
+
+// バックアップコード生成リクエスト
+message GenerateBackupCodesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 生成するコード数（デフォルト: 10）
+  int32 count = 2;
+  // 既存のコードを無効化
+  bool invalidate_existing = 3;
+}
+
+// バックアップコード生成レスポンス
+message GenerateBackupCodesResponse {
+  // バックアップコード
+  repeated BackupCode backup_codes = 1;
+}
+
+// バックアップコード検証リクエスト
+message VerifyBackupCodeRequest {
+  // ユーザーID
+  string user_id = 1;
+  // バックアップコード
+  string code = 2;
+  // 使用済みとしてマーク
+  bool mark_as_used = 3;
+}
+
+// バックアップコード検証レスポンス
+message VerifyBackupCodeResponse {
+  // 検証成功フラグ
+  bool valid = 1;
+  // 残りのコード数
+  int32 remaining_codes = 2;
+}
+
+// MFAデバイス一覧取得リクエスト
+message ListMfaDevicesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationRequest pagination = 2;
+  // MFAタイプでフィルタ（オプション）
+  MfaType mfa_type = 3;
+  // アクティブなデバイスのみ
+  bool active_only = 4;
+}
+
+// MFAデバイス一覧取得レスポンス
+message ListMfaDevicesResponse {
+  // MFAデバイスのリスト
+  repeated MfaDevice devices = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+  // MFAが有効かどうか
+  bool mfa_enabled = 3;
+}
+
+// MFAデバイス取得リクエスト
+message GetMfaDeviceRequest {
+  // デバイスID
+  string device_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// MFAデバイス取得レスポンス
+message GetMfaDeviceResponse {
+  // MFAデバイス
+  MfaDevice device = 1;
+}
+
+// MFAデバイス更新リクエスト
+message UpdateMfaDeviceRequest {
+  // デバイスID
+  string device_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 新しいデバイス名
+  string name = 3;
+  // メタデータの更新
+  map<string, string> metadata = 4;
+}
+
+// MFAデバイス更新レスポンス
+message UpdateMfaDeviceResponse {
+  // 更新されたMFAデバイス
+  MfaDevice device = 1;
+}
+
+// MFAチャレンジリクエスト
+message MfaChallengeRequest {
+  // ユーザーID
+  string user_id = 1;
+  // セッションID
+  string session_id = 2;
+  // 使用するMFAタイプ（指定しない場合は利用可能な全タイプ）
+  MfaType preferred_type = 3;
+}
+
+// MFAチャレンジレスポンス
+message MfaChallengeResponse {
+  // チャレンジID
+  string challenge_id = 1;
+  // 利用可能なMFAタイプ
+  repeated MfaType available_types = 2;
+  // チャレンジの有効期限
+  google.protobuf.Timestamp expires_at = 3;
+  // 追加情報（SMS送信先の末尾4桁など）
+  map<string, string> hints = 4;
+}
+
+// MFAチャレンジ検証リクエスト
+message VerifyMfaChallengeRequest {
+  // チャレンジID
+  string challenge_id = 1;
+  // MFAタイプ
+  MfaType mfa_type = 2;
+  // 認証コード
+  string code = 3;
+  // デバイスID（TOTP/Passkeyの場合）
+  string device_id = 4;
+}
+
+// MFAチャレンジ検証レスポンス
+message VerifyMfaChallengeResponse {
+  // 検証成功フラグ
+  bool valid = 1;
+  // セッション更新トークン（成功時）
+  string session_token = 2;
+  // エラー詳細（失敗時）
+  avion.common.v1.ErrorDetail error = 3;
+  // 残り試行回数
+  int32 remaining_attempts = 4;
+}

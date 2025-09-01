@@ -1,0 +1,414 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// フィルタ演算子
+enum FilterOperator {
+	// 未指定
+	FILTER_OPERATOR_UNSPECIFIED = 0;
+	// 等しい
+	FILTER_OPERATOR_EQUALS = 1;
+	// 等しくない
+	FILTER_OPERATOR_NOT_EQUALS = 2;
+	// より大きい
+	FILTER_OPERATOR_GREATER_THAN = 3;
+	// 以上
+	FILTER_OPERATOR_GREATER_THAN_OR_EQUALS = 4;
+	// より小さい
+	FILTER_OPERATOR_LESS_THAN = 5;
+	// 以下
+	FILTER_OPERATOR_LESS_THAN_OR_EQUALS = 6;
+	// 含む（部分一致）
+	FILTER_OPERATOR_CONTAINS = 7;
+	// 含まない
+	FILTER_OPERATOR_NOT_CONTAINS = 8;
+	// 前方一致
+	FILTER_OPERATOR_STARTS_WITH = 9;
+	// 後方一致
+	FILTER_OPERATOR_ENDS_WITH = 10;
+	// 正規表現マッチ
+	FILTER_OPERATOR_REGEX = 11;
+	// IN（リスト内に存在）
+	FILTER_OPERATOR_IN = 12;
+	// NOT IN（リスト内に存在しない）
+	FILTER_OPERATOR_NOT_IN = 13;
+	// NULL判定
+	FILTER_OPERATOR_IS_NULL = 14;
+	// NOT NULL判定
+	FILTER_OPERATOR_IS_NOT_NULL = 15;
+	// 範囲内（BETWEEN）
+	FILTER_OPERATOR_BETWEEN = 16;
+	// 存在する（フィールドが存在する）
+	FILTER_OPERATOR_EXISTS = 17;
+	// 存在しない（フィールドが存在しない）
+	FILTER_OPERATOR_NOT_EXISTS = 18;
+}
+
+// ソート順序
+enum SortOrder {
+	// 未指定（デフォルト: 昇順）
+	SORT_ORDER_UNSPECIFIED = 0;
+	// 昇順
+	SORT_ORDER_ASC = 1;
+	// 降順
+	SORT_ORDER_DESC = 2;
+}
+
+// フィールドフィルタ
+message FieldFilter {
+	// フィールド名（ドット記法でネストされたフィールドも指定可能）
+	// 例: "user.name", "created_at", "metadata.tags"
+	string field = 1;
+	
+	// フィルタ演算子
+	FilterOperator operator = 2;
+	
+	// フィルタ値（複数の型に対応）
+	oneof value {
+		// 文字列値
+		string string_value = 3;
+		// 数値（整数）
+		int64 int_value = 4;
+		// 数値（浮動小数点）
+		double double_value = 5;
+		// 真偽値
+		bool bool_value = 6;
+		// タイムスタンプ
+		google.protobuf.Timestamp timestamp_value = 7;
+		// 文字列リスト（IN, NOT_IN演算子用）
+		StringList string_list_value = 8;
+		// 数値リスト（IN, NOT_IN演算子用）
+		NumberList number_list_value = 9;
+		// 範囲値（BETWEEN演算子用）
+		RangeValue range_value = 10;
+	}
+	
+	// フィールド番号11-19は将来の拡張用に予約
+	
+	// 大文字小文字を区別しない（文字列比較時）
+	bool case_insensitive = 20;
+	
+	// NULLを含めるか（結果セットにNULL値を含める）
+	bool include_null = 21;
+}
+
+// 文字列リスト
+message StringList {
+	repeated string values = 1;
+}
+
+// 数値リスト
+message NumberList {
+	repeated double values = 1;
+}
+
+// 範囲値
+message RangeValue {
+	// 開始値
+	oneof start {
+		string string_start = 1;
+		int64 int_start = 2;
+		double double_start = 3;
+		google.protobuf.Timestamp timestamp_start = 4;
+	}
+	
+	// 終了値
+	oneof end {
+		string string_end = 5;
+		int64 int_end = 6;
+		double double_end = 7;
+		google.protobuf.Timestamp timestamp_end = 8;
+	}
+	
+	// 開始値を含むか
+	bool include_start = 9;
+	// 終了値を含むか
+	bool include_end = 10;
+}
+
+// 論理演算子
+enum LogicalOperator {
+	// 未指定（デフォルト: AND）
+	LOGICAL_OPERATOR_UNSPECIFIED = 0;
+	// AND条件
+	LOGICAL_OPERATOR_AND = 1;
+	// OR条件
+	LOGICAL_OPERATOR_OR = 2;
+	// NOT条件
+	LOGICAL_OPERATOR_NOT = 3;
+}
+
+// 複合フィルタ（複数のフィルタを組み合わせる）
+message CompositeFilter {
+	// 論理演算子
+	LogicalOperator operator = 1;
+	
+	// フィルタリスト
+	repeated Filter filters = 2;
+}
+
+// フィルタ（単一または複合）
+message Filter {
+	oneof filter_type {
+		// 単一フィールドフィルタ
+		FieldFilter field = 1;
+		// 複合フィルタ
+		CompositeFilter composite = 2;
+	}
+}
+
+// ソート条件
+message SortCriteria {
+	// ソート対象のフィールド
+	string field = 1;
+	
+	// ソート順序
+	SortOrder order = 2;
+	
+	// NULL値の扱い
+	NullHandling null_handling = 3;
+}
+
+// NULL値の扱い
+enum NullHandling {
+	// 未指定（デフォルト動作）
+	NULL_HANDLING_UNSPECIFIED = 0;
+	// NULL値を最初に配置
+	NULL_HANDLING_FIRST = 1;
+	// NULL値を最後に配置
+	NULL_HANDLING_LAST = 2;
+}
+
+// フィルタリクエスト
+message FilterRequest {
+	// フィルタ条件
+	Filter filter = 1;
+	
+	// ソート条件（複数指定可能、優先順位順）
+	repeated SortCriteria sort = 2;
+	
+	// 取得するフィールドのリスト（空の場合は全フィールド）
+	repeated string fields = 3;
+	
+	// 除外するフィールドのリスト
+	repeated string exclude_fields = 4;
+}
+
+// 検索クエリ（全文検索用）
+message SearchQuery {
+	// 検索文字列
+	string query = 1;
+	
+	// 検索対象のフィールド（空の場合は全フィールド）
+	repeated string search_fields = 2;
+	
+	// 検索オプション
+	SearchOptions options = 3;
+}
+
+// 検索オプション
+message SearchOptions {
+	// 大文字小文字を区別しない
+	bool case_insensitive = 1;
+	
+	// 部分一致を許可
+	bool partial_match = 2;
+	
+	// あいまい検索（タイポ許容）
+	bool fuzzy = 3;
+	
+	// あいまい検索の許容度（0-2、デフォルト: 1）
+	int32 fuzziness = 4;
+	
+	// ハイライト（マッチ箇所の強調表示）
+	bool highlight = 5;
+	
+	// ハイライトタグ（例: <em>, <mark>）
+	HighlightTags highlight_tags = 6;
+	
+	// 最小マッチスコア（0.0-1.0）
+	float min_score = 7;
+	
+	// ブースト設定（特定フィールドの重み付け）
+	map<string, float> field_boosts = 8;
+}
+
+// ハイライトタグ
+message HighlightTags {
+	// 開始タグ
+	string pre_tag = 1;
+	// 終了タグ
+	string post_tag = 2;
+}
+
+// 集計リクエスト
+message AggregationRequest {
+	// 集計名（結果参照用）
+	string name = 1;
+	
+	// 集計タイプ
+	AggregationType type = 2;
+	
+	// 集計対象のフィールド
+	string field = 3;
+	
+	// 集計オプション
+	AggregationOptions options = 4;
+	
+	// サブ集計（ネストされた集計）
+	repeated AggregationRequest sub_aggregations = 5;
+}
+
+// 集計タイプ
+enum AggregationType {
+	// 未指定
+	AGGREGATION_TYPE_UNSPECIFIED = 0;
+	// カウント
+	AGGREGATION_TYPE_COUNT = 1;
+	// 合計
+	AGGREGATION_TYPE_SUM = 2;
+	// 平均
+	AGGREGATION_TYPE_AVG = 3;
+	// 最小値
+	AGGREGATION_TYPE_MIN = 4;
+	// 最大値
+	AGGREGATION_TYPE_MAX = 5;
+	// カーディナリティ（ユニーク数）
+	AGGREGATION_TYPE_CARDINALITY = 6;
+	// パーセンタイル
+	AGGREGATION_TYPE_PERCENTILE = 7;
+	// ヒストグラム
+	AGGREGATION_TYPE_HISTOGRAM = 8;
+	// 日付ヒストグラム
+	AGGREGATION_TYPE_DATE_HISTOGRAM = 9;
+	// ターム集計（グルーピング）
+	AGGREGATION_TYPE_TERMS = 10;
+	// 範囲集計
+	AGGREGATION_TYPE_RANGE = 11;
+}
+
+// 集計オプション
+message AggregationOptions {
+	// ターム集計の最大バケット数
+	int32 size = 1;
+	
+	// ヒストグラムの間隔
+	double interval = 2;
+	
+	// 日付ヒストグラムの間隔（例: "1d", "1w", "1M"）
+	string date_interval = 3;
+	
+	// パーセンタイル値のリスト
+	repeated double percentiles = 4;
+	
+	// 範囲のリスト
+	repeated RangeValue ranges = 5;
+	
+	// タイムゾーン（日付集計用）
+	string timezone = 6;
+	
+	// 欠損値の扱い
+	MissingValueHandling missing = 7;
+}
+
+// 欠損値の扱い
+enum MissingValueHandling {
+	// 未指定（デフォルト: 無視）
+	MISSING_VALUE_HANDLING_UNSPECIFIED = 0;
+	// 無視する
+	MISSING_VALUE_HANDLING_IGNORE = 1;
+	// デフォルト値として扱う
+	MISSING_VALUE_HANDLING_DEFAULT = 2;
+	// 別のバケットとして集計
+	MISSING_VALUE_HANDLING_BUCKET = 3;
+}
+
+// ファセット検索リクエスト
+message FacetRequest {
+	// ファセット名
+	string name = 1;
+	
+	// ファセット対象のフィールド
+	string field = 2;
+	
+	// 最大ファセット数
+	int32 limit = 3;
+	
+	// 最小ドキュメント数（これ以下のファセットは除外）
+	int32 min_count = 4;
+	
+	// ソート順序
+	FacetSortOrder sort_order = 5;
+}
+
+// ファセットソート順序
+enum FacetSortOrder {
+	// 未指定（デフォルト: カウント降順）
+	FACET_SORT_ORDER_UNSPECIFIED = 0;
+	// カウント降順
+	FACET_SORT_ORDER_COUNT_DESC = 1;
+	// カウント昇順
+	FACET_SORT_ORDER_COUNT_ASC = 2;
+	// 値の辞書順（昇順）
+	FACET_SORT_ORDER_VALUE_ASC = 3;
+	// 値の辞書順（降順）
+	FACET_SORT_ORDER_VALUE_DESC = 4;
+}
+
+// 高度なフィルタリングリクエスト
+message AdvancedFilterRequest {
+	// 基本フィルタ
+	FilterRequest filter = 1;
+	
+	// 検索クエリ
+	SearchQuery search = 2;
+	
+	// 集計リクエスト
+	repeated AggregationRequest aggregations = 3;
+	
+	// ファセット検索
+	repeated FacetRequest facets = 4;
+	
+	// グルーピング設定
+	GroupingConfig grouping = 5;
+	
+	// 重複除去設定
+	DistinctConfig distinct = 6;
+}
+
+// グルーピング設定
+message GroupingConfig {
+	// グループ化するフィールド
+	repeated string fields = 1;
+	
+	// グループごとの最大件数
+	int32 limit = 2;
+	
+	// グループソート条件
+	repeated SortCriteria sort = 3;
+}
+
+// 重複除去設定
+message DistinctConfig {
+	// 重複判定に使用するフィールド
+	repeated string fields = 1;
+	
+	// 重複時に保持するレコードの選択基準
+	KeepCriteria keep = 2;
+}
+
+// 重複時の保持基準
+enum KeepCriteria {
+	// 未指定（デフォルト: 最初）
+	KEEP_CRITERIA_UNSPECIFIED = 0;
+	// 最初のレコード
+	KEEP_CRITERIA_FIRST = 1;
+	// 最後のレコード
+	KEEP_CRITERIA_LAST = 2;
+	// 最新（更新日時基準）
+	KEEP_CRITERIA_NEWEST = 3;
+	// 最古（更新日時基準）
+	KEEP_CRITERIA_OLDEST = 4;
+}

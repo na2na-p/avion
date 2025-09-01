@@ -1,0 +1,291 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// エンティティの公開状態
+enum VisibilityStatus {
+	// 未指定
+	VISIBILITY_STATUS_UNSPECIFIED = 0;
+	// 公開（誰でも閲覧可能）
+	VISIBILITY_STATUS_PUBLIC = 1;
+	// 非公開（本人のみ閲覧可能）
+	VISIBILITY_STATUS_PRIVATE = 2;
+	// フォロワーのみ閲覧可能
+	VISIBILITY_STATUS_FOLLOWERS_ONLY = 3;
+	// 相互フォローのみ閲覧可能
+	VISIBILITY_STATUS_MUTUAL_FOLLOWERS = 4;
+	// 特定のユーザーのみ閲覧可能（メンション、DM等）
+	VISIBILITY_STATUS_MENTIONED_ONLY = 5;
+	// リンクを知っている人のみ閲覧可能
+	VISIBILITY_STATUS_UNLISTED = 6;
+}
+
+// エンティティのライフサイクル状態
+enum LifecycleStatus {
+	// 未指定
+	LIFECYCLE_STATUS_UNSPECIFIED = 0;
+	// ドラフト（下書き）
+	LIFECYCLE_STATUS_DRAFT = 1;
+	// アクティブ（通常状態）
+	LIFECYCLE_STATUS_ACTIVE = 2;
+	// アーカイブ済み
+	LIFECYCLE_STATUS_ARCHIVED = 3;
+	// 削除済み（ソフトデリート）
+	LIFECYCLE_STATUS_DELETED = 4;
+	// 一時停止中
+	LIFECYCLE_STATUS_SUSPENDED = 5;
+	// 期限切れ
+	LIFECYCLE_STATUS_EXPIRED = 6;
+}
+
+// モデレーション状態
+enum ModerationStatus {
+	// 未指定
+	MODERATION_STATUS_UNSPECIFIED = 0;
+	// 未レビュー
+	MODERATION_STATUS_PENDING = 1;
+	// 承認済み
+	MODERATION_STATUS_APPROVED = 2;
+	// 却下済み
+	MODERATION_STATUS_REJECTED = 3;
+	// フラグ付き（要確認）
+	MODERATION_STATUS_FLAGGED = 4;
+	// 自動承認
+	MODERATION_STATUS_AUTO_APPROVED = 5;
+	// 自動却下
+	MODERATION_STATUS_AUTO_REJECTED = 6;
+	// レビュー中
+	MODERATION_STATUS_UNDER_REVIEW = 7;
+	// エスカレーション済み
+	MODERATION_STATUS_ESCALATED = 8;
+}
+
+// 処理状態（非同期処理やジョブ等）
+enum ProcessingStatus {
+	// 未指定
+	PROCESSING_STATUS_UNSPECIFIED = 0;
+	// 待機中
+	PROCESSING_STATUS_QUEUED = 1;
+	// 処理中
+	PROCESSING_STATUS_PROCESSING = 2;
+	// 成功
+	PROCESSING_STATUS_SUCCEEDED = 3;
+	// 失敗
+	PROCESSING_STATUS_FAILED = 4;
+	// キャンセル済み
+	PROCESSING_STATUS_CANCELLED = 5;
+	// タイムアウト
+	PROCESSING_STATUS_TIMEOUT = 6;
+	// リトライ中
+	PROCESSING_STATUS_RETRYING = 7;
+	// 部分的成功
+	PROCESSING_STATUS_PARTIAL_SUCCESS = 8;
+}
+
+// 健全性状態（ヘルスチェック用）
+enum HealthStatus {
+	// 未指定
+	HEALTH_STATUS_UNSPECIFIED = 0;
+	// 健全
+	HEALTH_STATUS_HEALTHY = 1;
+	// 低下
+	HEALTH_STATUS_DEGRADED = 2;
+	// 異常
+	HEALTH_STATUS_UNHEALTHY = 3;
+	// 不明
+	HEALTH_STATUS_UNKNOWN = 4;
+}
+
+// アカウント状態
+enum AccountStatus {
+	// 未指定
+	ACCOUNT_STATUS_UNSPECIFIED = 0;
+	// 保留中（メール確認待ち等）
+	ACCOUNT_STATUS_PENDING = 1;
+	// アクティブ
+	ACCOUNT_STATUS_ACTIVE = 2;
+	// 一時停止
+	ACCOUNT_STATUS_SUSPENDED = 3;
+	// 無効化
+	ACCOUNT_STATUS_DISABLED = 4;
+	// 削除済み
+	ACCOUNT_STATUS_DELETED = 5;
+	// ロック中（ログイン試行回数超過等）
+	ACCOUNT_STATUS_LOCKED = 6;
+	// 制限付き（機能制限）
+	ACCOUNT_STATUS_RESTRICTED = 7;
+}
+
+// 認証状態
+enum AuthenticationStatus {
+	// 未指定
+	AUTHENTICATION_STATUS_UNSPECIFIED = 0;
+	// 未認証
+	AUTHENTICATION_STATUS_UNAUTHENTICATED = 1;
+	// 認証済み
+	AUTHENTICATION_STATUS_AUTHENTICATED = 2;
+	// 部分認証（MFA待ち等）
+	AUTHENTICATION_STATUS_PARTIAL = 3;
+	// 期限切れ
+	AUTHENTICATION_STATUS_EXPIRED = 4;
+	// 無効化
+	AUTHENTICATION_STATUS_REVOKED = 5;
+}
+
+// メディアの処理状態
+enum MediaStatus {
+	// 未指定
+	MEDIA_STATUS_UNSPECIFIED = 0;
+	// アップロード中
+	MEDIA_STATUS_UPLOADING = 1;
+	// 処理中（エンコード、リサイズ等）
+	MEDIA_STATUS_PROCESSING = 2;
+	// 利用可能
+	MEDIA_STATUS_READY = 3;
+	// エラー
+	MEDIA_STATUS_ERROR = 4;
+	// 削除済み
+	MEDIA_STATUS_DELETED = 5;
+	// 期限切れ
+	MEDIA_STATUS_EXPIRED = 6;
+	// 検証中（ウイルススキャン等）
+	MEDIA_STATUS_VALIDATING = 7;
+}
+
+// 通知の状態
+enum NotificationStatus {
+	// 未指定
+	NOTIFICATION_STATUS_UNSPECIFIED = 0;
+	// 未読
+	NOTIFICATION_STATUS_UNREAD = 1;
+	// 既読
+	NOTIFICATION_STATUS_READ = 2;
+	// アーカイブ済み
+	NOTIFICATION_STATUS_ARCHIVED = 3;
+	// 削除済み
+	NOTIFICATION_STATUS_DELETED = 4;
+	// スヌーズ中
+	NOTIFICATION_STATUS_SNOOZED = 5;
+}
+
+// 配信状態（通知、メール等）
+enum DeliveryStatus {
+	// 未指定
+	DELIVERY_STATUS_UNSPECIFIED = 0;
+	// 送信待ち
+	DELIVERY_STATUS_PENDING = 1;
+	// 送信中
+	DELIVERY_STATUS_SENDING = 2;
+	// 送信済み
+	DELIVERY_STATUS_SENT = 3;
+	// 配信済み
+	DELIVERY_STATUS_DELIVERED = 4;
+	// 開封済み
+	DELIVERY_STATUS_OPENED = 5;
+	// バウンス（配信失敗）
+	DELIVERY_STATUS_BOUNCED = 6;
+	// 拒否
+	DELIVERY_STATUS_REJECTED = 7;
+	// 失敗
+	DELIVERY_STATUS_FAILED = 8;
+}
+
+// フォロー関係の状態
+enum FollowStatus {
+	// 未指定
+	FOLLOW_STATUS_UNSPECIFIED = 0;
+	// フォローしていない
+	FOLLOW_STATUS_NOT_FOLLOWING = 1;
+	// フォロー中
+	FOLLOW_STATUS_FOLLOWING = 2;
+	// フォローリクエスト送信済み（承認待ち）
+	FOLLOW_STATUS_REQUESTED = 3;
+	// ブロック中
+	FOLLOW_STATUS_BLOCKED = 4;
+	// ミュート中
+	FOLLOW_STATUS_MUTED = 5;
+}
+
+// プライバシー設定状態
+enum PrivacyStatus {
+	// 未指定
+	PRIVACY_STATUS_UNSPECIFIED = 0;
+	// 全員に公開
+	PRIVACY_STATUS_PUBLIC = 1;
+	// フォロワーのみ
+	PRIVACY_STATUS_FOLLOWERS_ONLY = 2;
+	// 承認制（プライベートアカウント）
+	PRIVACY_STATUS_PRIVATE = 3;
+}
+
+// 状態遷移情報
+message StatusTransition {
+	// 遷移前の状態
+	string from_status = 1;
+	// 遷移後の状態
+	string to_status = 2;
+	// 遷移日時
+	google.protobuf.Timestamp transitioned_at = 3;
+	// 遷移を実行したユーザー
+	string transitioned_by = 4;
+	// 遷移理由
+	string reason = 5;
+	// 追加のメタデータ
+	map<string, string> metadata = 6;
+}
+
+// 状態履歴
+message StatusHistory {
+	// 現在の状態
+	string current_status = 1;
+	// 状態遷移の履歴
+	repeated StatusTransition transitions = 2;
+	// 最終更新日時
+	google.protobuf.Timestamp last_updated_at = 3;
+}
+
+// 複合状態（複数の状態を持つエンティティ用）
+message CompositeStatus {
+	// ライフサイクル状態
+	LifecycleStatus lifecycle_status = 1;
+	// 公開状態
+	VisibilityStatus visibility_status = 2;
+	// モデレーション状態
+	ModerationStatus moderation_status = 3;
+	// 処理状態
+	ProcessingStatus processing_status = 4;
+	// カスタム状態（サービス固有）
+	map<string, string> custom_status = 5;
+}
+
+// 状態変更リクエスト
+message StatusChangeRequest {
+	// 変更対象のエンティティID
+	string entity_id = 1;
+	// 変更対象のエンティティタイプ
+	string entity_type = 2;
+	// 新しい状態
+	string new_status = 3;
+	// 変更理由
+	string reason = 4;
+	// 変更のメタデータ
+	map<string, string> metadata = 5;
+	// 強制変更フラグ（バリデーションをスキップ）
+	bool force = 6;
+}
+
+// 状態変更レスポンス
+message StatusChangeResponse {
+	// 変更が成功したか
+	bool success = 1;
+	// 変更前の状態
+	string previous_status = 2;
+	// 変更後の状態
+	string current_status = 3;
+	// 変更日時
+	google.protobuf.Timestamp changed_at = 4;
+	// エラーメッセージ（失敗時）
+	string error_message = 5;
+}

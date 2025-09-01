@@ -1,0 +1,683 @@
+syntax = "proto3";
+
+package avion.activitypub.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "avion/common/v1/pagination.proto";
+
+// ActivityPubアクターのタイプ
+enum ActorType {
+  // 未指定
+  ACTOR_TYPE_UNSPECIFIED = 0;
+  // 個人
+  ACTOR_TYPE_PERSON = 1;
+  // サービス
+  ACTOR_TYPE_SERVICE = 2;
+  // グループ
+  ACTOR_TYPE_GROUP = 3;
+  // アプリケーション
+  ACTOR_TYPE_APPLICATION = 4;
+  // 組織
+  ACTOR_TYPE_ORGANIZATION = 5;
+}
+
+// アクティビティタイプ
+enum ActivityType {
+  // 未指定
+  ACTIVITY_TYPE_UNSPECIFIED = 0;
+  // 作成
+  ACTIVITY_TYPE_CREATE = 1;
+  // 更新
+  ACTIVITY_TYPE_UPDATE = 2;
+  // 削除
+  ACTIVITY_TYPE_DELETE = 3;
+  // フォロー
+  ACTIVITY_TYPE_FOLLOW = 4;
+  // アンフォロー
+  ACTIVITY_TYPE_UNFOLLOW = 5;
+  // いいね
+  ACTIVITY_TYPE_LIKE = 6;
+  // いいね解除
+  ACTIVITY_TYPE_UNLIKE = 7;
+  // 共有（ブースト）
+  ACTIVITY_TYPE_ANNOUNCE = 8;
+  // 共有解除
+  ACTIVITY_TYPE_UNANNOUNCE = 9;
+  // 承認
+  ACTIVITY_TYPE_ACCEPT = 10;
+  // 拒否
+  ACTIVITY_TYPE_REJECT = 11;
+  // ブロック
+  ACTIVITY_TYPE_BLOCK = 12;
+  // ブロック解除
+  ACTIVITY_TYPE_UNBLOCK = 13;
+  // 追加
+  ACTIVITY_TYPE_ADD = 14;
+  // 削除
+  ACTIVITY_TYPE_REMOVE = 15;
+  // 移動
+  ACTIVITY_TYPE_MOVE = 16;
+  // フラグ（報告）
+  ACTIVITY_TYPE_FLAG = 17;
+}
+
+// オブジェクトタイプ
+enum ObjectType {
+  // 未指定
+  OBJECT_TYPE_UNSPECIFIED = 0;
+  // ノート（短文投稿）
+  OBJECT_TYPE_NOTE = 1;
+  // 記事
+  OBJECT_TYPE_ARTICLE = 2;
+  // 画像
+  OBJECT_TYPE_IMAGE = 3;
+  // 動画
+  OBJECT_TYPE_VIDEO = 4;
+  // 音声
+  OBJECT_TYPE_AUDIO = 5;
+  // ドキュメント
+  OBJECT_TYPE_DOCUMENT = 6;
+  // ページ
+  OBJECT_TYPE_PAGE = 7;
+  // イベント
+  OBJECT_TYPE_EVENT = 8;
+  // 場所
+  OBJECT_TYPE_PLACE = 9;
+  // プロフィール
+  OBJECT_TYPE_PROFILE = 10;
+  // コレクション
+  OBJECT_TYPE_COLLECTION = 11;
+  // 順序付きコレクション
+  OBJECT_TYPE_ORDERED_COLLECTION = 12;
+}
+
+// 公開範囲
+enum Visibility {
+  // 未指定
+  VISIBILITY_UNSPECIFIED = 0;
+  // パブリック
+  VISIBILITY_PUBLIC = 1;
+  // フォロワーのみ
+  VISIBILITY_FOLLOWERS = 2;
+  // ダイレクト（指定ユーザーのみ）
+  VISIBILITY_DIRECT = 3;
+  // 未収載（URLを知っている人のみ）
+  VISIBILITY_UNLISTED = 4;
+}
+
+// ActivityPubアクター
+message Actor {
+  // アクターID（URI形式）
+  string id = 1;
+  // アクタータイプ
+  ActorType type = 2;
+  // ユーザー名（@username形式）
+  string username = 3;
+  // 表示名
+  string display_name = 4;
+  // 概要・自己紹介
+  string summary = 5;
+  // アイコンURL
+  string icon_url = 6;
+  // ヘッダー画像URL
+  string header_url = 7;
+  // Inbox URL
+  string inbox_url = 8;
+  // Outbox URL
+  string outbox_url = 9;
+  // Followers URL
+  string followers_url = 10;
+  // Following URL
+  string following_url = 11;
+  // 公開鍵
+  PublicKey public_key = 12;
+  // エンドポイント
+  Endpoint endpoints = 13;
+  // 手動承認が必要か
+  bool manually_approves_followers = 14;
+  // 検索可能か
+  bool discoverable = 15;
+  // ボットか
+  bool is_bot = 16;
+  // ロックされているか
+  bool is_locked = 17;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 18;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 19;
+  // 追加のプロパティ（JSON-LD拡張用）
+  google.protobuf.Struct extra_properties = 20;
+}
+
+// 公開鍵情報
+message PublicKey {
+  // 公開鍵ID（URI形式）
+  string id = 1;
+  // 所有者ID（アクターID）
+  string owner = 2;
+  // 公開鍵（PEM形式）
+  string public_key_pem = 3;
+}
+
+// エンドポイント情報
+message Endpoint {
+  // 共有Inbox URL（オプション）
+  string shared_inbox_url = 1;
+  // OAuthAuthorizationEndpoint
+  string oauth_authorization_endpoint = 2;
+  // OAuthTokenEndpoint
+  string oauth_token_endpoint = 3;
+  // ProvideClientKey
+  string provide_client_key = 4;
+  // SignClientKey
+  string sign_client_key = 5;
+  // SharedInbox
+  string shared_inbox = 6;
+}
+
+// アクティビティ
+message Activity {
+  // アクティビティID（URI形式）
+  string id = 1;
+  // アクティビティタイプ
+  ActivityType type = 2;
+  // アクター（実行者）
+  Actor actor = 3;
+  // 対象オブジェクト
+  Object object = 4;
+  // ターゲット（オプション）
+  Actor target = 5;
+  // 公開範囲
+  Visibility visibility = 6;
+  // 宛先（to）
+  repeated string to = 7;
+  // CC
+  repeated string cc = 8;
+  // BCC
+  repeated string bcc = 9;
+  // 返信先
+  string in_reply_to = 10;
+  // 公開日時
+  google.protobuf.Timestamp published = 11;
+  // 更新日時
+  google.protobuf.Timestamp updated = 12;
+  // 署名
+  Signature signature = 13;
+  // 追加のプロパティ（JSON-LD拡張用）
+  google.protobuf.Struct extra_properties = 14;
+}
+
+// オブジェクト
+message Object {
+  // オブジェクトID（URI形式）
+  string id = 1;
+  // オブジェクトタイプ
+  ObjectType type = 2;
+  // 作成者
+  Actor attributed_to = 3;
+  // タイトル
+  string title = 4;
+  // 内容
+  string content = 5;
+  // 要約
+  string summary = 6;
+  // URL
+  string url = 7;
+  // 返信先
+  string in_reply_to = 8;
+  // 公開範囲
+  Visibility visibility = 9;
+  // 宛先（to）
+  repeated string to = 10;
+  // CC
+  repeated string cc = 11;
+  // BCC
+  repeated string bcc = 12;
+  // 添付ファイル
+  repeated Attachment attachments = 13;
+  // タグ
+  repeated Tag tags = 14;
+  // 公開日時
+  google.protobuf.Timestamp published = 15;
+  // 更新日時
+  google.protobuf.Timestamp updated = 16;
+  // 追加のプロパティ（JSON-LD拡張用）
+  google.protobuf.Struct extra_properties = 17;
+}
+
+// 添付ファイル
+message Attachment {
+  // タイプ（Image, Video, Audio, Document等）
+  string type = 1;
+  // メディアタイプ（MIME type）
+  string media_type = 2;
+  // URL
+  string url = 3;
+  // 名前
+  string name = 4;
+  // 幅（画像・動画の場合）
+  int32 width = 5;
+  // 高さ（画像・動画の場合）
+  int32 height = 6;
+  // ファイルサイズ（バイト）
+  int64 size = 7;
+  // 長さ（動画・音声の場合、秒）
+  int32 duration = 8;
+}
+
+// タグ
+message Tag {
+  // タイプ（Hashtag, Mention, Emoji等）
+  string type = 1;
+  // 名前
+  string name = 2;
+  // href（リンク先URL）
+  string href = 3;
+  // アイコン（絵文字の場合）
+  string icon = 4;
+}
+
+// コレクション
+message Collection {
+  // コレクションID（URI形式）
+  string id = 1;
+  // タイプ（Collection, OrderedCollection）
+  string type = 2;
+  // 総アイテム数
+  int32 total_items = 3;
+  // 最初のページURL
+  string first = 4;
+  // 最後のページURL
+  string last = 5;
+  // 現在のページURL
+  string current = 6;
+  // アイテム（ページ内のコンテンツ）
+  repeated google.protobuf.Struct items = 7;
+  // 順序付きアイテム（OrderedCollectionの場合）
+  repeated google.protobuf.Struct ordered_items = 8;
+}
+
+// コレクションページ
+message CollectionPage {
+  // ページID（URI形式）
+  string id = 1;
+  // タイプ（CollectionPage, OrderedCollectionPage）
+  string type = 2;
+  // 総アイテム数
+  int32 total_items = 3;
+  // 次のページURL
+  string next = 4;
+  // 前のページURL
+  string prev = 5;
+  // 所属するコレクションURL
+  string part_of = 6;
+  // アイテム
+  repeated google.protobuf.Struct items = 7;
+  // 順序付きアイテム（OrderedCollectionPageの場合）
+  repeated google.protobuf.Struct ordered_items = 8;
+}
+
+// WebFingerリソース
+message WebFingerResource {
+  // Subject（acct:username@domain形式）
+  string subject = 1;
+  // エイリアス
+  repeated string aliases = 2;
+  // リンク
+  repeated WebFingerLink links = 3;
+}
+
+// WebFingerリンク
+message WebFingerLink {
+  // 関係
+  string rel = 1;
+  // タイプ
+  string type = 2;
+  // href
+  string href = 3;
+  // テンプレート
+  string template = 4;
+}
+
+// HTTPSignature署名
+message Signature {
+  // 署名タイプ
+  string type = 1;
+  // 作成者（署名者のキーID）
+  string creator = 2;
+  // 作成日時
+  google.protobuf.Timestamp created = 3;
+  // 署名値（Base64エンコード）
+  string signature_value = 4;
+}
+
+// アクター作成リクエスト
+message CreateActorRequest {
+  // ユーザー名
+  string username = 1;
+  // 表示名
+  string display_name = 2;
+  // 概要・自己紹介
+  string summary = 3;
+  // アクタータイプ
+  ActorType type = 4;
+  // 手動承認が必要か
+  bool manually_approves_followers = 5;
+  // 検索可能か
+  bool discoverable = 6;
+  // ボットか
+  bool is_bot = 7;
+}
+
+// アクター作成レスポンス
+message CreateActorResponse {
+  // 作成されたアクター
+  Actor actor = 1;
+}
+
+// アクター取得リクエスト
+message GetActorRequest {
+  // アクターID（URI形式）またはユーザー名
+  string actor_id = 1;
+}
+
+// アクター取得レスポンス
+message GetActorResponse {
+  // アクター
+  Actor actor = 1;
+}
+
+// アクター更新リクエスト
+message UpdateActorRequest {
+  // アクターID
+  string actor_id = 1;
+  // 表示名（更新する場合）
+  optional string display_name = 2;
+  // 概要・自己紹介（更新する場合）
+  optional string summary = 3;
+  // アイコンURL（更新する場合）
+  optional string icon_url = 4;
+  // ヘッダー画像URL（更新する場合）
+  optional string header_url = 5;
+  // 手動承認が必要か（更新する場合）
+  optional bool manually_approves_followers = 6;
+  // 検索可能か（更新する場合）
+  optional bool discoverable = 7;
+  // ボットか（更新する場合）
+  optional bool is_bot = 8;
+  // ロック状態（更新する場合）
+  optional bool is_locked = 9;
+}
+
+// アクター更新レスポンス
+message UpdateActorResponse {
+  // 更新されたアクター
+  Actor actor = 1;
+}
+
+// アクター削除リクエスト
+message DeleteActorRequest {
+  // アクターID
+  string actor_id = 1;
+}
+
+// アクター削除レスポンス
+message DeleteActorResponse {
+  // 削除成功
+  bool success = 1;
+}
+
+// アクティビティ送信リクエスト
+message SendActivityRequest {
+  // アクティビティタイプ
+  ActivityType activity_type = 1;
+  // アクターID（送信者）
+  string actor_id = 2;
+  // 対象オブジェクト（オプション）
+  Object object = 3;
+  // ターゲットアクターID（オプション）
+  string target_actor_id = 4;
+  // 公開範囲
+  Visibility visibility = 5;
+  // 宛先（to）
+  repeated string to = 6;
+  // CC
+  repeated string cc = 7;
+  // BCC
+  repeated string bcc = 8;
+}
+
+// アクティビティ送信レスポンス
+message SendActivityResponse {
+  // 送信されたアクティビティ
+  Activity activity = 1;
+  // 配送ステータス
+  repeated DeliveryStatus delivery_statuses = 2;
+}
+
+// 配送ステータス
+message DeliveryStatus {
+  // 宛先URL
+  string inbox_url = 1;
+  // 成功したか
+  bool success = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+  // HTTPステータスコード
+  int32 status_code = 4;
+  // 配送日時
+  google.protobuf.Timestamp delivered_at = 5;
+}
+
+// アクティビティ受信リクエスト
+message ReceiveActivityRequest {
+  // 受信したアクティビティ（JSON-LD形式）
+  google.protobuf.Struct activity_json = 1;
+  // HTTPSignatureヘッダー
+  map<string, string> signature_headers = 2;
+  // 送信元IPアドレス
+  string source_ip = 3;
+}
+
+// アクティビティ受信レスポンス
+message ReceiveActivityResponse {
+  // 処理されたアクティビティ
+  Activity activity = 1;
+  // 処理結果
+  bool accepted = 2;
+  // 拒否理由（拒否された場合）
+  string rejection_reason = 3;
+}
+
+// Inbox取得リクエスト
+message GetInboxRequest {
+  // アクターID
+  string actor_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// Inbox取得レスポンス
+message GetInboxResponse {
+  // アクティビティリスト
+  repeated Activity activities = 1;
+  // ページネーション
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// Outbox取得リクエスト
+message GetOutboxRequest {
+  // アクターID
+  string actor_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// Outbox取得レスポンス
+message GetOutboxResponse {
+  // アクティビティリスト
+  repeated Activity activities = 1;
+  // ページネーション
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// フォローリクエスト
+message FollowRequest {
+  // フォロワーのアクターID
+  string follower_id = 1;
+  // フォロー対象のアクターID
+  string followee_id = 2;
+}
+
+// フォローレスポンス
+message FollowResponse {
+  // フォローアクティビティ
+  Activity follow_activity = 1;
+  // 即座に承認されたか
+  bool accepted = 2;
+  // 承認待ちか
+  bool pending = 3;
+}
+
+// アンフォローリクエスト
+message UnfollowRequest {
+  // フォロワーのアクターID
+  string follower_id = 1;
+  // アンフォロー対象のアクターID
+  string followee_id = 2;
+}
+
+// アンフォローレスポンス
+message UnfollowResponse {
+  // アンフォローアクティビティ
+  Activity unfollow_activity = 1;
+}
+
+// フォロワー取得リクエスト
+message GetFollowersRequest {
+  // アクターID
+  string actor_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// フォロワー取得レスポンス
+message GetFollowersResponse {
+  // フォロワーリスト
+  repeated Actor followers = 1;
+  // ページネーション
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// フォロー中取得リクエスト
+message GetFollowingRequest {
+  // アクターID
+  string actor_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// フォロー中取得レスポンス
+message GetFollowingResponse {
+  // フォロー中リスト
+  repeated Actor following = 1;
+  // ページネーション
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// WebFinger検索リクエスト
+message WebFingerLookupRequest {
+  // リソース（acct:username@domain形式）
+  string resource = 1;
+}
+
+// WebFinger検索レスポンス
+message WebFingerLookupResponse {
+  // WebFingerリソース
+  WebFingerResource resource = 1;
+}
+
+// 署名検証リクエスト
+message VerifySignatureRequest {
+  // HTTPメソッド
+  string method = 1;
+  // リクエストパス
+  string path = 2;
+  // HTTPヘッダー
+  map<string, string> headers = 3;
+  // リクエストボディ
+  bytes body = 4;
+  // Signatureヘッダー
+  string signature_header = 5;
+}
+
+// 署名検証レスポンス
+message VerifySignatureResponse {
+  // 検証成功
+  bool valid = 1;
+  // アクターID（検証成功時）
+  string actor_id = 2;
+  // エラーメッセージ（検証失敗時）
+  string error_message = 3;
+}
+
+// 署名生成リクエスト
+message GenerateSignatureRequest {
+  // アクターID（署名者）
+  string actor_id = 1;
+  // HTTPメソッド
+  string method = 2;
+  // リクエストパス
+  string path = 3;
+  // HTTPヘッダー
+  map<string, string> headers = 4;
+  // リクエストボディ
+  bytes body = 5;
+}
+
+// 署名生成レスポンス
+message GenerateSignatureResponse {
+  // Signatureヘッダー値
+  string signature_header = 1;
+  // Dateヘッダー値
+  string date_header = 2;
+  // Digestヘッダー値
+  string digest_header = 3;
+}
+
+// リモートアクター同期リクエスト
+message SyncRemoteActorRequest {
+  // リモートアクターのURI
+  string actor_uri = 1;
+  // 強制更新するか
+  bool force_update = 2;
+}
+
+// リモートアクター同期レスポンス
+message SyncRemoteActorResponse {
+  // 同期されたアクター
+  Actor actor = 1;
+  // 新規作成か更新か
+  bool is_new = 2;
+}
+
+// コレクション取得リクエスト
+message GetCollectionRequest {
+  // コレクションURL
+  string collection_url = 1;
+  // ページトークン（ページネーション用）
+  string page_token = 2;
+  // ページサイズ
+  int32 page_size = 3;
+}
+
+// コレクション取得レスポンス
+message GetCollectionResponse {
+  // コレクション
+  Collection collection = 1;
+  // コレクションページ（ページネーション時）
+  CollectionPage page = 2;
+  // 次ページトークン
+  string next_page_token = 3;
+}

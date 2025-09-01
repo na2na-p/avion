@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+
+// エラーコード定義
+// 注: これらのコードはgRPCの標準ステータスコードに対応しています
+// 詳細なマッピングはdocs/common/errors/error-codes.mdを参照してください
+enum ErrorCode {
+	// 未指定のエラーコード
+	ERROR_CODE_UNSPECIFIED = 0;
+	// 無効な引数
+	ERROR_CODE_INVALID_ARGUMENT = 1;
+	// リソースが見つからない
+	ERROR_CODE_NOT_FOUND = 2;
+	// リソースが既に存在する
+	ERROR_CODE_ALREADY_EXISTS = 3;
+	// 権限が拒否された
+	ERROR_CODE_PERMISSION_DENIED = 4;
+	// リソースが枯渇した
+	ERROR_CODE_RESOURCE_EXHAUSTED = 5;
+	// 前提条件が満たされていない
+	ERROR_CODE_FAILED_PRECONDITION = 6;
+	// 操作が中止された
+	ERROR_CODE_ABORTED = 7;
+	// 範囲外のエラー
+	ERROR_CODE_OUT_OF_RANGE = 8;
+	// 未実装の機能
+	ERROR_CODE_UNIMPLEMENTED = 9;
+	// 内部エラー
+	ERROR_CODE_INTERNAL = 10;
+	// サービスが利用不可
+	ERROR_CODE_UNAVAILABLE = 11;
+	// データ損失
+	ERROR_CODE_DATA_LOSS = 12;
+	// 認証されていない
+	ERROR_CODE_UNAUTHENTICATED = 13;
+}
+
+// エラー詳細メッセージ
+message ErrorDetail {
+	// エラーコード
+	ErrorCode code = 1;
+	// エラーメッセージ
+	string message = 2;
+	// 追加のメタデータ
+	map<string, string> metadata = 3;
+}
+
+// Google API Design Guideに準拠したエラー情報
+// https://cloud.google.com/apis/design/errors
+message ErrorInfo {
+	// エラーの理由を識別する安定した一意の識別子
+	// 例: "USER_NOT_FOUND", "INVALID_PASSWORD", "RATE_LIMIT_EXCEEDED"
+	string reason = 1;
+	
+	// エラーの論理的なグループを識別するドメイン
+	// 例: "avion.auth", "avion.user", "avion.drop"
+	string domain = 2;
+	
+	// エラーに関する追加の構造化された詳細
+	// 例: {"user_id": "123", "limit": "100", "current": "101"}
+	map<string, string> metadata = 3;
+}
+
+// バリデーションエラーの詳細
+message BadRequest {
+	// フィールドごとのバリデーション違反
+	repeated FieldViolation field_violations = 1;
+}
+
+// フィールドバリデーション違反の詳細
+message FieldViolation {
+	// エラーが発生したフィールドのパス
+	// 例: "user.email", "password", "settings.notification.enabled"
+	string field = 1;
+	
+	// フィールドの具体的なエラー内容
+	// 例: "メールアドレスの形式が不正です", "パスワードは8文字以上必要です"
+	string description = 2;
+}
+
+// リトライ情報
+message RetryInfo {
+	// クライアントが再試行するまで待つべき最小時間
+	google.protobuf.Duration retry_delay = 1;
+}
+
+// デバッグ情報（開発環境でのみ使用）
+message DebugInfo {
+	// スタックトレース
+	repeated string stack_entries = 1;
+	
+	// エラーの詳細な説明
+	string detail = 2;
+}
+
+// クォータ違反エラーの詳細
+message QuotaFailure {
+	// クォータ違反の詳細リスト
+	repeated Violation violations = 1;
+	
+	// クォータ違反の詳細
+	message Violation {
+		// 違反したクォータの名前
+		// 例: "daily_request_quota", "storage_quota"
+		string subject = 1;
+		
+		// クォータ違反の説明
+		// 例: "1日のリクエスト上限を超えました"
+		string description = 2;
+	}
+}
+
+// 前提条件エラーの詳細
+message PreconditionFailure {
+	// 前提条件違反のリスト
+	repeated Violation violations = 1;
+	
+	// 前提条件違反の詳細
+	message Violation {
+		// 違反した前提条件のタイプ
+		// 例: "TOS", "billing", "email_verified"
+		string type = 1;
+		
+		// 違反したサブジェクト
+		// 例: "user:123", "project:456"
+		string subject = 2;
+		
+		// 違反の説明
+		// 例: "利用規約に同意する必要があります"
+		string description = 3;
+	}
+}
+
+// ローカライズされたメッセージ
+message LocalizedMessage {
+	// BCP-47言語コード
+	// 例: "ja", "en-US", "zh-CN"
+	string locale = 1;
+	
+	// ローカライズされたエラーメッセージ
+	string message = 2;
+}
+
+// リクエストに関する情報
+message RequestInfo {
+	// リクエストID（トレーシング用）
+	string request_id = 1;
+	
+	// サービングデータ（デバッグ用）
+	string serving_data = 2;
+}
+
+// リソースに関する情報
+message ResourceInfo {
+	// リソースのタイプ
+	// 例: "user", "drop", "timeline"
+	string resource_type = 1;
+	
+	// リソースの名前
+	// 例: "users/123", "drops/456"
+	string resource_name = 2;
+	
+	// リソースの所有者
+	string owner = 3;
+	
+	// エラーの説明
+	string description = 4;
+}
+
+// ヘルプリンク
+message Help {
+	// ヘルプリンクのリスト
+	repeated Link links = 1;
+	
+	// ヘルプリンクの詳細
+	message Link {
+		// リンクの説明
+		string description = 1;
+		
+		// リンクURL
+		string url = 2;
+	}
+}
+
+// 包括的なエラーレスポンス
+// Google API Design Guideのrpc.Statusに準拠
+message ErrorResponse {
+	// gRPCステータスコード（google.rpc.Code）
+	int32 code = 1;
+	
+	// 簡潔なエラーメッセージ
+	string message = 2;
+	
+	// エラーの詳細情報（google.protobuf.Anyで様々な型を格納）
+	// ErrorInfo, BadRequest, RetryInfo, DebugInfo, QuotaFailure, 
+	// PreconditionFailure, LocalizedMessage, RequestInfo, ResourceInfo, Help
+	// などを含むことができる
+	repeated google.protobuf.Any details = 3;
+}

@@ -1,0 +1,372 @@
+syntax = "proto3";
+
+package avion.media.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// メディアタイプ
+enum MediaType {
+	// 未指定
+	MEDIA_TYPE_UNSPECIFIED = 0;
+	// 画像
+	MEDIA_TYPE_IMAGE = 1;
+	// 動画
+	MEDIA_TYPE_VIDEO = 2;
+	// 音声
+	MEDIA_TYPE_AUDIO = 3;
+	// ドキュメント
+	MEDIA_TYPE_DOCUMENT = 4;
+}
+
+// メディア処理状態
+enum MediaProcessingStatus {
+	// 未指定
+	MEDIA_PROCESSING_STATUS_UNSPECIFIED = 0;
+	// アップロード中
+	MEDIA_PROCESSING_STATUS_UPLOADING = 1;
+	// 処理待ち
+	MEDIA_PROCESSING_STATUS_PENDING = 2;
+	// 処理中
+	MEDIA_PROCESSING_STATUS_PROCESSING = 3;
+	// 処理完了
+	MEDIA_PROCESSING_STATUS_COMPLETED = 4;
+	// エラー
+	MEDIA_PROCESSING_STATUS_ERROR = 5;
+	// 削除済み
+	MEDIA_PROCESSING_STATUS_DELETED = 6;
+}
+
+// 画像フォーマット
+enum ImageFormat {
+	// 未指定
+	IMAGE_FORMAT_UNSPECIFIED = 0;
+	// JPEG
+	IMAGE_FORMAT_JPEG = 1;
+	// PNG
+	IMAGE_FORMAT_PNG = 2;
+	// WEBP
+	IMAGE_FORMAT_WEBP = 3;
+	// GIF
+	IMAGE_FORMAT_GIF = 4;
+	// AVIF
+	IMAGE_FORMAT_AVIF = 5;
+}
+
+// 動画フォーマット
+enum VideoFormat {
+	// 未指定
+	VIDEO_FORMAT_UNSPECIFIED = 0;
+	// MP4
+	VIDEO_FORMAT_MP4 = 1;
+	// WEBM
+	VIDEO_FORMAT_WEBM = 2;
+	// MOV
+	VIDEO_FORMAT_MOV = 3;
+	// AVI
+	VIDEO_FORMAT_AVI = 4;
+	// MKV
+	VIDEO_FORMAT_MKV = 5;
+}
+
+// 音声フォーマット
+enum AudioFormat {
+	// 未指定
+	AUDIO_FORMAT_UNSPECIFIED = 0;
+	// MP3
+	AUDIO_FORMAT_MP3 = 1;
+	// WAV
+	AUDIO_FORMAT_WAV = 2;
+	// OGG
+	AUDIO_FORMAT_OGG = 3;
+	// M4A
+	AUDIO_FORMAT_M4A = 4;
+	// FLAC
+	AUDIO_FORMAT_FLAC = 5;
+}
+
+// サムネイルサイズ
+enum ThumbnailSize {
+	// 未指定
+	THUMBNAIL_SIZE_UNSPECIFIED = 0;
+	// 小（150x150）
+	THUMBNAIL_SIZE_SMALL = 1;
+	// 中（300x300）
+	THUMBNAIL_SIZE_MEDIUM = 2;
+	// 大（600x600）
+	THUMBNAIL_SIZE_LARGE = 3;
+	// カスタム
+	THUMBNAIL_SIZE_CUSTOM = 4;
+}
+
+// メディア情報
+message Media {
+	// メディアID
+	string id = 1;
+	// 所有者ユーザーID
+	string owner_id = 2;
+	// メディアタイプ
+	MediaType type = 3;
+	// オリジナルファイル名
+	string original_filename = 4;
+	// MIMEタイプ
+	string mime_type = 5;
+	// ファイルサイズ（バイト）
+	int64 size = 6;
+	// メディアURL（CDN）
+	string url = 7;
+	// サムネイルURL
+	string thumbnail_url = 8;
+	// 処理状態
+	MediaProcessingStatus status = 9;
+	// メタデータ
+	MediaMetadata metadata = 10;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 11;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 12;
+	// 有効期限（一時的なメディアの場合）
+	google.protobuf.Timestamp expires_at = 13;
+	// 公開フラグ
+	bool is_public = 14;
+	// 説明文
+	string description = 15;
+	// タグ
+	repeated string tags = 16;
+	// ハッシュ値（重複検出用）
+	string hash = 17;
+}
+
+// メディアメタデータ
+message MediaMetadata {
+	// 画像メタデータ
+	ImageMetadata image = 1;
+	// 動画メタデータ
+	VideoMetadata video = 2;
+	// 音声メタデータ
+	AudioMetadata audio = 3;
+	// 場所情報
+	LocationInfo location = 4;
+	// カメラ情報
+	CameraInfo camera = 5;
+}
+
+// 画像メタデータ
+message ImageMetadata {
+	// 幅（ピクセル）
+	int32 width = 1;
+	// 高さ（ピクセル）
+	int32 height = 2;
+	// フォーマット
+	ImageFormat format = 3;
+	// 色深度
+	int32 color_depth = 4;
+	// DPI
+	int32 dpi = 5;
+	// アニメーションフラグ（GIF等）
+	bool is_animated = 6;
+	// フレーム数（アニメーションの場合）
+	int32 frame_count = 7;
+}
+
+// 動画メタデータ
+message VideoMetadata {
+	// 幅（ピクセル）
+	int32 width = 1;
+	// 高さ（ピクセル）
+	int32 height = 2;
+	// フォーマット
+	VideoFormat format = 3;
+	// 再生時間
+	google.protobuf.Duration duration = 4;
+	// フレームレート
+	float frame_rate = 5;
+	// ビットレート（bps）
+	int64 bitrate = 6;
+	// コーデック
+	string codec = 7;
+	// 音声トラック有無
+	bool has_audio = 8;
+}
+
+// 音声メタデータ
+message AudioMetadata {
+	// フォーマット
+	AudioFormat format = 1;
+	// 再生時間
+	google.protobuf.Duration duration = 2;
+	// ビットレート（bps）
+	int64 bitrate = 3;
+	// サンプリングレート（Hz）
+	int32 sample_rate = 4;
+	// チャンネル数
+	int32 channels = 5;
+	// コーデック
+	string codec = 6;
+}
+
+// 場所情報
+message LocationInfo {
+	// 緯度
+	double latitude = 1;
+	// 経度
+	double longitude = 2;
+	// 高度（メートル）
+	double altitude = 3;
+	// 場所名
+	string place_name = 4;
+}
+
+// カメラ情報
+message CameraInfo {
+	// カメラメーカー
+	string make = 1;
+	// カメラモデル
+	string model = 2;
+	// ISO感度
+	int32 iso = 3;
+	// F値
+	float aperture = 4;
+	// シャッタースピード
+	string shutter_speed = 5;
+	// 焦点距離（mm）
+	float focal_length = 6;
+	// レンズ情報
+	string lens = 7;
+	// 撮影日時
+	google.protobuf.Timestamp taken_at = 8;
+}
+
+// サムネイル情報
+message Thumbnail {
+	// サムネイルURL
+	string url = 1;
+	// サイズタイプ
+	ThumbnailSize size = 2;
+	// 幅（ピクセル）
+	int32 width = 3;
+	// 高さ（ピクセル）
+	int32 height = 4;
+	// ファイルサイズ（バイト）
+	int64 file_size = 5;
+}
+
+// アップロードセッション
+message UploadSession {
+	// セッションID
+	string session_id = 1;
+	// メディアID
+	string media_id = 2;
+	// アップロードURL
+	string upload_url = 3;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 4;
+	// 最大ファイルサイズ
+	int64 max_file_size = 5;
+	// 許可されるMIMEタイプ
+	repeated string allowed_mime_types = 6;
+	// アップロード済みバイト数
+	int64 uploaded_bytes = 7;
+	// 総バイト数
+	int64 total_bytes = 8;
+}
+
+// メディア処理ジョブ
+message MediaProcessingJob {
+	// ジョブID
+	string job_id = 1;
+	// メディアID
+	string media_id = 2;
+	// 処理タイプ
+	ProcessingType type = 3;
+	// 処理状態
+	MediaProcessingStatus status = 4;
+	// 処理パラメータ（JSON形式）
+	string parameters = 5;
+	// エラーメッセージ
+	string error_message = 6;
+	// 開始日時
+	google.protobuf.Timestamp started_at = 7;
+	// 完了日時
+	google.protobuf.Timestamp completed_at = 8;
+	// リトライ回数
+	int32 retry_count = 9;
+}
+
+// 処理タイプ
+enum ProcessingType {
+	// 未指定
+	PROCESSING_TYPE_UNSPECIFIED = 0;
+	// サムネイル生成
+	PROCESSING_TYPE_THUMBNAIL = 1;
+	// 画像リサイズ
+	PROCESSING_TYPE_RESIZE = 2;
+	// 動画エンコード
+	PROCESSING_TYPE_TRANSCODE = 3;
+	// 画像フォーマット変換
+	PROCESSING_TYPE_CONVERT = 4;
+	// ウォーターマーク追加
+	PROCESSING_TYPE_WATERMARK = 5;
+	// メタデータ抽出
+	PROCESSING_TYPE_EXTRACT_METADATA = 6;
+	// ウイルススキャン
+	PROCESSING_TYPE_VIRUS_SCAN = 7;
+	// コンテンツモデレーション
+	PROCESSING_TYPE_MODERATION = 8;
+}
+
+// メディア使用統計
+message MediaUsageStats {
+	// ユーザーID
+	string user_id = 1;
+	// 総使用容量（バイト）
+	int64 total_storage_bytes = 2;
+	// 総メディア数
+	int64 total_media_count = 3;
+	// タイプ別統計
+	map<string, TypeUsageStats> type_stats = 4;
+	// 月間アップロード容量（バイト）
+	int64 monthly_upload_bytes = 5;
+	// 月間ダウンロード容量（バイト）
+	int64 monthly_download_bytes = 6;
+	// 最終更新日時
+	google.protobuf.Timestamp updated_at = 7;
+}
+
+// タイプ別使用統計
+message TypeUsageStats {
+	// メディア数
+	int64 count = 1;
+	// 使用容量（バイト）
+	int64 storage_bytes = 2;
+}
+
+// CDN設定
+message CDNConfig {
+	// CDNプロバイダー
+	string provider = 1;
+	// ベースURL
+	string base_url = 2;
+	// カスタムドメイン
+	string custom_domain = 3;
+	// キャッシュTTL（秒）
+	int32 cache_ttl = 4;
+	// セキュアURL生成有無
+	bool use_secure_urls = 5;
+	// 署名キー
+	string signing_key = 6;
+}
+
+// メディアクォータ
+message MediaQuota {
+	// ユーザーID
+	string user_id = 1;
+	// 最大ストレージ容量（バイト）
+	int64 max_storage_bytes = 2;
+	// 最大ファイルサイズ（バイト）
+	int64 max_file_size_bytes = 3;
+	// 月間最大アップロード容量（バイト）
+	int64 max_monthly_upload_bytes = 4;
+	// 最大メディア数
+	int64 max_media_count = 5;
+}

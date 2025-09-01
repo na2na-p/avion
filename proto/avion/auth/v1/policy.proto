@@ -1,0 +1,224 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+
+// ポリシーの効果を表す列挙型
+enum PolicyEffect {
+  // 未指定
+  POLICY_EFFECT_UNSPECIFIED = 0;
+  // 許可
+  POLICY_EFFECT_ALLOW = 1;
+  // 拒否
+  POLICY_EFFECT_DENY = 2;
+}
+
+// ポリシーのアクションを表す列挙型
+enum PolicyAction {
+  // 未指定
+  POLICY_ACTION_UNSPECIFIED = 0;
+  // 読み取り
+  POLICY_ACTION_READ = 1;
+  // 書き込み
+  POLICY_ACTION_WRITE = 2;
+  // 削除
+  POLICY_ACTION_DELETE = 3;
+  // 実行
+  POLICY_ACTION_EXECUTE = 4;
+}
+
+// ポリシールールを表すメッセージ
+message PolicyRule {
+  // リソース識別子（例: "drops:*", "users:123", "timeline:read"）
+  string resource = 1;
+  // アクション
+  PolicyAction action = 2;
+  // 効果（許可または拒否）
+  PolicyEffect effect = 3;
+  // 条件（オプション、JSON形式の条件式）
+  string conditions = 4;
+}
+
+// ポリシーを表すメッセージ
+message Policy {
+  // ポリシーID
+  string id = 1;
+  // ポリシー名
+  string name = 2;
+  // ポリシーの説明
+  string description = 3;
+  // ポリシールールのリスト
+  repeated PolicyRule rules = 4;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 5;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 6;
+  // 有効/無効フラグ
+  bool is_active = 7;
+  // バージョン番号（楽観的ロック用）
+  int32 version = 8;
+}
+
+// ポリシー割り当てを表すメッセージ
+message PolicyAssignment {
+  // 割り当てID
+  string id = 1;
+  // ポリシーID
+  string policy_id = 2;
+  // ユーザーID（user_idまたはgroup_idのいずれか一方が設定される）
+  string user_id = 3;
+  // グループID（user_idまたはgroup_idのいずれか一方が設定される）
+  string group_id = 4;
+  // 割り当て日時
+  google.protobuf.Timestamp assigned_at = 5;
+  // 割り当てを行ったユーザーID
+  string assigned_by = 6;
+  // 有効期限（オプション）
+  google.protobuf.Timestamp expires_at = 7;
+}
+
+// ポリシー評価リクエスト
+message EvaluatePolicyRequest {
+  // ユーザーID
+  string user_id = 1;
+  // リソース識別子
+  string resource = 2;
+  // アクション
+  PolicyAction action = 3;
+  // コンテキスト情報（JSON形式）
+  string context = 4;
+}
+
+// ポリシー評価レスポンス
+message EvaluatePolicyResponse {
+  // 評価結果
+  PolicyEffect effect = 1;
+  // 適用されたポリシーID
+  repeated string applied_policy_ids = 2;
+  // 評価理由
+  string reason = 3;
+}
+
+// ポリシー作成リクエスト
+message CreatePolicyRequest {
+  // ポリシー名
+  string name = 1;
+  // ポリシーの説明
+  string description = 2;
+  // ポリシールールのリスト
+  repeated PolicyRule rules = 3;
+}
+
+// ポリシー作成レスポンス
+message CreatePolicyResponse {
+  // 作成されたポリシー
+  Policy policy = 1;
+}
+
+// ポリシー更新リクエスト
+message UpdatePolicyRequest {
+  // ポリシーID
+  string id = 1;
+  // ポリシー名
+  string name = 2;
+  // ポリシーの説明
+  string description = 3;
+  // ポリシールールのリスト
+  repeated PolicyRule rules = 4;
+  // バージョン番号（楽観的ロック用）
+  int32 version = 5;
+}
+
+// ポリシー更新レスポンス
+message UpdatePolicyResponse {
+  // 更新されたポリシー
+  Policy policy = 1;
+}
+
+// ポリシー削除リクエスト
+message DeletePolicyRequest {
+  // ポリシーID
+  string id = 1;
+}
+
+// ポリシー削除レスポンス
+message DeletePolicyResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// ポリシー取得リクエスト
+message GetPolicyRequest {
+  // ポリシーID
+  string id = 1;
+}
+
+// ポリシー取得レスポンス
+message GetPolicyResponse {
+  // ポリシー
+  Policy policy = 1;
+}
+
+// ポリシー一覧取得リクエスト
+message ListPoliciesRequest {
+  // ページネーション情報
+  avion.common.v1.PaginationRequest pagination = 1;
+  // アクティブなポリシーのみを取得
+  bool active_only = 2;
+}
+
+// ポリシー一覧取得レスポンス
+message ListPoliciesResponse {
+  // ポリシーのリスト
+  repeated Policy policies = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ポリシー割り当てリクエスト
+message AssignPolicyRequest {
+  // ポリシーID
+  string policy_id = 1;
+  // ユーザーID（user_idまたはgroup_idのいずれか一方を設定）
+  string user_id = 2;
+  // グループID（user_idまたはgroup_idのいずれか一方を設定）
+  string group_id = 3;
+  // 有効期限（オプション）
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+// ポリシー割り当てレスポンス
+message AssignPolicyResponse {
+  // 作成された割り当て
+  PolicyAssignment assignment = 1;
+}
+
+// ポリシー割り当て解除リクエスト
+message UnassignPolicyRequest {
+  // 割り当てID
+  string assignment_id = 1;
+}
+
+// ポリシー割り当て解除レスポンス
+message UnassignPolicyResponse {
+  // 解除成功フラグ
+  bool success = 1;
+}
+
+// ユーザーのポリシー一覧取得リクエスト
+message ListUserPoliciesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// ユーザーのポリシー一覧取得レスポンス
+message ListUserPoliciesResponse {
+  // ポリシーのリスト
+  repeated Policy policies = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}

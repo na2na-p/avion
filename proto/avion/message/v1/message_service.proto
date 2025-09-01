@@ -1,0 +1,689 @@
+syntax = "proto3";
+
+package avion.message.v1;
+
+import "avion/message/v1/message.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// メッセージサービス
+service MessageService {
+  // メッセージ送信
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  
+  // メッセージ取得
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+  
+  // メッセージ更新（編集）
+  rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
+  
+  // メッセージ削除
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  
+  // メッセージ一覧取得
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  
+  // メッセージ検索
+  rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse);
+  
+  // 会話作成
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  
+  // 会話取得
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  
+  // 会話更新
+  rpc UpdateConversation(UpdateConversationRequest) returns (UpdateConversationResponse);
+  
+  // 会話削除
+  rpc DeleteConversation(DeleteConversationRequest) returns (DeleteConversationResponse);
+  
+  // 会話一覧取得
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  
+  // 会話参加者追加
+  rpc AddParticipants(AddParticipantsRequest) returns (AddParticipantsResponse);
+  
+  // 会話参加者削除
+  rpc RemoveParticipants(RemoveParticipantsRequest) returns (RemoveParticipantsResponse);
+  
+  // 会話から退出
+  rpc LeaveConversation(LeaveConversationRequest) returns (LeaveConversationResponse);
+  
+  // 既読状態更新
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+  
+  // 既読レシート取得
+  rpc GetReadReceipts(GetReadReceiptsRequest) returns (GetReadReceiptsResponse);
+  
+  // タイピング状態送信
+  rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
+  
+  // タイピング状態受信（ストリーミング）
+  rpc StreamTypingIndicators(StreamTypingIndicatorsRequest) returns (stream StreamTypingIndicatorsResponse);
+  
+  // リアクション追加
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+  
+  // リアクション削除
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+  
+  // リアクション一覧取得
+  rpc ListReactions(ListReactionsRequest) returns (ListReactionsResponse);
+  
+  // 添付ファイルアップロード
+  rpc UploadAttachment(stream UploadAttachmentRequest) returns (UploadAttachmentResponse);
+  
+  // 添付ファイルダウンロード
+  rpc DownloadAttachment(DownloadAttachmentRequest) returns (stream DownloadAttachmentResponse);
+  
+  // メッセージ統計取得
+  rpc GetMessageStatistics(GetMessageStatisticsRequest) returns (GetMessageStatisticsResponse);
+  
+  // 通知設定取得
+  rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
+  
+  // 通知設定更新
+  rpc UpdateNotificationSettings(UpdateNotificationSettingsRequest) returns (UpdateNotificationSettingsResponse);
+  
+  // リアルタイムメッセージストリーム
+  rpc StreamMessages(StreamMessagesRequest) returns (stream StreamMessagesResponse);
+  
+  // 会話のアーカイブ
+  rpc ArchiveConversation(ArchiveConversationRequest) returns (ArchiveConversationResponse);
+  
+  // 会話のアーカイブ解除
+  rpc UnarchiveConversation(UnarchiveConversationRequest) returns (UnarchiveConversationResponse);
+  
+  // 会話のミュート
+  rpc MuteConversation(MuteConversationRequest) returns (MuteConversationResponse);
+  
+  // 会話のミュート解除
+  rpc UnmuteConversation(UnmuteConversationRequest) returns (UnmuteConversationResponse);
+  
+  // 会話のピン留め
+  rpc PinConversation(PinConversationRequest) returns (PinConversationResponse);
+  
+  // 会話のピン留め解除
+  rpc UnpinConversation(UnpinConversationRequest) returns (UnpinConversationResponse);
+}
+
+// メッセージ送信リクエスト
+message SendMessageRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // メッセージ本文
+  string content = 2;
+  // 返信先メッセージID
+  string reply_to_message_id = 3;
+  // 転送元メッセージID
+  string forwarded_from_message_id = 4;
+  // 添付ファイルID
+  repeated string attachment_ids = 5;
+  // メンション対象ユーザーID
+  repeated string mentioned_user_ids = 6;
+  // 一時的なメッセージID（クライアント側で生成）
+  string client_message_id = 7;
+  // メタデータ
+  map<string, string> metadata = 8;
+}
+
+// メッセージ送信レスポンス
+message SendMessageResponse {
+  // 送信されたメッセージ
+  Message message = 1;
+}
+
+// メッセージ取得リクエスト
+message GetMessageRequest {
+  // メッセージID
+  string message_id = 1;
+}
+
+// メッセージ取得レスポンス
+message GetMessageResponse {
+  // メッセージ
+  Message message = 1;
+}
+
+// メッセージ更新リクエスト
+message UpdateMessageRequest {
+  // メッセージID
+  string message_id = 1;
+  // 更新内容
+  string content = 2;
+  // 更新フィールドマスク
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// メッセージ更新レスポンス
+message UpdateMessageResponse {
+  // 更新されたメッセージ
+  Message message = 1;
+}
+
+// メッセージ削除リクエスト
+message DeleteMessageRequest {
+  // メッセージID
+  string message_id = 1;
+  // 全員から削除（送信者のみ可能）
+  bool delete_for_everyone = 2;
+}
+
+// メッセージ削除レスポンス
+message DeleteMessageResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// メッセージ一覧取得リクエスト
+message ListMessagesRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // 期間フィルター（開始）
+  google.protobuf.Timestamp start_time = 3;
+  // 期間フィルター（終了）
+  google.protobuf.Timestamp end_time = 4;
+  // ソート順（asc/desc）
+  string sort_order = 5;
+}
+
+// メッセージ一覧取得レスポンス
+message ListMessagesResponse {
+  // メッセージリスト
+  repeated Message messages = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// メッセージ検索リクエスト
+message SearchMessagesRequest {
+  // 検索フィルター
+  MessageSearchFilter filter = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// メッセージ検索レスポンス
+message SearchMessagesResponse {
+  // 検索結果
+  repeated Message messages = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+  // 検索ヒット数
+  int32 total_hits = 3;
+}
+
+// 会話作成リクエスト
+message CreateConversationRequest {
+  // 会話タイプ
+  ConversationType type = 1;
+  // 会話タイトル（グループの場合）
+  string title = 2;
+  // 会話の説明
+  string description = 3;
+  // 参加者ID（ダイレクトメッセージの場合は相手のID）
+  repeated string participant_ids = 4;
+  // アイコンURL
+  string icon_url = 5;
+  // 暗号化タイプ
+  EncryptionType encryption_type = 6;
+  // 会話設定
+  ConversationSettings settings = 7;
+  // メタデータ
+  map<string, string> metadata = 8;
+}
+
+// 会話作成レスポンス
+message CreateConversationResponse {
+  // 作成された会話
+  Conversation conversation = 1;
+}
+
+// 会話取得リクエスト
+message GetConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // 参加者情報を含めるか
+  bool include_participants = 2;
+  // 最新メッセージを含めるか
+  bool include_last_message = 3;
+}
+
+// 会話取得レスポンス
+message GetConversationResponse {
+  // 会話
+  Conversation conversation = 1;
+}
+
+// 会話更新リクエスト
+message UpdateConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // タイトル
+  string title = 2;
+  // 説明
+  string description = 3;
+  // アイコンURL
+  string icon_url = 4;
+  // 設定
+  ConversationSettings settings = 5;
+  // 更新フィールドマスク
+  google.protobuf.FieldMask update_mask = 6;
+}
+
+// 会話更新レスポンス
+message UpdateConversationResponse {
+  // 更新された会話
+  Conversation conversation = 1;
+}
+
+// 会話削除リクエスト
+message DeleteConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話削除レスポンス
+message DeleteConversationResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// 会話一覧取得リクエスト
+message ListConversationsRequest {
+  // フィルター（active, archived, all）
+  string filter = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // ソート基準（last_message, created_at）
+  string sort_by = 3;
+  // ソート順（asc/desc）
+  string sort_order = 4;
+  // 参加者情報を含めるか
+  bool include_participants = 5;
+  // 最新メッセージを含めるか
+  bool include_last_message = 6;
+}
+
+// 会話一覧取得レスポンス
+message ListConversationsResponse {
+  // 会話リスト
+  repeated Conversation conversations = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 参加者追加リクエスト
+message AddParticipantsRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // 追加する参加者ID
+  repeated string participant_ids = 2;
+}
+
+// 参加者追加レスポンス
+message AddParticipantsResponse {
+  // 更新された会話
+  Conversation conversation = 1;
+}
+
+// 参加者削除リクエスト
+message RemoveParticipantsRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // 削除する参加者ID
+  repeated string participant_ids = 2;
+}
+
+// 参加者削除レスポンス
+message RemoveParticipantsResponse {
+  // 更新された会話
+  Conversation conversation = 1;
+}
+
+// 会話退出リクエスト
+message LeaveConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話退出レスポンス
+message LeaveConversationResponse {
+  // 退出成功フラグ
+  bool success = 1;
+}
+
+// 既読マークリクエスト
+message MarkAsReadRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // 最新既読メッセージID
+  string message_id = 2;
+}
+
+// 既読マークレスポンス
+message MarkAsReadResponse {
+  // 更新された未読数
+  int32 unread_count = 1;
+}
+
+// 既読レシート取得リクエスト
+message GetReadReceiptsRequest {
+  // メッセージID
+  string message_id = 1;
+}
+
+// 既読レシート取得レスポンス
+message GetReadReceiptsResponse {
+  // 既読レシート
+  repeated ReadReceipt read_receipts = 1;
+}
+
+// タイピングインジケーター送信リクエスト
+message SendTypingIndicatorRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // タイピング中フラグ
+  bool is_typing = 2;
+}
+
+// タイピングインジケーター送信レスポンス
+message SendTypingIndicatorResponse {
+  // 送信成功フラグ
+  bool success = 1;
+}
+
+// タイピングインジケーターストリームリクエスト
+message StreamTypingIndicatorsRequest {
+  // 会話ID（複数指定可能）
+  repeated string conversation_ids = 1;
+}
+
+// タイピングインジケーターストリームレスポンス
+message StreamTypingIndicatorsResponse {
+  // タイピングインジケーター
+  TypingIndicator indicator = 1;
+}
+
+// リアクション追加リクエスト
+message AddReactionRequest {
+  // メッセージID
+  string message_id = 1;
+  // リアクションタイプ
+  ReactionType type = 2;
+  // カスタム絵文字（REACTION_TYPE_CUSTOMの場合）
+  string custom_emoji = 3;
+}
+
+// リアクション追加レスポンス
+message AddReactionResponse {
+  // 追加されたリアクション
+  MessageReaction reaction = 1;
+}
+
+// リアクション削除リクエスト
+message RemoveReactionRequest {
+  // リアクションID
+  string reaction_id = 1;
+}
+
+// リアクション削除レスポンス
+message RemoveReactionResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// リアクション一覧取得リクエスト
+message ListReactionsRequest {
+  // メッセージID
+  string message_id = 1;
+  // リアクションタイプフィルター
+  ReactionType type = 2;
+}
+
+// リアクション一覧取得レスポンス
+message ListReactionsResponse {
+  // リアクションリスト
+  repeated MessageReaction reactions = 1;
+  // リアクションサマリー（タイプごとのカウント）
+  map<string, int32> reaction_counts = 2;
+}
+
+// 添付ファイルアップロードリクエスト
+message UploadAttachmentRequest {
+  oneof data {
+    // メタデータ（最初のメッセージ）
+    AttachmentMetadata metadata = 1;
+    // ファイルデータチャンク
+    bytes chunk = 2;
+  }
+}
+
+// 添付ファイルメタデータ
+message AttachmentMetadata {
+  // ファイル名
+  string filename = 1;
+  // MIMEタイプ
+  string mime_type = 2;
+  // ファイルサイズ
+  int64 size = 3;
+  // 会話ID
+  string conversation_id = 4;
+}
+
+// 添付ファイルアップロードレスポンス
+message UploadAttachmentResponse {
+  // アップロードされた添付ファイル
+  MessageAttachment attachment = 1;
+}
+
+// 添付ファイルダウンロードリクエスト
+message DownloadAttachmentRequest {
+  // 添付ファイルID
+  string attachment_id = 1;
+  // サムネイルのみダウンロード
+  bool thumbnail_only = 2;
+}
+
+// 添付ファイルダウンロードレスポンス
+message DownloadAttachmentResponse {
+  oneof data {
+    // メタデータ（最初のメッセージ）
+    MessageAttachment metadata = 1;
+    // ファイルデータチャンク
+    bytes chunk = 2;
+  }
+}
+
+// メッセージ統計取得リクエスト
+message GetMessageStatisticsRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // 期間（開始）
+  google.protobuf.Timestamp start_time = 2;
+  // 期間（終了）
+  google.protobuf.Timestamp end_time = 3;
+}
+
+// メッセージ統計取得レスポンス
+message GetMessageStatisticsResponse {
+  // 統計情報
+  MessageStatistics statistics = 1;
+}
+
+// 通知設定取得リクエスト
+message GetNotificationSettingsRequest {
+  // ユーザーID（省略時は認証ユーザー）
+  string user_id = 1;
+}
+
+// 通知設定取得レスポンス
+message GetNotificationSettingsResponse {
+  // 通知設定
+  MessageNotificationSettings settings = 1;
+}
+
+// 通知設定更新リクエスト
+message UpdateNotificationSettingsRequest {
+  // 通知設定
+  MessageNotificationSettings settings = 1;
+  // 更新フィールドマスク
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+// 通知設定更新レスポンス
+message UpdateNotificationSettingsResponse {
+  // 更新された通知設定
+  MessageNotificationSettings settings = 1;
+}
+
+// メッセージストリームリクエスト
+message StreamMessagesRequest {
+  // 購読する会話ID
+  repeated string conversation_ids = 1;
+  // イベントタイプフィルター
+  repeated MessageEventType event_types = 2;
+}
+
+// メッセージストリームレスポンス
+message StreamMessagesResponse {
+  // メッセージイベント
+  MessageEvent event = 1;
+}
+
+// メッセージイベント
+message MessageEvent {
+  // イベントタイプ
+  MessageEventType type = 1;
+  // イベント発生時刻
+  google.protobuf.Timestamp timestamp = 2;
+  // イベントペイロード
+  oneof payload {
+    // 新規メッセージ
+    Message new_message = 3;
+    // 更新されたメッセージ
+    Message updated_message = 4;
+    // 削除されたメッセージID
+    string deleted_message_id = 5;
+    // タイピングインジケーター
+    TypingIndicator typing_indicator = 6;
+    // 既読レシート
+    ReadReceipt read_receipt = 7;
+    // リアクションイベント
+    ReactionEvent reaction_event = 8;
+    // 会話更新
+    Conversation conversation_update = 9;
+  }
+}
+
+// メッセージイベントタイプ
+enum MessageEventType {
+  // 未指定
+  MESSAGE_EVENT_TYPE_UNSPECIFIED = 0;
+  // 新規メッセージ
+  MESSAGE_EVENT_TYPE_NEW_MESSAGE = 1;
+  // メッセージ更新
+  MESSAGE_EVENT_TYPE_MESSAGE_UPDATED = 2;
+  // メッセージ削除
+  MESSAGE_EVENT_TYPE_MESSAGE_DELETED = 3;
+  // タイピング状態
+  MESSAGE_EVENT_TYPE_TYPING = 4;
+  // 既読状態
+  MESSAGE_EVENT_TYPE_READ = 5;
+  // リアクション追加
+  MESSAGE_EVENT_TYPE_REACTION_ADDED = 6;
+  // リアクション削除
+  MESSAGE_EVENT_TYPE_REACTION_REMOVED = 7;
+  // 会話更新
+  MESSAGE_EVENT_TYPE_CONVERSATION_UPDATED = 8;
+  // 参加者追加
+  MESSAGE_EVENT_TYPE_PARTICIPANT_ADDED = 9;
+  // 参加者削除
+  MESSAGE_EVENT_TYPE_PARTICIPANT_REMOVED = 10;
+}
+
+// リアクションイベント
+message ReactionEvent {
+  // アクション（added/removed）
+  string action = 1;
+  // リアクション
+  MessageReaction reaction = 2;
+}
+
+// 会話アーカイブリクエスト
+message ArchiveConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話アーカイブレスポンス
+message ArchiveConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}
+
+// 会話アーカイブ解除リクエスト
+message UnarchiveConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話アーカイブ解除レスポンス
+message UnarchiveConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}
+
+// 会話ミュートリクエスト
+message MuteConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+  // ミュート期限（省略時は無期限）
+  google.protobuf.Timestamp until = 2;
+}
+
+// 会話ミュートレスポンス
+message MuteConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}
+
+// 会話ミュート解除リクエスト
+message UnmuteConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話ミュート解除レスポンス
+message UnmuteConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}
+
+// 会話ピン留めリクエスト
+message PinConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話ピン留めレスポンス
+message PinConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}
+
+// 会話ピン留め解除リクエスト
+message UnpinConversationRequest {
+  // 会話ID
+  string conversation_id = 1;
+}
+
+// 会話ピン留め解除レスポンス
+message UnpinConversationResponse {
+  // 成功フラグ
+  bool success = 1;
+}

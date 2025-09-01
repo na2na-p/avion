@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package avion.timeline.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// タイムラインタイプ
+enum TimelineType {
+	// 未指定
+	TIMELINE_TYPE_UNSPECIFIED = 0;
+	// ホームタイムライン（フォローしているユーザーの投稿）
+	TIMELINE_TYPE_HOME = 1;
+	// ユーザータイムライン（特定ユーザーの投稿）
+	TIMELINE_TYPE_USER = 2;
+	// パブリックタイムライン（全体公開投稿）
+	TIMELINE_TYPE_PUBLIC = 3;
+	// リストタイムライン（リストメンバーの投稿）
+	TIMELINE_TYPE_LIST = 4;
+	// ハッシュタグタイムライン（特定ハッシュタグの投稿）
+	TIMELINE_TYPE_HASHTAG = 5;
+}
+
+// タイムラインエントリータイプ
+enum TimelineEntryType {
+	// 未指定
+	TIMELINE_ENTRY_TYPE_UNSPECIFIED = 0;
+	// オリジナル投稿
+	TIMELINE_ENTRY_TYPE_ORIGINAL = 1;
+	// リドロップ（リツイート相当）
+	TIMELINE_ENTRY_TYPE_REDROP = 2;
+	// リプライ
+	TIMELINE_ENTRY_TYPE_REPLY = 3;
+	// 引用投稿
+	TIMELINE_ENTRY_TYPE_QUOTE = 4;
+}
+
+// ファンアウト戦略
+enum FanoutStrategy {
+	// 未指定
+	FANOUT_STRATEGY_UNSPECIFIED = 0;
+	// プッシュ型（事前にタイムラインを生成）
+	FANOUT_STRATEGY_PUSH = 1;
+	// プル型（リクエスト時に動的生成）
+	FANOUT_STRATEGY_PULL = 2;
+	// ハイブリッド型（プッシュとプルの組み合わせ）
+	FANOUT_STRATEGY_HYBRID = 3;
+}
+
+// タイムラインメタデータ
+message TimelineMetadata {
+	// 既読フラグ
+	bool is_read = 1;
+	// ブックマーク済みフラグ
+	bool is_bookmarked = 2;
+	// インタラクション数（いいね、リドロップ、リプライの合計）
+	int32 interaction_count = 3;
+	// 最後のインタラクション日時
+	google.protobuf.Timestamp last_interaction_at = 4;
+	// リドロップしたユーザーID（リドロップの場合）
+	string redropped_by_user_id = 5;
+	// リドロップ日時（リドロップの場合）
+	google.protobuf.Timestamp redropped_at = 6;
+}
+
+// タイムラインエントリー
+message TimelineEntry {
+	// DropのID
+	string drop_id = 1;
+	// 投稿者のユーザーID
+	string user_id = 2;
+	// タイムラインへの追加日時
+	google.protobuf.Timestamp created_at = 3;
+	// スコア（ソート用、タイムスタンプやエンゲージメントに基づく）
+	double score = 4;
+	// エントリータイプ
+	TimelineEntryType entry_type = 5;
+	// メタデータ
+	TimelineMetadata metadata = 6;
+	// タイムラインタイプ
+	TimelineType timeline_type = 7;
+	// タイムライン所有者のユーザーID（ホームタイムラインの場合）
+	string owner_user_id = 8;
+}
+
+// タイムライン統計情報
+message TimelineStatistics {
+	// タイムラインタイプ
+	TimelineType timeline_type = 1;
+	// 総エントリー数
+	int64 total_entries = 2;
+	// 未読エントリー数
+	int64 unread_entries = 3;
+	// 今日追加されたエントリー数
+	int64 today_entries = 4;
+	// 最終更新日時
+	google.protobuf.Timestamp last_updated_at = 5;
+	// アクティブユーザー数（このタイムラインに投稿したユニークユーザー数）
+	int32 active_users = 6;
+}
+
+// タイムラインフィルター
+message TimelineFilter {
+	// 開始日時（この日時以降のエントリーを取得）
+	google.protobuf.Timestamp since = 1;
+	// 終了日時（この日時以前のエントリーを取得）
+	google.protobuf.Timestamp until = 2;
+	// エントリータイプでフィルタ
+	repeated TimelineEntryType entry_types = 3;
+	// ユーザーIDでフィルタ（特定ユーザーの投稿のみ）
+	repeated string user_ids = 4;
+	// 除外するユーザーID（ミュート等）
+	repeated string excluded_user_ids = 5;
+	// 最小スコア
+	double min_score = 6;
+	// 最大スコア
+	double max_score = 7;
+	// 未読のみ表示
+	bool only_unread = 8;
+	// ブックマーク済みのみ表示
+	bool only_bookmarked = 9;
+}
+
+// タイムライン設定
+message TimelineSettings {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// ファンアウト戦略
+	FanoutStrategy fanout_strategy = 3;
+	// キャッシュTTL（秒）
+	int32 cache_ttl_seconds = 4;
+	// 最大エントリー数
+	int32 max_entries = 5;
+	// 自動削除期間（日数、0は無効）
+	int32 auto_delete_days = 6;
+	// リプライを含める
+	bool include_replies = 7;
+	// リドロップを含める
+	bool include_redrops = 8;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 9;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 10;
+}

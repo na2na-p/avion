@@ -1,0 +1,551 @@
+syntax = "proto3";
+
+package avion.media.v1;
+
+import "avion/media/v1/media.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// メディアサービス
+service MediaService {
+	// メディアアップロードセッション開始
+	rpc CreateUploadSession(CreateUploadSessionRequest) returns (CreateUploadSessionResponse);
+	
+	// メディアアップロード完了
+	rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+	
+	// メディアアップロードキャンセル
+	rpc CancelUpload(CancelUploadRequest) returns (CancelUploadResponse);
+	
+	// メディア取得
+	rpc GetMedia(GetMediaRequest) returns (GetMediaResponse);
+	
+	// メディアリスト取得
+	rpc ListMedia(ListMediaRequest) returns (ListMediaResponse);
+	
+	// メディア更新
+	rpc UpdateMedia(UpdateMediaRequest) returns (UpdateMediaResponse);
+	
+	// メディア削除
+	rpc DeleteMedia(DeleteMediaRequest) returns (DeleteMediaResponse);
+	
+	// メディアバッチ削除
+	rpc BatchDeleteMedia(BatchDeleteMediaRequest) returns (BatchDeleteMediaResponse);
+	
+	// サムネイル生成
+	rpc GenerateThumbnail(GenerateThumbnailRequest) returns (GenerateThumbnailResponse);
+	
+	// サムネイル取得
+	rpc GetThumbnails(GetThumbnailsRequest) returns (GetThumbnailsResponse);
+	
+	// メディア処理ジョブ作成
+	rpc CreateProcessingJob(CreateProcessingJobRequest) returns (CreateProcessingJobResponse);
+	
+	// メディア処理ジョブ状態取得
+	rpc GetProcessingJob(GetProcessingJobRequest) returns (GetProcessingJobResponse);
+	
+	// メディア処理ジョブリスト取得
+	rpc ListProcessingJobs(ListProcessingJobsRequest) returns (ListProcessingJobsResponse);
+	
+	// メディア処理ジョブキャンセル
+	rpc CancelProcessingJob(CancelProcessingJobRequest) returns (CancelProcessingJobResponse);
+	
+	// CDN URL生成
+	rpc GenerateCDNUrl(GenerateCDNUrlRequest) returns (GenerateCDNUrlResponse);
+	
+	// 署名付きURL生成
+	rpc GenerateSignedUrl(GenerateSignedUrlRequest) returns (GenerateSignedUrlResponse);
+	
+	// メディア使用統計取得
+	rpc GetUsageStats(GetUsageStatsRequest) returns (GetUsageStatsResponse);
+	
+	// メディアクォータ取得
+	rpc GetQuota(GetQuotaRequest) returns (GetQuotaResponse);
+	
+	// メディアクォータ更新
+	rpc UpdateQuota(UpdateQuotaRequest) returns (UpdateQuotaResponse);
+	
+	// メディア検索
+	rpc SearchMedia(SearchMediaRequest) returns (SearchMediaResponse);
+	
+	// 重複メディア検出
+	rpc DetectDuplicates(DetectDuplicatesRequest) returns (DetectDuplicatesResponse);
+	
+	// メディアメタデータ更新
+	rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
+	
+	// メディアタグ追加
+	rpc AddTags(AddTagsRequest) returns (AddTagsResponse);
+	
+	// メディアタグ削除
+	rpc RemoveTags(RemoveTagsRequest) returns (RemoveTagsResponse);
+}
+
+// アップロードセッション作成リクエスト
+message CreateUploadSessionRequest {
+	// メディアタイプ
+	MediaType media_type = 1;
+	// ファイル名
+	string filename = 2;
+	// ファイルサイズ（バイト）
+	int64 file_size = 3;
+	// MIMEタイプ
+	string mime_type = 4;
+	// 説明文
+	string description = 5;
+	// タグ
+	repeated string tags = 6;
+	// 公開設定
+	bool is_public = 7;
+	// マルチパートアップロード有無
+	bool use_multipart = 8;
+}
+
+// アップロードセッション作成レスポンス
+message CreateUploadSessionResponse {
+	// アップロードセッション
+	UploadSession session = 1;
+	// 作成されたメディア（仮）
+	Media media = 2;
+}
+
+// アップロード完了リクエスト
+message CompleteUploadRequest {
+	// セッションID
+	string session_id = 1;
+	// アップロード完了パーツ（マルチパートの場合）
+	repeated UploadPart parts = 2;
+}
+
+// アップロードパーツ
+message UploadPart {
+	// パート番号
+	int32 part_number = 1;
+	// ETag
+	string etag = 2;
+}
+
+// アップロード完了レスポンス
+message CompleteUploadResponse {
+	// 完成したメディア
+	Media media = 1;
+	// 処理ジョブID（後処理がある場合）
+	string processing_job_id = 2;
+}
+
+// アップロードキャンセルリクエスト
+message CancelUploadRequest {
+	// セッションID
+	string session_id = 1;
+}
+
+// アップロードキャンセルレスポンス
+message CancelUploadResponse {
+	// キャンセル成功フラグ
+	bool success = 1;
+	// メッセージ
+	string message = 2;
+}
+
+// メディア取得リクエスト
+message GetMediaRequest {
+	// メディアID
+	string media_id = 1;
+	// サムネイル情報含有フラグ
+	bool include_thumbnails = 2;
+	// メタデータ含有フラグ
+	bool include_metadata = 3;
+}
+
+// メディア取得レスポンス
+message GetMediaResponse {
+	// メディア
+	Media media = 1;
+	// サムネイル一覧
+	repeated Thumbnail thumbnails = 2;
+}
+
+// メディアリスト取得リクエスト
+message ListMediaRequest {
+	// 所有者ID（省略時は自分のメディア）
+	string owner_id = 1;
+	// メディアタイプでフィルタ
+	MediaType media_type = 2;
+	// ステータスでフィルタ
+	MediaProcessingStatus status = 3;
+	// タグでフィルタ
+	repeated string tags = 4;
+	// 公開フラグでフィルタ
+	bool is_public = 5;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 6;
+	// ソート順（created_at, updated_at, size, name）
+	string sort_by = 7;
+	// 昇順/降順
+	bool ascending = 8;
+}
+
+// メディアリスト取得レスポンス
+message ListMediaResponse {
+	// メディア一覧
+	repeated Media media = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// メディア更新リクエスト
+message UpdateMediaRequest {
+	// メディアID
+	string media_id = 1;
+	// 更新するメディア情報
+	Media media = 2;
+	// 更新フィールドマスク
+	google.protobuf.FieldMask update_mask = 3;
+}
+
+// メディア更新レスポンス
+message UpdateMediaResponse {
+	// 更新後のメディア
+	Media media = 1;
+}
+
+// メディア削除リクエスト
+message DeleteMediaRequest {
+	// メディアID
+	string media_id = 1;
+	// 即座に削除（ゴミ箱を経由しない）
+	bool immediate = 2;
+}
+
+// メディア削除レスポンス
+message DeleteMediaResponse {
+	// 削除成功フラグ
+	bool success = 1;
+	// 削除されたメディアID
+	string deleted_media_id = 2;
+}
+
+// メディアバッチ削除リクエスト
+message BatchDeleteMediaRequest {
+	// メディアID一覧
+	repeated string media_ids = 1;
+	// 即座に削除
+	bool immediate = 2;
+}
+
+// メディアバッチ削除レスポンス
+message BatchDeleteMediaResponse {
+	// 削除成功したID
+	repeated string succeeded_ids = 1;
+	// 削除失敗したID
+	repeated string failed_ids = 2;
+	// エラー詳細
+	map<string, string> errors = 3;
+}
+
+// サムネイル生成リクエスト
+message GenerateThumbnailRequest {
+	// メディアID
+	string media_id = 1;
+	// サムネイルサイズ
+	ThumbnailSize size = 2;
+	// カスタムサイズ（THUMBNAIL_SIZE_CUSTOMの場合）
+	CustomSize custom_size = 3;
+	// 画質（1-100）
+	int32 quality = 4;
+	// フォーマット
+	ImageFormat format = 5;
+}
+
+// カスタムサイズ
+message CustomSize {
+	// 幅
+	int32 width = 1;
+	// 高さ
+	int32 height = 2;
+	// アスペクト比維持
+	bool maintain_aspect_ratio = 3;
+}
+
+// サムネイル生成レスポンス
+message GenerateThumbnailResponse {
+	// 生成されたサムネイル
+	Thumbnail thumbnail = 1;
+	// 処理ジョブID
+	string job_id = 2;
+}
+
+// サムネイル取得リクエスト
+message GetThumbnailsRequest {
+	// メディアID
+	string media_id = 1;
+}
+
+// サムネイル取得レスポンス
+message GetThumbnailsResponse {
+	// サムネイル一覧
+	repeated Thumbnail thumbnails = 1;
+}
+
+// 処理ジョブ作成リクエスト
+message CreateProcessingJobRequest {
+	// メディアID
+	string media_id = 1;
+	// 処理タイプ
+	ProcessingType type = 2;
+	// 処理パラメータ（JSON形式）
+	string parameters = 3;
+	// 優先度（0-10、10が最高）
+	int32 priority = 4;
+}
+
+// 処理ジョブ作成レスポンス
+message CreateProcessingJobResponse {
+	// 処理ジョブ
+	MediaProcessingJob job = 1;
+}
+
+// 処理ジョブ取得リクエスト
+message GetProcessingJobRequest {
+	// ジョブID
+	string job_id = 1;
+}
+
+// 処理ジョブ取得レスポンス
+message GetProcessingJobResponse {
+	// 処理ジョブ
+	MediaProcessingJob job = 1;
+}
+
+// 処理ジョブリスト取得リクエスト
+message ListProcessingJobsRequest {
+	// メディアID（特定メディアのジョブのみ）
+	string media_id = 1;
+	// ステータスでフィルタ
+	MediaProcessingStatus status = 2;
+	// 処理タイプでフィルタ
+	ProcessingType type = 3;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 4;
+}
+
+// 処理ジョブリスト取得レスポンス
+message ListProcessingJobsResponse {
+	// ジョブ一覧
+	repeated MediaProcessingJob jobs = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 処理ジョブキャンセルリクエスト
+message CancelProcessingJobRequest {
+	// ジョブID
+	string job_id = 1;
+}
+
+// 処理ジョブキャンセルレスポンス
+message CancelProcessingJobResponse {
+	// キャンセル成功フラグ
+	bool success = 1;
+	// キャンセルされたジョブID
+	string cancelled_job_id = 2;
+}
+
+// CDN URL生成リクエスト
+message GenerateCDNUrlRequest {
+	// メディアID
+	string media_id = 1;
+	// URL有効期限（秒）
+	int32 expires_in = 2;
+	// 画像変換パラメータ
+	ImageTransformParams image_params = 3;
+}
+
+// 画像変換パラメータ
+message ImageTransformParams {
+	// 幅
+	int32 width = 1;
+	// 高さ
+	int32 height = 2;
+	// 画質
+	int32 quality = 3;
+	// フォーマット
+	ImageFormat format = 4;
+	// 自動最適化
+	bool auto_optimize = 5;
+}
+
+// CDN URL生成レスポンス
+message GenerateCDNUrlResponse {
+	// CDN URL
+	string url = 1;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 2;
+}
+
+// 署名付きURL生成リクエスト
+message GenerateSignedUrlRequest {
+	// メディアID
+	string media_id = 1;
+	// アクション（download, view, upload）
+	string action = 2;
+	// 有効期限（秒）
+	int32 expires_in = 3;
+	// IPアドレス制限
+	string allowed_ip = 4;
+}
+
+// 署名付きURL生成レスポンス
+message GenerateSignedUrlResponse {
+	// 署名付きURL
+	string signed_url = 1;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 2;
+}
+
+// 使用統計取得リクエスト
+message GetUsageStatsRequest {
+	// ユーザーID（省略時は自分）
+	string user_id = 1;
+	// 期間指定
+	google.protobuf.Timestamp from = 2;
+	google.protobuf.Timestamp to = 3;
+}
+
+// 使用統計取得レスポンス
+message GetUsageStatsResponse {
+	// 使用統計
+	MediaUsageStats stats = 1;
+}
+
+// クォータ取得リクエスト
+message GetQuotaRequest {
+	// ユーザーID（省略時は自分）
+	string user_id = 1;
+}
+
+// クォータ取得レスポンス
+message GetQuotaResponse {
+	// クォータ情報
+	MediaQuota quota = 1;
+	// 現在の使用状況
+	MediaUsageStats current_usage = 2;
+}
+
+// クォータ更新リクエスト
+message UpdateQuotaRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 新しいクォータ
+	MediaQuota quota = 2;
+	// 更新フィールドマスク
+	google.protobuf.FieldMask update_mask = 3;
+}
+
+// クォータ更新レスポンス
+message UpdateQuotaResponse {
+	// 更新後のクォータ
+	MediaQuota quota = 1;
+}
+
+// メディア検索リクエスト
+message SearchMediaRequest {
+	// 検索クエリ
+	string query = 1;
+	// 所有者ID
+	string owner_id = 2;
+	// メディアタイプ
+	repeated MediaType media_types = 3;
+	// タグ
+	repeated string tags = 4;
+	// 日付範囲
+	google.protobuf.Timestamp from_date = 5;
+	google.protobuf.Timestamp to_date = 6;
+	// 最小ファイルサイズ
+	int64 min_size = 7;
+	// 最大ファイルサイズ
+	int64 max_size = 8;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 9;
+}
+
+// メディア検索レスポンス
+message SearchMediaResponse {
+	// 検索結果
+	repeated Media results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 検索にマッチした総数
+	int32 total_matches = 3;
+}
+
+// 重複検出リクエスト
+message DetectDuplicatesRequest {
+	// メディアID（このメディアと重複するものを探す）
+	string media_id = 1;
+	// ハッシュ値（直接ハッシュで検索）
+	string hash = 2;
+	// 類似度しきい値（0.0-1.0）
+	float similarity_threshold = 3;
+}
+
+// 重複検出レスポンス
+message DetectDuplicatesResponse {
+	// 重複/類似メディア
+	repeated DuplicateMedia duplicates = 1;
+}
+
+// 重複メディア情報
+message DuplicateMedia {
+	// メディア
+	Media media = 1;
+	// 類似度（0.0-1.0）
+	float similarity = 2;
+	// 重複タイプ（exact, similar）
+	string duplicate_type = 3;
+}
+
+// メタデータ更新リクエスト
+message UpdateMetadataRequest {
+	// メディアID
+	string media_id = 1;
+	// 新しいメタデータ
+	MediaMetadata metadata = 2;
+	// 更新フィールドマスク
+	google.protobuf.FieldMask update_mask = 3;
+}
+
+// メタデータ更新レスポンス
+message UpdateMetadataResponse {
+	// 更新後のメディア
+	Media media = 1;
+}
+
+// タグ追加リクエスト
+message AddTagsRequest {
+	// メディアID
+	string media_id = 1;
+	// 追加するタグ
+	repeated string tags = 2;
+}
+
+// タグ追加レスポンス
+message AddTagsResponse {
+	// 更新後のメディア
+	Media media = 1;
+}
+
+// タグ削除リクエスト
+message RemoveTagsRequest {
+	// メディアID
+	string media_id = 1;
+	// 削除するタグ
+	repeated string tags = 2;
+}
+
+// タグ削除レスポンス
+message RemoveTagsResponse {
+	// 更新後のメディア
+	Media media = 1;
+}

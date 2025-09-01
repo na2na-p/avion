@@ -1,0 +1,750 @@
+syntax = "proto3";
+
+package avion.drop.v1;
+
+import "avion/drop/v1/drop.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+
+// Dropサービス
+service DropService {
+	// Drop作成
+	rpc CreateDrop(CreateDropRequest) returns (CreateDropResponse);
+	// Drop取得
+	rpc GetDrop(GetDropRequest) returns (GetDropResponse);
+	// Drop更新
+	rpc UpdateDrop(UpdateDropRequest) returns (UpdateDropResponse);
+	// Drop削除
+	rpc DeleteDrop(DeleteDropRequest) returns (DeleteDropResponse);
+	// Drop一覧取得
+	rpc ListDrops(ListDropsRequest) returns (ListDropsResponse);
+	// ユーザーのDrop一覧取得
+	rpc ListUserDrops(ListUserDropsRequest) returns (ListUserDropsResponse);
+	// Dropにいいね追加
+	rpc AddLike(AddLikeRequest) returns (AddLikeResponse);
+	// Dropのいいね削除
+	rpc RemoveLike(RemoveLikeRequest) returns (RemoveLikeResponse);
+	// Dropをリドロップ追加
+	rpc AddRedrop(AddRedropRequest) returns (AddRedropResponse);
+	// Dropのリドロップ削除
+	rpc RemoveRedrop(RemoveRedropRequest) returns (RemoveRedropResponse);
+	// Dropをブックマーク追加
+	rpc AddBookmark(AddBookmarkRequest) returns (AddBookmarkResponse);
+	// Dropのブックマーク削除
+	rpc RemoveBookmark(RemoveBookmarkRequest) returns (RemoveBookmarkResponse);
+	// Dropにリプライ
+	rpc ReplyToDrop(ReplyToDropRequest) returns (ReplyToDropResponse);
+	// Dropを引用
+	rpc QuoteDrop(QuoteDropRequest) returns (QuoteDropResponse);
+	// Drop検索
+	rpc SearchDrops(SearchDropsRequest) returns (SearchDropsResponse);
+	// Dropスレッド取得（リプライツリー）
+	rpc GetDropThread(GetDropThreadRequest) returns (GetDropThreadResponse);
+	
+	// 下書き関連のRPC
+	// 下書き作成
+	rpc CreateDraft(CreateDraftRequest) returns (CreateDraftResponse);
+	// 下書き取得
+	rpc GetDraft(GetDraftRequest) returns (GetDraftResponse);
+	// 下書き更新
+	rpc UpdateDraft(UpdateDraftRequest) returns (UpdateDraftResponse);
+	// 下書き削除
+	rpc DeleteDraft(DeleteDraftRequest) returns (DeleteDraftResponse);
+	// 下書き一覧取得
+	rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse);
+	// 下書きから投稿
+	rpc PublishDraft(PublishDraftRequest) returns (PublishDraftResponse);
+	// 自動保存（ストリーミング）
+	rpc AutoSaveDraft(stream AutoSaveDraftRequest) returns (stream AutoSaveDraftResponse);
+	
+	// 投票機能関連のRPC
+	// 投票作成
+	rpc CreatePoll(CreatePollRequest) returns (CreatePollResponse);
+	// 投票に投票
+	rpc VotePoll(VotePollRequest) returns (VotePollResponse);
+	// 投票結果取得
+	rpc GetPollResults(GetPollResultsRequest) returns (GetPollResultsResponse);
+	// 投票を閉じる
+	rpc ClosePoll(ClosePollRequest) returns (ClosePollResponse);
+	
+	// リアクション詳細機能
+	// リアクションしたユーザー一覧取得
+	rpc GetDropReactions(GetDropReactionsRequest) returns (GetDropReactionsResponse);
+	
+	// ブックマーク管理
+	// ユーザーのブックマーク一覧取得
+	rpc ListUserBookmarks(ListUserBookmarksRequest) returns (ListUserBookmarksResponse);
+	
+	// 編集履歴管理
+	// Drop編集履歴取得
+	rpc GetDropEditHistory(GetDropEditHistoryRequest) returns (GetDropEditHistoryResponse);
+	
+	// 統計情報
+	// Drop統計情報取得
+	rpc GetDropStats(GetDropStatsRequest) returns (GetDropStatsResponse);
+	
+	// バッチ操作
+	// 複数Drop一括取得
+	rpc BatchGetDrops(BatchGetDropsRequest) returns (BatchGetDropsResponse);
+	// 複数Drop一括削除
+	rpc BatchDeleteDrops(BatchDeleteDropsRequest) returns (BatchDeleteDropsResponse);
+	// 複数Dropステータス一括更新
+	rpc BatchUpdateDropStatus(BatchUpdateDropStatusRequest) returns (BatchUpdateDropStatusResponse);
+}
+
+// Drop作成リクエスト
+message CreateDropRequest {
+	// 投稿内容
+	string content = 1;
+	// 可視性
+	DropVisibility visibility = 2;
+	// リプライ元のDropID（オプション）
+	string reply_to_id = 3;
+	// 引用元のDropID（オプション）
+	string quote_drop_id = 4;
+	// メディアURL一覧（オプション）
+	repeated MediaAttachment media_attachments = 5;
+	// コンテンツ警告（オプション）
+	ContentWarning content_warning = 6;
+}
+
+// メディア添付情報
+message MediaAttachment {
+	// メディアURL
+	string media_url = 1;
+	// メディアタイプ
+	MediaType media_type = 2;
+	// サムネイルURL（オプション）
+	string thumbnail_url = 3;
+	// 代替テキスト（オプション）
+	string alt_text = 4;
+}
+
+// Drop作成レスポンス
+message CreateDropResponse {
+	// 作成されたDrop
+	Drop drop = 1;
+}
+
+// Drop取得リクエスト
+message GetDropRequest {
+	// DropのID
+	string id = 1;
+}
+
+// Drop取得レスポンス
+message GetDropResponse {
+	// 取得したDrop
+	Drop drop = 1;
+	// 添付メディア一覧
+	repeated DropMedia media = 2;
+	// ハッシュタグ一覧
+	repeated DropHashtag hashtags = 3;
+	// メンション一覧
+	repeated DropMention mentions = 4;
+}
+
+// Drop更新リクエスト
+message UpdateDropRequest {
+	// 更新対象のDropID
+	string id = 1;
+	// 新しい投稿内容
+	string content = 2;
+	// 新しい可視性
+	DropVisibility visibility = 3;
+	// 新しいコンテンツ警告（オプション）
+	ContentWarning content_warning = 4;
+	// 編集理由（オプション）
+	string edit_reason = 5;
+}
+
+// Drop更新レスポンス
+message UpdateDropResponse {
+	// 更新されたDrop
+	Drop drop = 1;
+}
+
+// Drop削除リクエスト
+message DeleteDropRequest {
+	// 削除対象のDropID
+	string id = 1;
+}
+
+// Drop削除レスポンス
+message DeleteDropResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}
+
+// Drop一覧取得リクエスト
+message ListDropsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルター条件（オプション）
+	DropFilter filter = 2;
+}
+
+// Dropフィルター条件
+message DropFilter {
+	// 可視性でフィルター
+	DropVisibility visibility = 1;
+	// 開始日時
+	google.protobuf.Timestamp from = 2;
+	// 終了日時
+	google.protobuf.Timestamp to = 3;
+	// ハッシュタグでフィルター
+	string hashtag = 4;
+}
+
+// Drop一覧取得レスポンス
+message ListDropsResponse {
+	// Drop一覧
+	repeated Drop drops = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ユーザーのDrop一覧取得リクエスト
+message ListUserDropsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// リプライを含むか
+	bool include_replies = 3;
+	// リドロップを含むか
+	bool include_redrops = 4;
+}
+
+// ユーザーのDrop一覧取得レスポンス
+message ListUserDropsResponse {
+	// Drop一覧
+	repeated Drop drops = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// いいね追加リクエスト
+message AddLikeRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// いいね追加レスポンス
+message AddLikeResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のいいね数
+	int32 like_count = 2;
+}
+
+// いいね削除リクエスト
+message RemoveLikeRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// いいね削除レスポンス
+message RemoveLikeResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のいいね数
+	int32 like_count = 2;
+}
+
+// リドロップ追加リクエスト
+message AddRedropRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// リドロップ追加レスポンス
+message AddRedropResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のリドロップ数
+	int32 redrop_count = 2;
+}
+
+// リドロップ削除リクエスト
+message RemoveRedropRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// リドロップ削除レスポンス
+message RemoveRedropResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のリドロップ数
+	int32 redrop_count = 2;
+}
+
+// ブックマーク追加リクエスト
+message AddBookmarkRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// ブックマーク追加レスポンス
+message AddBookmarkResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のブックマーク数
+	int32 bookmark_count = 2;
+}
+
+// ブックマーク削除リクエスト
+message RemoveBookmarkRequest {
+	// 対象のDropID
+	string drop_id = 1;
+}
+
+// ブックマーク削除レスポンス
+message RemoveBookmarkResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後のブックマーク数
+	int32 bookmark_count = 2;
+}
+
+// Dropにリプライリクエスト
+message ReplyToDropRequest {
+	// リプライ元のDropID
+	string reply_to_id = 1;
+	// リプライ内容
+	string content = 2;
+	// 可視性
+	DropVisibility visibility = 3;
+	// メディア添付（オプション）
+	repeated MediaAttachment media_attachments = 4;
+}
+
+// Dropにリプライレスポンス
+message ReplyToDropResponse {
+	// 作成されたリプライDrop
+	Drop drop = 1;
+}
+
+// Dropを引用リクエスト
+message QuoteDropRequest {
+	// 引用元のDropID
+	string quote_drop_id = 1;
+	// 引用コメント
+	string content = 2;
+	// 可視性
+	DropVisibility visibility = 3;
+	// メディア添付（オプション）
+	repeated MediaAttachment media_attachments = 4;
+}
+
+// Dropを引用レスポンス
+message QuoteDropResponse {
+	// 作成された引用Drop
+	Drop drop = 1;
+}
+
+// Drop検索リクエスト
+message SearchDropsRequest {
+	// 検索クエリ
+	string query = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// 検索フィルター（オプション）
+	SearchFilter filter = 3;
+}
+
+// 検索フィルター
+message SearchFilter {
+	// ユーザーIDでフィルター
+	string user_id = 1;
+	// ハッシュタグでフィルター
+	repeated string hashtags = 2;
+	// 期間（開始）
+	google.protobuf.Timestamp from = 3;
+	// 期間（終了）
+	google.protobuf.Timestamp to = 4;
+	// メディアを含むDropのみ
+	bool has_media = 5;
+}
+
+// Drop検索レスポンス
+message SearchDropsResponse {
+	// 検索結果のDrop一覧
+	repeated Drop drops = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 検索結果の総件数
+	int32 total_results = 3;
+}
+
+// Dropスレッド取得リクエスト
+message GetDropThreadRequest {
+	// スレッドのルートDropID
+	string drop_id = 1;
+	// 取得する階層の深さ（0は無制限）
+	int32 depth = 2;
+}
+
+// Dropスレッド取得レスポンス
+message GetDropThreadResponse {
+	// スレッドのルートDrop
+	Drop root_drop = 1;
+	// リプライツリー
+	repeated ThreadNode replies = 2;
+}
+
+// スレッドノード（リプライツリー構造）
+message ThreadNode {
+	// Drop本体
+	Drop drop = 1;
+	// 子リプライ
+	repeated ThreadNode children = 2;
+	// ツリー内の深さ
+	int32 depth = 3;
+}
+
+// 下書き作成リクエスト
+message CreateDraftRequest {
+	// 下書き内容
+	string content = 1;
+	// 可視性（投稿時の設定）
+	DropVisibility visibility = 2;
+	// リプライ元のDropID（オプション）
+	string reply_to_id = 3;
+	// 引用元のDropID（オプション）
+	string quote_drop_id = 4;
+	// メディア添付情報（オプション）
+	repeated MediaAttachment media_attachments = 5;
+	// 投稿予定日時（スケジュール投稿用、オプション）
+	google.protobuf.Timestamp scheduled_at = 6;
+}
+
+// 下書き作成レスポンス
+message CreateDraftResponse {
+	// 作成された下書き
+	DropDraft draft = 1;
+}
+
+// 下書き取得リクエスト
+message GetDraftRequest {
+	// 下書きID
+	string draft_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// 下書き取得レスポンス
+message GetDraftResponse {
+	// 取得した下書き
+	DropDraft draft = 1;
+}
+
+// 下書き更新リクエスト
+message UpdateDraftRequest {
+	// 下書きID
+	string draft_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+	// 下書き内容
+	string content = 3;
+	// 可視性
+	DropVisibility visibility = 4;
+	// メディア添付情報
+	repeated MediaAttachment media_attachments = 5;
+	// 投稿予定日時（スケジュール投稿用）
+	google.protobuf.Timestamp scheduled_at = 6;
+	// ステータス（自動保存時に使用）
+	DraftStatus status = 7;
+}
+
+// 下書き更新レスポンス
+message UpdateDraftResponse {
+	// 更新された下書き
+	DropDraft draft = 1;
+}
+
+// 下書き削除リクエスト
+message DeleteDraftRequest {
+	// 下書きID
+	string draft_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// 下書き削除レスポンス
+message DeleteDraftResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}
+
+// 下書き一覧取得リクエスト
+message ListDraftsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// フィルター
+	DraftFilter filter = 3;
+}
+
+// 下書きフィルター
+message DraftFilter {
+	// ステータスでフィルター
+	DraftStatus status = 1;
+	// スケジュール投稿のみ
+	bool scheduled_only = 2;
+	// 開始日時
+	google.protobuf.Timestamp from = 3;
+	// 終了日時
+	google.protobuf.Timestamp to = 4;
+}
+
+// 下書き一覧取得レスポンス
+message ListDraftsResponse {
+	// 下書き一覧
+	repeated DropDraft drafts = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 下書きから投稿リクエスト
+message PublishDraftRequest {
+	// 下書きID
+	string draft_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+	// 投稿時に上書きする内容（オプション）
+	string content = 3;
+	// 投稿時に上書きする可視性（オプション）
+	DropVisibility visibility = 4;
+}
+
+// 下書きから投稿レスポンス
+message PublishDraftResponse {
+	// 投稿されたDrop
+	Drop drop = 1;
+	// 更新された下書き（ステータスがPUBLISHEDに変更）
+	DropDraft draft = 2;
+}
+
+// 自動保存リクエスト（ストリーミング）
+message AutoSaveDraftRequest {
+	// 下書きID（初回はempty、新規作成時）
+	string draft_id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 下書き内容
+	string content = 3;
+	// 可視性
+	DropVisibility visibility = 4;
+	// リプライ元のDropID（オプション）
+	string reply_to_id = 5;
+	// 引用元のDropID（オプション）
+	string quote_drop_id = 6;
+	// タイムスタンプ（クライアント側の保存時刻）
+	google.protobuf.Timestamp client_timestamp = 7;
+}
+
+// 自動保存レスポンス（ストリーミング）
+message AutoSaveDraftResponse {
+	// 下書きID
+	string draft_id = 1;
+	// 保存成功フラグ
+	bool success = 2;
+	// サーバー側の保存時刻
+	google.protobuf.Timestamp server_timestamp = 3;
+	// エラーメッセージ（失敗時）
+	string error_message = 4;
+}
+
+// 投票作成リクエスト
+message CreatePollRequest {
+	// 関連するDropID
+	string drop_id = 1;
+	// 質問文
+	string question = 2;
+	// 投票オプション（2～10個）
+	repeated string options = 3;
+	// 複数選択可能か
+	bool multiple_choice = 4;
+	// 投票期限（時間単位、最小1時間、最大7日）
+	int32 duration_hours = 5;
+}
+
+// 投票作成レスポンス
+message CreatePollResponse {
+	// 作成された投票
+	Poll poll = 1;
+}
+
+// 投票に投票リクエスト
+message VotePollRequest {
+	// 投票ID
+	string poll_id = 1;
+	// 選択したオプションID一覧
+	repeated string option_ids = 2;
+}
+
+// 投票に投票レスポンス
+message VotePollResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新後の投票
+	Poll poll = 2;
+	// エラーメッセージ（失敗時）
+	string error_message = 3;
+}
+
+// 投票結果取得リクエスト
+message GetPollResultsRequest {
+	// 投票ID
+	string poll_id = 1;
+}
+
+// 投票結果取得レスポンス
+message GetPollResultsResponse {
+	// 投票
+	Poll poll = 1;
+	// 現在のユーザーの投票（ログインしている場合）
+	UserPollVote user_vote = 2;
+}
+
+// 投票を閉じるリクエスト
+message ClosePollRequest {
+	// 投票ID
+	string poll_id = 1;
+	// DropオーナーのユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// 投票を閉じるレスポンス
+message ClosePollResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 最終的な投票結果
+	Poll poll = 2;
+}
+
+// Dropリアクション詳細取得リクエスト
+message GetDropReactionsRequest {
+	// DropID
+	string drop_id = 1;
+	// リアクションタイプでフィルター（オプション）
+	ReactionType reaction_type = 2;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 3;
+}
+
+// Dropリアクション詳細取得レスポンス
+message GetDropReactionsResponse {
+	// リアクション一覧
+	repeated DropReaction reactions = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ユーザーのブックマーク一覧取得リクエスト
+message ListUserBookmarksRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// ユーザーのブックマーク一覧取得レスポンス
+message ListUserBookmarksResponse {
+	// ブックマークしたDrop一覧
+	repeated Drop drops = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// Drop編集履歴取得リクエスト
+message GetDropEditHistoryRequest {
+	// DropID
+	string drop_id = 1;
+	// ページネーション（履歴が多い場合）
+	avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// Drop編集履歴取得レスポンス
+message GetDropEditHistoryResponse {
+	// 編集履歴一覧
+	repeated EditHistory history = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// Drop統計情報取得リクエスト
+message GetDropStatsRequest {
+	// DropID
+	string drop_id = 1;
+	// 期間指定（オプション）
+	google.protobuf.Timestamp from = 2;
+	google.protobuf.Timestamp to = 3;
+}
+
+// Drop統計情報取得レスポンス
+message GetDropStatsResponse {
+	// 統計情報
+	DropStats stats = 1;
+}
+
+// 複数Drop一括取得リクエスト
+message BatchGetDropsRequest {
+	// 取得するDropID一覧（最大100個）
+	repeated string drop_ids = 1;
+	// 削除されたDropも含むか
+	bool include_deleted = 2;
+}
+
+// 複数Drop一括取得レスポンス
+message BatchGetDropsResponse {
+	// 取得したDrop一覧
+	repeated Drop drops = 1;
+	// 見つからなかったDropID一覧
+	repeated string not_found_ids = 2;
+}
+
+// 複数Drop一括削除リクエスト
+message BatchDeleteDropsRequest {
+	// 削除するDropID一覧（最大50個）
+	repeated string drop_ids = 1;
+	// 削除を実行するユーザーID（権限確認用）
+	string user_id = 2;
+	// 物理削除するか（デフォルトはソフト削除）
+	bool hard_delete = 3;
+}
+
+// 複数Drop一括削除レスポンス
+message BatchDeleteDropsResponse {
+	// 削除成功したDropID一覧
+	repeated string deleted_ids = 1;
+	// 削除失敗したDropID一覧
+	repeated string failed_ids = 2;
+	// エラー詳細
+	map<string, string> errors = 3;
+}
+
+// 複数Dropステータス一括更新リクエスト
+message BatchUpdateDropStatusRequest {
+	// 更新するDropID一覧（最大100個）
+	repeated string drop_ids = 1;
+	// 新しいステータス
+	DropStatus new_status = 2;
+	// 更新を実行するユーザーID（権限確認用）
+	string user_id = 3;
+	// 更新理由（監査用）
+	string reason = 4;
+}
+
+// 複数Dropステータス一括更新レスポンス
+message BatchUpdateDropStatusResponse {
+	// 更新成功したDropID一覧
+	repeated string updated_ids = 1;
+	// 更新失敗したDropID一覧
+	repeated string failed_ids = 2;
+	// エラー詳細
+	map<string, string> errors = 3;
+}

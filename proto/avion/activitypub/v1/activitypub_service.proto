@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package avion.activitypub.v1;
+
+import "avion/activitypub/v1/activitypub.proto";
+
+// ActivityPubサービス
+// ActivityPubプロトコルの実装とフェデレーション機能を提供
+service ActivityPubService {
+  // アクター管理
+
+  // アクターを作成
+  rpc CreateActor(CreateActorRequest) returns (CreateActorResponse);
+
+  // アクターを取得
+  rpc GetActor(GetActorRequest) returns (GetActorResponse);
+
+  // アクターを更新
+  rpc UpdateActor(UpdateActorRequest) returns (UpdateActorResponse);
+
+  // アクターを削除
+  rpc DeleteActor(DeleteActorRequest) returns (DeleteActorResponse);
+
+  // アクティビティ処理
+
+  // アクティビティを送信
+  rpc SendActivity(SendActivityRequest) returns (SendActivityResponse);
+
+  // アクティビティを受信（外部からの受信処理）
+  rpc ReceiveActivity(ReceiveActivityRequest) returns (ReceiveActivityResponse);
+
+  // Inbox/Outbox管理
+
+  // Inboxを取得
+  rpc GetInbox(GetInboxRequest) returns (GetInboxResponse);
+
+  // Outboxを取得
+  rpc GetOutbox(GetOutboxRequest) returns (GetOutboxResponse);
+
+  // フォロー管理
+
+  // フォローする
+  rpc Follow(FollowRequest) returns (FollowResponse);
+
+  // アンフォローする
+  rpc Unfollow(UnfollowRequest) returns (UnfollowResponse);
+
+  // フォロワーを取得
+  rpc GetFollowers(GetFollowersRequest) returns (GetFollowersResponse);
+
+  // フォロー中を取得
+  rpc GetFollowing(GetFollowingRequest) returns (GetFollowingResponse);
+
+  // WebFinger
+
+  // WebFingerで検索
+  rpc WebFingerLookup(WebFingerLookupRequest) returns (WebFingerLookupResponse);
+
+  // 署名
+
+  // HTTPSignatureを検証
+  rpc VerifySignature(VerifySignatureRequest) returns (VerifySignatureResponse);
+
+  // HTTPSignatureを生成
+  rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
+
+  // フェデレーション
+
+  // リモートアクターを同期
+  rpc SyncRemoteActor(SyncRemoteActorRequest) returns (SyncRemoteActorResponse);
+
+  // コレクションを取得
+  rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+}

@@ -1,0 +1,788 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+import "avion/auth/v1/auth.proto";
+
+// ========== アカウント復旧機能 ==========
+
+// アカウント復旧リクエスト
+message RecoverAccountRequest {
+  // 復旧対象のメールアドレス
+  string email = 1;
+  // 復旧コード（削除時に発行された復旧コード）
+  string recovery_code = 2;
+  // 本人確認のための追加情報
+  RecoveryVerification verification = 3;
+}
+
+// 本人確認情報
+message RecoveryVerification {
+  // 登録時のユーザー名
+  string original_username = 1;
+  // 最後にログインした時期（おおよその日付）
+  google.protobuf.Timestamp last_login_approximate = 2;
+  // セキュリティ質問の回答（設定されている場合）
+  repeated SecurityAnswer security_answers = 3;
+}
+
+// セキュリティ質問の回答
+message SecurityAnswer {
+  // 質問ID
+  string question_id = 1;
+  // 回答
+  string answer = 2;
+}
+
+// アカウント復旧レスポンス
+message RecoverAccountResponse {
+  // 復旧成功フラグ
+  bool success = 1;
+  // 復旧されたユーザー情報
+  User recovered_user = 2;
+  // 新しいアクセストークン
+  string access_token = 3;
+  // 新しいリフレッシュトークン
+  string refresh_token = 4;
+  // パスワードリセットが必要かどうか
+  bool password_reset_required = 5;
+  // エラーメッセージ（失敗時）
+  string error_message = 6;
+}
+
+// ========== アカウントエクスポート（GDPR対応） ==========
+
+// アカウントエクスポートリクエスト
+message ExportAccountDataRequest {
+  // ユーザーID
+  string user_id = 1;
+  // エクスポート形式
+  ExportFormat format = 2;
+  // エクスポート範囲
+  ExportScope scope = 3;
+  // データカテゴリのフィルタ（空の場合は全て）
+  repeated DataCategory categories = 4;
+  // 期間指定（オプション）
+  DateRange date_range = 5;
+}
+
+// エクスポート形式
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_JSON = 1;          // JSON形式
+  EXPORT_FORMAT_CSV = 2;           // CSV形式（構造化データのみ）
+  EXPORT_FORMAT_ARCHIVE = 3;       // ZIP/TARアーカイブ（メディア含む）
+}
+
+// エクスポート範囲
+enum ExportScope {
+  EXPORT_SCOPE_UNSPECIFIED = 0;
+  EXPORT_SCOPE_BASIC = 1;          // 基本情報のみ
+  EXPORT_SCOPE_FULL = 2;           // 全データ
+  EXPORT_SCOPE_GDPR_COMPLIANT = 3; // GDPR準拠形式
+}
+
+// データカテゴリ
+enum DataCategory {
+  DATA_CATEGORY_UNSPECIFIED = 0;
+  DATA_CATEGORY_PROFILE = 1;       // プロフィール情報
+  DATA_CATEGORY_POSTS = 2;         // 投稿データ
+  DATA_CATEGORY_MESSAGES = 3;      // メッセージ
+  DATA_CATEGORY_CONNECTIONS = 4;   // フォロー/フォロワー
+  DATA_CATEGORY_SETTINGS = 5;      // 設定情報
+  DATA_CATEGORY_SECURITY = 6;      // セキュリティ情報
+  DATA_CATEGORY_ACTIVITY = 7;      // アクティビティログ
+  DATA_CATEGORY_MEDIA = 8;         // メディアファイル
+}
+
+// 日付範囲
+message DateRange {
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+}
+
+// アカウントエクスポートレスポンス
+message ExportAccountDataResponse {
+  // エクスポート成功フラグ
+  bool success = 1;
+  // エクスポートジョブID（非同期処理用）
+  string export_job_id = 2;
+  // ダウンロードURL（同期処理の場合）
+  string download_url = 3;
+  // ダウンロードURL有効期限
+  google.protobuf.Timestamp download_expires_at = 4;
+  // エクスポートファイルサイズ（バイト）
+  int64 file_size_bytes = 5;
+  // 処理ステータス
+  ExportStatus status = 6;
+  // エラーメッセージ（失敗時）
+  string error_message = 7;
+}
+
+// エクスポートステータス
+enum ExportStatus {
+  EXPORT_STATUS_UNSPECIFIED = 0;
+  EXPORT_STATUS_PENDING = 1;       // 処理待ち
+  EXPORT_STATUS_PROCESSING = 2;    // 処理中
+  EXPORT_STATUS_COMPLETED = 3;     // 完了
+  EXPORT_STATUS_FAILED = 4;        // 失敗
+  EXPORT_STATUS_EXPIRED = 5;       // 期限切れ
+}
+
+// エクスポートジョブステータス取得リクエスト
+message GetExportStatusRequest {
+  // エクスポートジョブID
+  string export_job_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// エクスポートジョブステータス取得レスポンス
+message GetExportStatusResponse {
+  // ジョブID
+  string export_job_id = 1;
+  // 現在のステータス
+  ExportStatus status = 2;
+  // 進捗率（0-100）
+  int32 progress_percentage = 3;
+  // ダウンロードURL（完了時）
+  string download_url = 4;
+  // エラーメッセージ（失敗時）
+  string error_message = 5;
+  // 推定完了時刻
+  google.protobuf.Timestamp estimated_completion_at = 6;
+}
+
+// ========== アカウントインポート ==========
+
+// アカウントインポートリクエスト
+message ImportAccountDataRequest {
+  // ユーザーID
+  string user_id = 1;
+  // インポートファイルURL（事前にアップロード済み）
+  string file_url = 2;
+  // インポート形式
+  ImportFormat format = 3;
+  // インポートオプション
+  ImportOptions options = 4;
+}
+
+// インポート形式
+enum ImportFormat {
+  IMPORT_FORMAT_UNSPECIFIED = 0;
+  IMPORT_FORMAT_AVION = 1;         // Avion標準形式
+  IMPORT_FORMAT_MASTODON = 2;      // Mastodon互換
+  IMPORT_FORMAT_TWITTER = 3;       // Twitter/Xアーカイブ
+  IMPORT_FORMAT_ACTIVITYPUB = 4;   // ActivityPub標準
+}
+
+// インポートオプション
+message ImportOptions {
+  // 既存データの処理方法
+  MergeStrategy merge_strategy = 1;
+  // インポートするデータカテゴリ
+  repeated DataCategory categories = 2;
+  // 重複チェックを行うか
+  bool check_duplicates = 3;
+  // プライバシー設定の適用
+  bool apply_privacy_settings = 4;
+}
+
+// マージ戦略
+enum MergeStrategy {
+  MERGE_STRATEGY_UNSPECIFIED = 0;
+  MERGE_STRATEGY_REPLACE = 1;      // 既存データを置換
+  MERGE_STRATEGY_MERGE = 2;        // 既存データとマージ
+  MERGE_STRATEGY_SKIP_EXISTING = 3; // 既存データをスキップ
+}
+
+// アカウントインポートレスポンス
+message ImportAccountDataResponse {
+  // インポート開始成功フラグ
+  bool success = 1;
+  // インポートジョブID
+  string import_job_id = 2;
+  // 処理ステータス
+  ImportStatus status = 3;
+  // インポート統計
+  ImportStatistics statistics = 4;
+  // エラーメッセージ（失敗時）
+  string error_message = 5;
+}
+
+// インポートステータス
+enum ImportStatus {
+  IMPORT_STATUS_UNSPECIFIED = 0;
+  IMPORT_STATUS_VALIDATING = 1;    // 検証中
+  IMPORT_STATUS_PROCESSING = 2;    // 処理中
+  IMPORT_STATUS_COMPLETED = 3;     // 完了
+  IMPORT_STATUS_PARTIAL = 4;       // 部分的完了
+  IMPORT_STATUS_FAILED = 5;        // 失敗
+}
+
+// インポート統計
+message ImportStatistics {
+  // 処理済みアイテム数
+  int32 processed_items = 1;
+  // 成功したアイテム数
+  int32 successful_items = 2;
+  // 失敗したアイテム数
+  int32 failed_items = 3;
+  // スキップしたアイテム数
+  int32 skipped_items = 4;
+  // カテゴリ別統計
+  map<string, int32> category_counts = 5;
+}
+
+// ========== セキュリティ機能 ==========
+
+// 不審なログイン検知設定
+message SuspiciousLoginDetectionSettings {
+  // 検知を有効にするか
+  bool enabled = 1;
+  // 新しい場所からのログイン時に通知
+  bool notify_new_location = 2;
+  // 新しいデバイスからのログイン時に通知
+  bool notify_new_device = 3;
+  // 異常なパターン検出時に通知
+  bool notify_unusual_pattern = 4;
+  // 自動ブロックを有効にするか
+  bool auto_block_suspicious = 5;
+}
+
+// ログイン履歴エントリ
+message LoginHistoryEntry {
+  // エントリID
+  string id = 1;
+  // ログイン時刻
+  google.protobuf.Timestamp logged_in_at = 2;
+  // IPアドレス
+  string ip_address = 3;
+  // 位置情報
+  LocationInfo location = 4;
+  // デバイス情報
+  DeviceInfo device = 5;
+  // ログイン方法
+  LoginMethod method = 6;
+  // 成功/失敗
+  bool success = 7;
+  // 不審フラグ
+  bool suspicious = 8;
+  // ブロックされたか
+  bool blocked = 9;
+}
+
+// 位置情報
+message LocationInfo {
+  // 国コード
+  string country_code = 1;
+  // 国名
+  string country_name = 2;
+  // 都市名
+  string city = 3;
+  // 地域/州
+  string region = 4;
+  // 緯度
+  double latitude = 5;
+  // 経度
+  double longitude = 6;
+}
+
+// デバイス情報
+message DeviceInfo {
+  // デバイスID
+  string device_id = 1;
+  // デバイスタイプ
+  DeviceType type = 2;
+  // OS
+  string os = 3;
+  // OSバージョン
+  string os_version = 4;
+  // ブラウザ
+  string browser = 5;
+  // ブラウザバージョン
+  string browser_version = 6;
+  // ユーザーエージェント
+  string user_agent = 7;
+}
+
+// デバイスタイプ
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  DEVICE_TYPE_DESKTOP = 1;
+  DEVICE_TYPE_MOBILE = 2;
+  DEVICE_TYPE_TABLET = 3;
+  DEVICE_TYPE_TV = 4;
+  DEVICE_TYPE_WEARABLE = 5;
+  DEVICE_TYPE_CONSOLE = 6;
+}
+
+// ログイン方法
+enum LoginMethod {
+  LOGIN_METHOD_UNSPECIFIED = 0;
+  LOGIN_METHOD_PASSWORD = 1;
+  LOGIN_METHOD_PASSKEY = 2;
+  LOGIN_METHOD_OAUTH = 3;
+  LOGIN_METHOD_MAGIC_LINK = 4;
+  LOGIN_METHOD_QR_CODE = 5;
+}
+
+// ログイン履歴取得リクエスト
+message GetLoginHistoryRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページサイズ
+  int32 page_size = 2;
+  // ページトークン
+  string page_token = 3;
+  // フィルタオプション
+  LoginHistoryFilter filter = 4;
+}
+
+// ログイン履歴フィルタ
+message LoginHistoryFilter {
+  // 期間指定
+  DateRange date_range = 1;
+  // 成功のみ/失敗のみ
+  optional bool success_only = 2;
+  // 不審なもののみ
+  bool suspicious_only = 3;
+  // デバイスタイプ
+  DeviceType device_type = 4;
+  // ログイン方法
+  LoginMethod login_method = 5;
+}
+
+// ログイン履歴取得レスポンス
+message GetLoginHistoryResponse {
+  // 履歴エントリ
+  repeated LoginHistoryEntry entries = 1;
+  // 次ページトークン
+  string next_page_token = 2;
+  // 総件数
+  int32 total_count = 3;
+}
+
+// IPアドレス制限設定
+message IpRestrictionSettings {
+  // IP制限を有効にするか
+  bool enabled = 1;
+  // ホワイトリストモード（true）/ ブラックリストモード（false）
+  bool whitelist_mode = 2;
+  // 許可/拒否するIPアドレス/範囲
+  repeated IpRule rules = 3;
+  // 地理的制限
+  GeographicRestriction geographic_restriction = 4;
+}
+
+// IPルール
+message IpRule {
+  // ルールID
+  string id = 1;
+  // IPアドレスまたはCIDR範囲
+  string ip_or_cidr = 2;
+  // 説明
+  string description = 3;
+  // 有効期限（オプション）
+  google.protobuf.Timestamp expires_at = 4;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// 地理的制限
+message GeographicRestriction {
+  // 制限を有効にするか
+  bool enabled = 1;
+  // ホワイトリストモード（true）/ ブラックリストモード（false）
+  bool whitelist_mode = 2;
+  // 国コードリスト（ISO 3166-1 alpha-2）
+  repeated string country_codes = 3;
+}
+
+// セキュリティ監査ログエントリ
+message SecurityAuditLogEntry {
+  // エントリID
+  string id = 1;
+  // タイムスタンプ
+  google.protobuf.Timestamp timestamp = 2;
+  // ユーザーID
+  string user_id = 3;
+  // アクション
+  SecurityAction action = 4;
+  // リソースタイプ
+  string resource_type = 5;
+  // リソースID
+  string resource_id = 6;
+  // IPアドレス
+  string ip_address = 7;
+  // デバイス情報
+  DeviceInfo device = 8;
+  // 結果（成功/失敗）
+  bool success = 9;
+  // 詳細情報
+  google.protobuf.Any details = 10;
+  // リスクスコア（0-100）
+  int32 risk_score = 11;
+}
+
+// セキュリティアクション
+enum SecurityAction {
+  SECURITY_ACTION_UNSPECIFIED = 0;
+  SECURITY_ACTION_LOGIN = 1;
+  SECURITY_ACTION_LOGOUT = 2;
+  SECURITY_ACTION_PASSWORD_CHANGE = 3;
+  SECURITY_ACTION_EMAIL_CHANGE = 4;
+  SECURITY_ACTION_MFA_ENABLE = 5;
+  SECURITY_ACTION_MFA_DISABLE = 6;
+  SECURITY_ACTION_PASSKEY_ADD = 7;
+  SECURITY_ACTION_PASSKEY_REMOVE = 8;
+  SECURITY_ACTION_OAUTH_CONNECT = 9;
+  SECURITY_ACTION_OAUTH_DISCONNECT = 10;
+  SECURITY_ACTION_ACCOUNT_RECOVERY = 11;
+  SECURITY_ACTION_DATA_EXPORT = 12;
+  SECURITY_ACTION_DATA_IMPORT = 13;
+  SECURITY_ACTION_PERMISSION_GRANT = 14;
+  SECURITY_ACTION_PERMISSION_REVOKE = 15;
+  SECURITY_ACTION_SUSPICIOUS_ACTIVITY = 16;
+}
+
+// セキュリティ監査ログ取得リクエスト
+message GetSecurityAuditLogRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページサイズ
+  int32 page_size = 2;
+  // ページトークン
+  string page_token = 3;
+  // フィルタオプション
+  AuditLogFilter filter = 4;
+}
+
+// 監査ログフィルタ
+message AuditLogFilter {
+  // 期間指定
+  DateRange date_range = 1;
+  // アクションタイプ
+  repeated SecurityAction actions = 2;
+  // リソースタイプ
+  string resource_type = 3;
+  // 成功のみ/失敗のみ
+  optional bool success_only = 4;
+  // 最小リスクスコア
+  int32 min_risk_score = 5;
+}
+
+// セキュリティ監査ログ取得レスポンス
+message GetSecurityAuditLogResponse {
+  // ログエントリ
+  repeated SecurityAuditLogEntry entries = 1;
+  // 次ページトークン
+  string next_page_token = 2;
+  // 総件数
+  int32 total_count = 3;
+}
+
+// ========== ユーザー設定管理 ==========
+
+// ユーザー設定
+message UserPreferences {
+  // ユーザーID
+  string user_id = 1;
+  // 言語設定
+  LanguageSettings language = 2;
+  // タイムゾーン設定
+  TimezoneSettings timezone = 3;
+  // 通知設定
+  NotificationSettings notifications = 4;
+  // プライバシー設定
+  PrivacySettings privacy = 5;
+  // アクセシビリティ設定
+  AccessibilitySettings accessibility = 6;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// 言語設定
+message LanguageSettings {
+  // 主言語（BCP 47形式: ja-JP, en-US等）
+  string primary_language = 1;
+  // フォールバック言語
+  repeated string fallback_languages = 2;
+  // 日付フォーマット
+  DateFormat date_format = 3;
+  // 時刻フォーマット
+  TimeFormat time_format = 4;
+  // 数値フォーマット
+  NumberFormat number_format = 5;
+}
+
+// 日付フォーマット
+enum DateFormat {
+  DATE_FORMAT_UNSPECIFIED = 0;
+  DATE_FORMAT_MDY = 1;            // MM/DD/YYYY (US)
+  DATE_FORMAT_DMY = 2;            // DD/MM/YYYY (EU)
+  DATE_FORMAT_YMD = 3;            // YYYY-MM-DD (ISO)
+  DATE_FORMAT_YMD_JP = 4;         // YYYY年MM月DD日 (JP)
+}
+
+// 時刻フォーマット
+enum TimeFormat {
+  TIME_FORMAT_UNSPECIFIED = 0;
+  TIME_FORMAT_12H = 1;            // 12時間制（AM/PM）
+  TIME_FORMAT_24H = 2;            // 24時間制
+}
+
+// 数値フォーマット
+message NumberFormat {
+  // 小数点記号
+  string decimal_separator = 1;
+  // 千位区切り記号
+  string thousands_separator = 2;
+  // 通貨記号の位置
+  CurrencyPosition currency_position = 3;
+}
+
+// 通貨記号の位置
+enum CurrencyPosition {
+  CURRENCY_POSITION_UNSPECIFIED = 0;
+  CURRENCY_POSITION_PREFIX = 1;   // $100
+  CURRENCY_POSITION_SUFFIX = 2;   // 100円
+}
+
+// タイムゾーン設定
+message TimezoneSettings {
+  // タイムゾーン（IANA形式: Asia/Tokyo, America/New_York等）
+  string timezone = 1;
+  // 自動検出を使用するか
+  bool auto_detect = 2;
+  // サマータイム自動調整
+  bool auto_adjust_dst = 3;
+}
+
+// 通知設定
+message NotificationSettings {
+  // メール通知全般
+  EmailNotificationSettings email = 1;
+  // プッシュ通知設定
+  PushNotificationSettings push = 2;
+  // アプリ内通知設定
+  InAppNotificationSettings in_app = 3;
+  // 通知スケジュール
+  NotificationSchedule schedule = 4;
+}
+
+// メール通知設定
+message EmailNotificationSettings {
+  // メール通知を有効にするか
+  bool enabled = 1;
+  // 通知カテゴリ別設定
+  map<string, bool> categories = 2;
+  // ダイジェスト配信
+  DigestSettings digest = 3;
+  // 配信停止トークン
+  string unsubscribe_token = 4;
+}
+
+// ダイジェスト設定
+message DigestSettings {
+  // ダイジェストを有効にするか
+  bool enabled = 1;
+  // 配信頻度
+  DigestFrequency frequency = 2;
+  // 配信時刻（ユーザーのタイムゾーンで）
+  string preferred_time = 3; // HH:MM形式
+}
+
+// ダイジェスト頻度
+enum DigestFrequency {
+  DIGEST_FREQUENCY_UNSPECIFIED = 0;
+  DIGEST_FREQUENCY_DAILY = 1;
+  DIGEST_FREQUENCY_WEEKLY = 2;
+  DIGEST_FREQUENCY_MONTHLY = 3;
+}
+
+// プッシュ通知設定
+message PushNotificationSettings {
+  // プッシュ通知を有効にするか
+  bool enabled = 1;
+  // デバイス別設定
+  repeated DeviceNotificationSettings devices = 2;
+}
+
+// デバイス別通知設定
+message DeviceNotificationSettings {
+  // デバイスID
+  string device_id = 1;
+  // デバイス名
+  string device_name = 2;
+  // 通知を有効にするか
+  bool enabled = 3;
+  // カテゴリ別設定
+  map<string, bool> categories = 4;
+}
+
+// アプリ内通知設定
+message InAppNotificationSettings {
+  // アプリ内通知を有効にするか
+  bool enabled = 1;
+  // サウンドを有効にするか
+  bool sound_enabled = 2;
+  // バイブレーションを有効にするか
+  bool vibration_enabled = 3;
+  // デスクトップ通知を有効にするか
+  bool desktop_enabled = 4;
+}
+
+// 通知スケジュール
+message NotificationSchedule {
+  // スケジュールを有効にするか
+  bool enabled = 1;
+  // 通知を受け取らない時間帯
+  repeated QuietHours quiet_hours = 2;
+  // 週末の設定
+  WeekendSettings weekend = 3;
+}
+
+// 通知を受け取らない時間帯
+message QuietHours {
+  // 曜日（0=日曜日, 6=土曜日）
+  repeated int32 days_of_week = 1;
+  // 開始時刻（HH:MM）
+  string start_time = 2;
+  // 終了時刻（HH:MM）
+  string end_time = 3;
+}
+
+// 週末設定
+message WeekendSettings {
+  // 週末は通知を無効にする
+  bool disable_on_weekends = 1;
+  // カスタム週末定義（デフォルトは土日）
+  repeated int32 weekend_days = 2;
+}
+
+// プライバシー設定
+message PrivacySettings {
+  // プロフィールの公開範囲
+  VisibilityLevel profile_visibility = 1;
+  // 投稿のデフォルト公開範囲
+  VisibilityLevel default_post_visibility = 2;
+  // フォローリストの公開
+  bool show_followers = 3;
+  // オンラインステータスの表示
+  bool show_online_status = 4;
+  // 既読ステータスの送信
+  bool send_read_receipts = 5;
+  // 検索エンジンへの露出
+  bool searchable = 6;
+  // データ収集への同意
+  DataCollectionConsent data_collection = 7;
+}
+
+// 公開範囲
+enum VisibilityLevel {
+  VISIBILITY_LEVEL_UNSPECIFIED = 0;
+  VISIBILITY_LEVEL_PUBLIC = 1;     // 全体公開
+  VISIBILITY_LEVEL_FOLLOWERS = 2;  // フォロワーのみ
+  VISIBILITY_LEVEL_FRIENDS = 3;    // 友達のみ
+  VISIBILITY_LEVEL_PRIVATE = 4;    // 非公開
+}
+
+// データ収集同意
+message DataCollectionConsent {
+  // 分析データの収集
+  bool analytics = 1;
+  // パーソナライゼーション
+  bool personalization = 2;
+  // 広告ターゲティング
+  bool advertising = 3;
+  // 第三者との共有
+  bool third_party_sharing = 4;
+}
+
+// アクセシビリティ設定
+message AccessibilitySettings {
+  // ハイコントラストモード
+  bool high_contrast = 1;
+  // フォントサイズ調整（%）
+  int32 font_size_adjustment = 2;
+  // アニメーションを減らす
+  bool reduce_motion = 3;
+  // スクリーンリーダー最適化
+  bool screen_reader_optimization = 4;
+  // キーボードナビゲーション
+  bool keyboard_navigation = 5;
+  // カラーブラインドモード
+  ColorBlindMode color_blind_mode = 6;
+}
+
+// カラーブラインドモード
+enum ColorBlindMode {
+  COLOR_BLIND_MODE_UNSPECIFIED = 0;
+  COLOR_BLIND_MODE_PROTANOPIA = 1;    // 赤色盲
+  COLOR_BLIND_MODE_DEUTERANOPIA = 2;  // 緑色盲
+  COLOR_BLIND_MODE_TRITANOPIA = 3;    // 青色盲
+  COLOR_BLIND_MODE_MONOCHROMACY = 4;  // 全色盲
+}
+
+// ユーザー設定取得リクエスト
+message GetUserPreferencesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 取得するカテゴリ（空の場合は全て）
+  repeated PreferenceCategory categories = 2;
+}
+
+// 設定カテゴリ
+enum PreferenceCategory {
+  PREFERENCE_CATEGORY_UNSPECIFIED = 0;
+  PREFERENCE_CATEGORY_LANGUAGE = 1;
+  PREFERENCE_CATEGORY_TIMEZONE = 2;
+  PREFERENCE_CATEGORY_NOTIFICATIONS = 3;
+  PREFERENCE_CATEGORY_PRIVACY = 4;
+  PREFERENCE_CATEGORY_ACCESSIBILITY = 5;
+}
+
+// ユーザー設定取得レスポンス
+message GetUserPreferencesResponse {
+  // ユーザー設定
+  UserPreferences preferences = 1;
+}
+
+// ユーザー設定更新リクエスト
+message UpdateUserPreferencesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 更新する設定
+  UserPreferences preferences = 2;
+  // 更新するフィールドマスク
+  repeated string update_mask = 3;
+}
+
+// ユーザー設定更新レスポンス
+message UpdateUserPreferencesResponse {
+  // 更新成功フラグ
+  bool success = 1;
+  // 更新後の設定
+  UserPreferences preferences = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// ユーザー設定リセットリクエスト
+message ResetUserPreferencesRequest {
+  // ユーザーID
+  string user_id = 1;
+  // リセットするカテゴリ（空の場合は全て）
+  repeated PreferenceCategory categories = 2;
+}
+
+// ユーザー設定リセットレスポンス
+message ResetUserPreferencesResponse {
+  // リセット成功フラグ
+  bool success = 1;
+  // リセット後の設定（デフォルト値）
+  UserPreferences preferences = 2;
+}

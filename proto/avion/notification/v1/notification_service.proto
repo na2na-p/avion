@@ -1,0 +1,652 @@
+syntax = "proto3";
+
+package avion.notification.v1;
+
+import "avion/common/v1/pagination.proto";
+import "avion/notification/v1/notification.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// 通知サービス
+service NotificationService {
+	// 通知作成
+	rpc CreateNotification(CreateNotificationRequest) returns (CreateNotificationResponse);
+	// 通知取得
+	rpc GetNotification(GetNotificationRequest) returns (GetNotificationResponse);
+	// 通知一覧取得
+	rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+	// 既読マーク
+	rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+	// 全て既読マーク
+	rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse);
+	// バッチ既読マーク
+	rpc BatchMarkAsRead(BatchMarkAsReadRequest) returns (BatchMarkAsReadResponse);
+	// 通知削除
+	rpc DeleteNotification(DeleteNotificationRequest) returns (DeleteNotificationResponse);
+	// バッチ通知削除
+	rpc BatchDeleteNotifications(BatchDeleteNotificationsRequest) returns (BatchDeleteNotificationsResponse);
+	// 通知設定取得
+	rpc GetNotificationPreferences(GetNotificationPreferencesRequest) returns (GetNotificationPreferencesResponse);
+	// 通知設定更新
+	rpc UpdateNotificationPreferences(UpdateNotificationPreferencesRequest) returns (UpdateNotificationPreferencesResponse);
+	// 通知送信（内部用）
+	rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+	// 通知ストリーム（SSE/WebSocket用）
+	rpc StreamNotifications(StreamNotificationsRequest) returns (stream StreamNotificationsResponse);
+	// 未読数取得
+	rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse);
+	// バッチ通知作成
+	rpc BatchCreateNotifications(BatchCreateNotificationsRequest) returns (BatchCreateNotificationsResponse);
+	
+	// WebSocket関連のRPC
+	// WebSocketストリーム（双方向ストリーミング）
+	rpc WebSocketStream(stream WebSocketStreamRequest) returns (stream WebSocketStreamResponse);
+	// WebSocket接続管理
+	rpc ManageWebSocketConnection(ManageWebSocketConnectionRequest) returns (ManageWebSocketConnectionResponse);
+	// アクティブ接続一覧取得
+	rpc ListActiveConnections(ListActiveConnectionsRequest) returns (ListActiveConnectionsResponse);
+	// 特定ユーザーへのメッセージ送信
+	rpc SendWebSocketMessage(SendWebSocketMessageRequest) returns (SendWebSocketMessageResponse);
+	// ブロードキャストメッセージ送信
+	rpc BroadcastWebSocketMessage(BroadcastWebSocketMessageRequest) returns (BroadcastWebSocketMessageResponse);
+	
+	// プッシュデバイス管理
+	// プッシュデバイス登録
+	rpc RegisterPushDevice(RegisterPushDeviceRequest) returns (RegisterPushDeviceResponse);
+	// プッシュデバイス更新
+	rpc UpdatePushDevice(UpdatePushDeviceRequest) returns (UpdatePushDeviceResponse);
+	// プッシュデバイス削除
+	rpc DeletePushDevice(DeletePushDeviceRequest) returns (DeletePushDeviceResponse);
+	// プッシュデバイス一覧取得
+	rpc ListPushDevices(ListPushDevicesRequest) returns (ListPushDevicesResponse);
+	// プッシュデバイス取得
+	rpc GetPushDevice(GetPushDeviceRequest) returns (GetPushDeviceResponse);
+	
+	// 通知テンプレート管理
+	// テンプレート作成
+	rpc CreateNotificationTemplate(CreateNotificationTemplateRequest) returns (CreateNotificationTemplateResponse);
+	// テンプレート取得
+	rpc GetNotificationTemplate(GetNotificationTemplateRequest) returns (GetNotificationTemplateResponse);
+	// テンプレート更新
+	rpc UpdateNotificationTemplate(UpdateNotificationTemplateRequest) returns (UpdateNotificationTemplateResponse);
+	// テンプレート削除
+	rpc DeleteNotificationTemplate(DeleteNotificationTemplateRequest) returns (DeleteNotificationTemplateResponse);
+	// テンプレート一覧取得
+	rpc ListNotificationTemplates(ListNotificationTemplatesRequest) returns (ListNotificationTemplatesResponse);
+}
+
+// 通知作成リクエスト
+message CreateNotificationRequest {
+	// 受信ユーザーID
+	string user_id = 1;
+	// 通知タイプ
+	NotificationType type = 2;
+	// タイトル
+	string title = 3;
+	// 本文
+	string body = 4;
+	// 追加データ（JSON文字列形式）
+	string data = 5;
+	// アクションURL
+	string action_url = 6;
+	// 送信者ID（フォロー、いいね等の場合）
+	string sender_id = 7;
+	// 関連エンティティID（Drop ID等）
+	string entity_id = 8;
+}
+
+// 通知作成レスポンス
+message CreateNotificationResponse {
+	// 作成された通知
+	Notification notification = 1;
+	// 配信ステータス
+	repeated NotificationDelivery deliveries = 2;
+}
+
+// 通知取得リクエスト
+message GetNotificationRequest {
+	// 通知ID
+	string notification_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// 通知取得レスポンス
+message GetNotificationResponse {
+	// 通知
+	Notification notification = 1;
+}
+
+// 通知一覧取得リクエスト
+message ListNotificationsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// フィルター
+	ListNotificationsFilter filter = 3;
+}
+
+// 通知一覧フィルター
+message ListNotificationsFilter {
+	// 通知タイプでフィルター
+	repeated NotificationType types = 1;
+	// 未読のみ表示
+	bool unread_only = 2;
+	// 開始日時
+	google.protobuf.Timestamp from = 3;
+	// 終了日時
+	google.protobuf.Timestamp to = 4;
+	// 送信者IDでフィルター
+	repeated string sender_ids = 5;
+	// エンティティIDでフィルター
+	repeated string entity_ids = 6;
+	// 既読のみ表示
+	bool read_only = 7;
+	// アクションURLパターンでフィルター（部分一致）
+	string action_url_pattern = 8;
+	// ソート順（created_at_desc, created_at_asc, read_at_desc, read_at_asc）
+	string sort_by = 9;
+}
+
+// 通知一覧取得レスポンス
+message ListNotificationsResponse {
+	// 通知リスト
+	repeated Notification notifications = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 既読マークリクエスト
+message MarkAsReadRequest {
+	// 通知ID
+	string notification_id = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// 既読マークレスポンス
+message MarkAsReadResponse {
+	// 更新された通知
+	Notification notification = 1;
+}
+
+// 全て既読マークリクエスト
+message MarkAllAsReadRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 通知タイプでフィルター（省略時は全タイプ）
+	repeated NotificationType types = 2;
+	// 指定日時以前の通知のみ（省略時は全て）
+	google.protobuf.Timestamp before = 3;
+}
+
+// 全て既読マークレスポンス
+message MarkAllAsReadResponse {
+	// 既読にした通知数
+	int32 marked_count = 1;
+}
+
+// バッチ既読マークリクエスト
+message BatchMarkAsReadRequest {
+	// 既読にする通知IDリスト
+	repeated string notification_ids = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// バッチ既読マークレスポンス
+message BatchMarkAsReadResponse {
+	// 成功した通知IDリスト
+	repeated string succeeded_ids = 1;
+	// 失敗した通知IDとエラーメッセージ
+	map<string, string> failed_ids = 2;
+	// 成功数
+	int32 success_count = 3;
+	// 失敗数
+	int32 failure_count = 4;
+}
+
+// 通知削除リクエスト
+message DeleteNotificationRequest {
+	// 通知ID
+	string notification_id = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// 通知削除レスポンス
+message DeleteNotificationResponse {
+	// 削除成功フラグ
+	bool success = 1;
+	// 削除された通知ID
+	string deleted_notification_id = 2;
+}
+
+// バッチ通知削除リクエスト
+message BatchDeleteNotificationsRequest {
+	// 削除する通知IDリスト
+	repeated string notification_ids = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// バッチ通知削除レスポンス
+message BatchDeleteNotificationsResponse {
+	// 成功した通知IDリスト
+	repeated string succeeded_ids = 1;
+	// 失敗した通知IDとエラーメッセージ
+	map<string, string> failed_ids = 2;
+	// 成功数
+	int32 success_count = 3;
+	// 失敗数
+	int32 failure_count = 4;
+}
+
+// 通知設定取得リクエスト
+message GetNotificationPreferencesRequest {
+	// ユーザーID
+	string user_id = 1;
+}
+
+// 通知設定取得レスポンス
+message GetNotificationPreferencesResponse {
+	// 通知設定
+	NotificationPreference preferences = 1;
+}
+
+// 通知設定更新リクエスト
+message UpdateNotificationPreferencesRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// 通知設定
+	NotificationPreference preferences = 3;
+}
+
+// 通知設定更新レスポンス
+message UpdateNotificationPreferencesResponse {
+	// 更新された通知設定
+	NotificationPreference preferences = 1;
+}
+
+// 通知送信リクエスト（内部用）
+message SendNotificationRequest {
+	// 通知ID
+	string notification_id = 1;
+	// 送信チャンネル
+	repeated NotificationChannel channels = 2;
+	// 即座に送信（キューイングしない）
+	bool immediate = 3;
+}
+
+// 通知送信レスポンス
+message SendNotificationResponse {
+	// 配信ステータス
+	repeated NotificationDelivery deliveries = 1;
+}
+
+// 通知ストリームリクエスト（SSE/WebSocket用）
+message StreamNotificationsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 通知タイプフィルター（省略時は全タイプ）
+	repeated NotificationType types = 2;
+	// 開始位置（既存通知ID、省略時は現在時刻から）
+	string after_notification_id = 3;
+}
+
+// 通知ストリームレスポンス
+message StreamNotificationsResponse {
+	// 通知
+	Notification notification = 1;
+	// イベントタイプ（new, update, delete）
+	string event_type = 2;
+	// タイムスタンプ
+	google.protobuf.Timestamp timestamp = 3;
+}
+
+// 未読数取得リクエスト
+message GetUnreadCountRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 通知タイプ別に取得するか
+	bool by_type = 2;
+}
+
+// 未読数取得レスポンス
+message GetUnreadCountResponse {
+	// 未読数情報
+	UnreadCount unread_count = 1;
+}
+
+// バッチ通知作成リクエスト
+message BatchCreateNotificationsRequest {
+	// 通知作成リクエストのリスト
+	repeated CreateNotificationRequest notifications = 1;
+	// トランザクション処理（一つでも失敗したら全てロールバック）
+	bool transactional = 2;
+}
+
+// バッチ通知作成レスポンス
+message BatchCreateNotificationsResponse {
+	// 作成された通知リスト
+	repeated Notification notifications = 1;
+	// 失敗した通知のインデックスとエラー
+	map<int32, string> failures = 2;
+	// 成功数
+	int32 success_count = 3;
+	// 失敗数
+	int32 failure_count = 4;
+}
+
+// WebSocketストリームリクエスト（双方向ストリーミング）
+message WebSocketStreamRequest {
+	// リクエストID（一意識別子）
+	string request_id = 1;
+	// ユーザーID（初回接続時に必須）
+	string user_id = 2;
+	// メッセージ
+	WebSocketMessage message = 3;
+}
+
+// WebSocketストリームレスポンス
+message WebSocketStreamResponse {
+	// レスポンスID（一意識別子）
+	string response_id = 1;
+	// リクエストIDへの参照（該当する場合）
+	string request_id = 2;
+	// メッセージ
+	WebSocketMessage message = 3;
+}
+
+// WebSocket接続管理リクエスト
+message ManageWebSocketConnectionRequest {
+	// 接続ID
+	string connection_id = 1;
+	// 操作タイプ
+	ConnectionAction action = 2;
+	// 理由（切断時など）
+	string reason = 3;
+}
+
+// 接続操作タイプ
+enum ConnectionAction {
+	// 未指定
+	CONNECTION_ACTION_UNSPECIFIED = 0;
+	// 接続を切断
+	CONNECTION_ACTION_DISCONNECT = 1;
+	// 接続をリフレッシュ
+	CONNECTION_ACTION_REFRESH = 2;
+	// 接続を一時停止
+	CONNECTION_ACTION_PAUSE = 3;
+	// 接続を再開
+	CONNECTION_ACTION_RESUME = 4;
+}
+
+// WebSocket接続管理レスポンス
+message ManageWebSocketConnectionResponse {
+	// 成功フラグ
+	bool success = 1;
+	// 更新された接続情報
+	WebSocketConnection connection = 2;
+}
+
+// アクティブ接続一覧取得リクエスト
+message ListActiveConnectionsRequest {
+	// ユーザーIDでフィルター（オプション）
+	string user_id = 1;
+	// プラットフォームでフィルター（オプション）
+	string platform = 2;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 3;
+}
+
+// アクティブ接続一覧取得レスポンス
+message ListActiveConnectionsResponse {
+	// 接続リスト
+	repeated WebSocketConnection connections = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 総接続数
+	int32 total_connections = 3;
+}
+
+// WebSocketメッセージ送信リクエスト
+message SendWebSocketMessageRequest {
+	// 宛先ユーザーID
+	string user_id = 1;
+	// 送信するメッセージ
+	WebSocketMessage message = 2;
+	// 特定の接続IDのみに送信（オプション）
+	string connection_id = 3;
+	// 配信保証レベル
+	DeliveryGuarantee delivery_guarantee = 4;
+}
+
+// 配信保証レベル
+enum DeliveryGuarantee {
+	// 未指定（ベストエフォート）
+	DELIVERY_GUARANTEE_UNSPECIFIED = 0;
+	// 最低1回配信
+	DELIVERY_GUARANTEE_AT_LEAST_ONCE = 1;
+	// 最大1回配信
+	DELIVERY_GUARANTEE_AT_MOST_ONCE = 2;
+	// 正確に1回配信
+	DELIVERY_GUARANTEE_EXACTLY_ONCE = 3;
+}
+
+// WebSocketメッセージ送信レスポンス
+message SendWebSocketMessageResponse {
+	// 送信成功フラグ
+	bool success = 1;
+	// 配信された接続数
+	int32 delivered_count = 2;
+	// 失敗した接続ID
+	repeated string failed_connection_ids = 3;
+}
+
+// ブロードキャストメッセージ送信リクエスト
+message BroadcastWebSocketMessageRequest {
+	// 送信するメッセージ
+	WebSocketMessage message = 1;
+	// フィルター条件
+	BroadcastFilter filter = 2;
+	// 配信保証レベル
+	DeliveryGuarantee delivery_guarantee = 3;
+}
+
+// ブロードキャストフィルター
+message BroadcastFilter {
+	// 通知タイプでフィルター
+	repeated NotificationType notification_types = 1;
+	// プラットフォームでフィルター
+	repeated string platforms = 2;
+	// チャンネルでフィルター
+	repeated string channels = 3;
+	// ユーザーIDリスト（特定ユーザーグループ）
+	repeated string user_ids = 4;
+	// 除外するユーザーID
+	repeated string exclude_user_ids = 5;
+}
+
+// ブロードキャストメッセージ送信レスポンス
+message BroadcastWebSocketMessageResponse {
+	// 送信成功フラグ
+	bool success = 1;
+	// 配信された接続数
+	int32 delivered_count = 2;
+	// 配信されたユーザー数
+	int32 delivered_user_count = 3;
+	// エラーメッセージ（失敗時）
+	string error_message = 4;
+}
+
+// プッシュデバイス登録リクエスト
+message RegisterPushDeviceRequest {
+	// ユーザーID
+	string user_id = 1;
+	// デバイストークン（FCM/APNs）
+	string token = 2;
+	// プラットフォーム（ios, android, web）
+	string platform = 3;
+	// デバイス名
+	string device_name = 4;
+	// デバイスメタデータ（オプション）
+	map<string, string> metadata = 5;
+}
+
+// プッシュデバイス登録レスポンス
+message RegisterPushDeviceResponse {
+	// 登録されたデバイス情報
+	PushDevice device = 1;
+}
+
+// プッシュデバイス更新リクエスト
+message UpdatePushDeviceRequest {
+	// デバイスID
+	string device_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 3;
+	// 更新するデバイス情報
+	PushDevice device = 4;
+}
+
+// プッシュデバイス更新レスポンス
+message UpdatePushDeviceResponse {
+	// 更新されたデバイス情報
+	PushDevice device = 1;
+}
+
+// プッシュデバイス削除リクエスト
+message DeletePushDeviceRequest {
+	// デバイスID
+	string device_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// プッシュデバイス削除レスポンス
+message DeletePushDeviceResponse {
+	// 削除成功フラグ
+	bool success = 1;
+	// 削除されたデバイスID
+	string deleted_device_id = 2;
+}
+
+// プッシュデバイス一覧取得リクエスト
+message ListPushDevicesRequest {
+	// ユーザーID
+	string user_id = 1;
+	// プラットフォームでフィルター（オプション）
+	string platform = 2;
+	// アクティブなデバイスのみ取得
+	bool active_only = 3;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 4;
+}
+
+// プッシュデバイス一覧取得レスポンス
+message ListPushDevicesResponse {
+	// デバイスリスト
+	repeated PushDevice devices = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// プッシュデバイス取得リクエスト
+message GetPushDeviceRequest {
+	// デバイスID
+	string device_id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// プッシュデバイス取得レスポンス
+message GetPushDeviceResponse {
+	// デバイス情報
+	PushDevice device = 1;
+}
+
+// 通知テンプレート作成リクエスト
+message CreateNotificationTemplateRequest {
+	// テンプレート名
+	string name = 1;
+	// 通知タイプ
+	NotificationType type = 2;
+	// タイトルテンプレート
+	string title_template = 3;
+	// 本文テンプレート
+	string body_template = 4;
+	// デフォルトアクションURLパターン
+	string action_url_pattern = 5;
+	// テンプレートメタデータ
+	map<string, string> metadata = 6;
+}
+
+// 通知テンプレート作成レスポンス
+message CreateNotificationTemplateResponse {
+	// 作成されたテンプレート
+	NotificationTemplate template = 1;
+}
+
+// 通知テンプレート取得リクエスト
+message GetNotificationTemplateRequest {
+	// テンプレートID
+	string template_id = 1;
+}
+
+// 通知テンプレート取得レスポンス
+message GetNotificationTemplateResponse {
+	// テンプレート
+	NotificationTemplate template = 1;
+}
+
+// 通知テンプレート更新リクエスト
+message UpdateNotificationTemplateRequest {
+	// テンプレートID
+	string template_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// 更新するテンプレート情報
+	NotificationTemplate template = 3;
+}
+
+// 通知テンプレート更新レスポンス
+message UpdateNotificationTemplateResponse {
+	// 更新されたテンプレート
+	NotificationTemplate template = 1;
+}
+
+// 通知テンプレート削除リクエスト
+message DeleteNotificationTemplateRequest {
+	// テンプレートID
+	string template_id = 1;
+}
+
+// 通知テンプレート削除レスポンス
+message DeleteNotificationTemplateResponse {
+	// 削除成功フラグ
+	bool success = 1;
+	// 削除されたテンプレートID
+	string deleted_template_id = 2;
+}
+
+// 通知テンプレート一覧取得リクエスト
+message ListNotificationTemplatesRequest {
+	// 通知タイプでフィルター（オプション）
+	NotificationType type = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// 通知テンプレート一覧取得レスポンス
+message ListNotificationTemplatesResponse {
+	// テンプレートリスト
+	repeated NotificationTemplate templates = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}

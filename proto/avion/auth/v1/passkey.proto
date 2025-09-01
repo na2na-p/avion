@@ -1,0 +1,244 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "avion/auth/v1/auth.proto";
+import "avion/common/v1/pagination.proto";
+
+// Passkeyの状態
+enum PasskeyStatus {
+  // 未指定
+  PASSKEY_STATUS_UNSPECIFIED = 0;
+  // アクティブ
+  PASSKEY_STATUS_ACTIVE = 1;
+  // 無効化済み
+  PASSKEY_STATUS_DISABLED = 2;
+  // 失効済み
+  PASSKEY_STATUS_REVOKED = 3;
+}
+
+// Passkey認証器のタイプ
+enum AuthenticatorType {
+  // 未指定
+  AUTHENTICATOR_TYPE_UNSPECIFIED = 0;
+  // プラットフォーム認証器（Touch ID, Face ID, Windows Hello等）
+  AUTHENTICATOR_TYPE_PLATFORM = 1;
+  // クロスプラットフォーム認証器（セキュリティキー等）
+  AUTHENTICATOR_TYPE_CROSS_PLATFORM = 2;
+}
+
+// Passkey情報
+message Passkey {
+  // PasskeyのID
+  string id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // Credential ID（Base64エンコード）
+  string credential_id = 3;
+  // Public Key（Base64エンコード）
+  string public_key = 4;
+  // Passkeyの名前（ユーザーが設定）
+  string name = 5;
+  // 認証器のタイプ
+  AuthenticatorType authenticator_type = 6;
+  // 状態
+  PasskeyStatus status = 7;
+  // 署名カウンター
+  uint32 sign_count = 8;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 9;
+  // 最終使用日時
+  google.protobuf.Timestamp last_used_at = 10;
+  // デバイス情報
+  string device_info = 11;
+  // 認証器のAAGUID
+  string aaguid = 12;
+  // バックアップ可能フラグ
+  bool backup_eligible = 13;
+  // バックアップ済みフラグ
+  bool backed_up = 14;
+  // メタデータ
+  map<string, string> metadata = 15;
+}
+
+// WebAuthn登録オプション
+message RegisterPasskeyOptionsRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ユーザー名
+  string username = 2;
+  // 表示名
+  string display_name = 3;
+  // 認証器のタイプ指定（オプション）
+  AuthenticatorType authenticator_type = 4;
+  // ユーザー検証要求レベル（required, preferred, discouraged）
+  string user_verification = 5;
+}
+
+// WebAuthn登録オプションレスポンス
+message RegisterPasskeyOptionsResponse {
+  // チャレンジID（検証時に使用）
+  string challenge_id = 1;
+  // WebAuthn登録オプション（JSON形式）
+  google.protobuf.Struct creation_options = 2;
+  // オプションの有効期限
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Passkey登録リクエスト
+message RegisterPasskeyRequest {
+  // チャレンジID
+  string challenge_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // Passkeyの名前
+  string passkey_name = 3;
+  // WebAuthn認証レスポンス（JSON形式）
+  google.protobuf.Struct credential = 4;
+  // デバイス情報
+  string device_info = 5;
+}
+
+// Passkey登録レスポンス
+message RegisterPasskeyResponse {
+  // 登録されたPasskey
+  Passkey passkey = 1;
+  // 登録成功フラグ
+  bool success = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// WebAuthn認証オプションリクエスト
+message AuthenticatePasskeyOptionsRequest {
+  // ユーザー名またはメールアドレス（オプション）
+  string username = 1;
+  // ユーザーID（オプション）
+  string user_id = 2;
+  // ユーザー検証要求レベル
+  string user_verification = 3;
+}
+
+// WebAuthn認証オプションレスポンス
+message AuthenticatePasskeyOptionsResponse {
+  // チャレンジID
+  string challenge_id = 1;
+  // WebAuthn認証オプション（JSON形式）
+  google.protobuf.Struct request_options = 2;
+  // オプションの有効期限
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Passkey認証リクエスト
+message AuthenticatePasskeyRequest {
+  // チャレンジID
+  string challenge_id = 1;
+  // WebAuthn認証レスポンス（JSON形式）
+  google.protobuf.Struct credential = 2;
+  // デバイス情報
+  string device_info = 3;
+}
+
+// Passkey認証レスポンス
+message AuthenticatePasskeyResponse {
+  // 認証成功フラグ
+  bool success = 1;
+  // アクセストークン
+  string access_token = 2;
+  // リフレッシュトークン
+  string refresh_token = 3;
+  // ユーザー情報
+  User user = 4;
+  // 使用されたPasskey
+  Passkey passkey = 5;
+  // エラーメッセージ（失敗時）
+  string error_message = 6;
+}
+
+// Passkey一覧取得リクエスト
+message ListPasskeysRequest {
+  // ユーザーID
+  string user_id = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationRequest pagination = 2;
+  // アクティブなもののみ
+  bool active_only = 3;
+}
+
+// Passkey一覧取得レスポンス
+message ListPasskeysResponse {
+  // Passkeyのリスト
+  repeated Passkey passkeys = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// Passkey取得リクエスト
+message GetPasskeyRequest {
+  // PasskeyのID
+  string passkey_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// Passkey取得レスポンス
+message GetPasskeyResponse {
+  // Passkey
+  Passkey passkey = 1;
+}
+
+// Passkey更新リクエスト
+message UpdatePasskeyRequest {
+  // PasskeyのID
+  string passkey_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 新しい名前
+  string name = 3;
+  // メタデータの更新
+  map<string, string> metadata = 4;
+}
+
+// Passkey更新レスポンス
+message UpdatePasskeyResponse {
+  // 更新されたPasskey
+  Passkey passkey = 1;
+}
+
+// Passkey削除リクエスト
+message DeletePasskeyRequest {
+  // PasskeyのID
+  string passkey_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 確認用パスワード（セキュリティのため）
+  string password = 3;
+}
+
+// Passkey削除レスポンス
+message DeletePasskeyResponse {
+  // 削除成功フラグ
+  bool success = 1;
+  // エラーメッセージ（失敗時）
+  string error_message = 2;
+}
+
+// Passkey無効化リクエスト
+message RevokePasskeyRequest {
+  // PasskeyのID
+  string passkey_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 無効化理由
+  string reason = 3;
+}
+
+// Passkey無効化レスポンス
+message RevokePasskeyResponse {
+  // 無効化成功フラグ
+  bool success = 1;
+  // 無効化されたPasskey
+  Passkey passkey = 2;
+}

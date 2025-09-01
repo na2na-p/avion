@@ -1,0 +1,292 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/struct.proto";
+import "avion/auth/v1/auth.proto";
+
+// OAuthプロバイダー
+enum OAuthProvider {
+  // 未指定
+  O_AUTH_PROVIDER_UNSPECIFIED = 0;
+  // Google
+  O_AUTH_PROVIDER_GOOGLE = 1;
+  // GitHub
+  O_AUTH_PROVIDER_GITHUB = 2;
+  // Twitter/X
+  O_AUTH_PROVIDER_TWITTER = 3;
+  // Discord
+  O_AUTH_PROVIDER_DISCORD = 4;
+  // Microsoft
+  O_AUTH_PROVIDER_MICROSOFT = 5;
+  // Apple
+  O_AUTH_PROVIDER_APPLE = 6;
+  // Facebook
+  O_AUTH_PROVIDER_FACEBOOK = 7;
+  // カスタムOIDCプロバイダー
+  O_AUTH_PROVIDER_CUSTOM_OIDC = 100;
+}
+
+// OAuth接続の状態
+enum OAuthConnectionStatus {
+  // 未指定
+  O_AUTH_CONNECTION_STATUS_UNSPECIFIED = 0;
+  // アクティブ
+  O_AUTH_CONNECTION_STATUS_ACTIVE = 1;
+  // 無効化済み
+  O_AUTH_CONNECTION_STATUS_DISABLED = 2;
+  // 期限切れ
+  O_AUTH_CONNECTION_STATUS_EXPIRED = 3;
+  // 失効済み
+  O_AUTH_CONNECTION_STATUS_REVOKED = 4;
+}
+
+// OAuthプロバイダー設定
+message OAuthProviderConfig {
+  // プロバイダーID
+  string provider_id = 1;
+  // プロバイダータイプ
+  OAuthProvider provider = 2;
+  // プロバイダー名（表示用）
+  string display_name = 3;
+  // クライアントID
+  string client_id = 4;
+  // 認証エンドポイント
+  string auth_endpoint = 5;
+  // トークンエンドポイント
+  string token_endpoint = 6;
+  // ユーザー情報エンドポイント
+  string userinfo_endpoint = 7;
+  // JWKSエンドポイント（OIDC用）
+  string jwks_endpoint = 8;
+  // 発行者（OIDC用）
+  string issuer = 9;
+  // リクエストするスコープ
+  repeated string scopes = 10;
+  // 有効フラグ
+  bool enabled = 11;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 12;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 13;
+  // メタデータ
+  map<string, string> metadata = 14;
+}
+
+// OAuth接続情報
+message OAuthConnection {
+  // 接続ID
+  string id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // プロバイダー
+  OAuthProvider provider = 3;
+  // プロバイダー側のユーザーID
+  string provider_user_id = 4;
+  // プロバイダー側のユーザー名
+  string provider_username = 5;
+  // プロバイダー側のメールアドレス
+  string provider_email = 6;
+  // アクセストークン（暗号化済み）
+  string access_token = 7;
+  // リフレッシュトークン（暗号化済み）
+  string refresh_token = 8;
+  // トークンの有効期限
+  google.protobuf.Timestamp token_expires_at = 9;
+  // 接続の状態
+  OAuthConnectionStatus status = 10;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 11;
+  // 最終使用日時
+  google.protobuf.Timestamp last_used_at = 12;
+  // プロバイダーから取得したユーザー情報
+  google.protobuf.Struct user_info = 13;
+  // メタデータ
+  map<string, string> metadata = 14;
+}
+
+// OAuth認証URLリクエスト
+message GetOAuthAuthorizationUrlRequest {
+  // プロバイダー
+  OAuthProvider provider = 1;
+  // リダイレクトURI
+  string redirect_uri = 2;
+  // State（CSRF対策）
+  string state = 3;
+  // コードチャレンジ（PKCE用）
+  string code_challenge = 4;
+  // コードチャレンジメソッド（PKCE用）
+  string code_challenge_method = 5;
+  // 追加のスコープ
+  repeated string additional_scopes = 6;
+  // ログインヒント（メールアドレス等）
+  string login_hint = 7;
+}
+
+// OAuth認証URLレスポンス
+message GetOAuthAuthorizationUrlResponse {
+  // 認証URL
+  string authorization_url = 1;
+  // State（検証用）
+  string state = 2;
+  // 有効期限
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// OAuthコールバック処理リクエスト
+message HandleOAuthCallbackRequest {
+  // プロバイダー
+  OAuthProvider provider = 1;
+  // 認証コード
+  string code = 2;
+  // State（CSRF検証用）
+  string state = 3;
+  // コードベリファイア（PKCE用）
+  string code_verifier = 4;
+  // リダイレクトURI
+  string redirect_uri = 5;
+}
+
+// OAuthコールバック処理レスポンス
+message HandleOAuthCallbackResponse {
+  // 処理成功フラグ
+  bool success = 1;
+  // アクセストークン（新規ユーザーまたはログイン時）
+  string access_token = 2;
+  // リフレッシュトークン
+  string refresh_token = 3;
+  // ユーザー情報
+  User user = 4;
+  // OAuth接続情報
+  OAuthConnection connection = 5;
+  // 新規ユーザーフラグ
+  bool is_new_user = 6;
+  // エラーメッセージ（失敗時）
+  string error_message = 7;
+}
+
+// OAuth接続リクエスト
+message ConnectOAuthAccountRequest {
+  // ユーザーID
+  string user_id = 1;
+  // プロバイダー
+  OAuthProvider provider = 2;
+  // 認証コード
+  string code = 3;
+  // リダイレクトURI
+  string redirect_uri = 4;
+  // コードベリファイア（PKCE用）
+  string code_verifier = 5;
+}
+
+// OAuth接続レスポンス
+message ConnectOAuthAccountResponse {
+  // 接続成功フラグ
+  bool success = 1;
+  // OAuth接続情報
+  OAuthConnection connection = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// OAuth切断リクエスト
+message DisconnectOAuthAccountRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 接続ID
+  string connection_id = 2;
+  // プロバイダー（接続IDの代わりに指定可能）
+  OAuthProvider provider = 3;
+  // 確認用パスワード
+  string password = 4;
+}
+
+// OAuth切断レスポンス
+message DisconnectOAuthAccountResponse {
+  // 切断成功フラグ
+  bool success = 1;
+  // エラーメッセージ（失敗時）
+  string error_message = 2;
+}
+
+// OAuth接続一覧取得リクエスト
+message ListOAuthConnectionsRequest {
+  // ページネーション設定
+  avion.common.v1.PaginationRequest pagination = 1;
+  // ユーザーID
+  string user_id = 2;
+  // アクティブな接続のみ
+  bool active_only = 3;
+}
+
+// OAuth接続一覧取得レスポンス
+message ListOAuthConnectionsResponse {
+  // OAuth接続のリスト
+  repeated OAuthConnection connections = 1;
+  // 合計数
+  int32 total_count = 2;
+}
+
+// OAuth接続取得リクエスト
+message GetOAuthConnectionRequest {
+  // 接続ID
+  string connection_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// OAuth接続取得レスポンス
+message GetOAuthConnectionResponse {
+  // OAuth接続情報
+  OAuthConnection connection = 1;
+}
+
+// OAuthトークンリフレッシュリクエスト
+message RefreshOAuthTokenRequest {
+  // 接続ID
+  string connection_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// OAuthトークンリフレッシュレスポンス
+message RefreshOAuthTokenResponse {
+  // リフレッシュ成功フラグ
+  bool success = 1;
+  // 更新されたOAuth接続情報
+  OAuthConnection connection = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// OAuthプロバイダー一覧取得リクエスト
+message ListOAuthProvidersRequest {
+  // 有効なプロバイダーのみ
+  bool enabled_only = 1;
+}
+
+// OAuthプロバイダー一覧取得レスポンス
+message ListOAuthProvidersResponse {
+  // プロバイダー設定のリスト
+  repeated OAuthProviderConfig providers = 1;
+}
+
+// OAuthユーザー情報取得リクエスト
+message GetOAuthUserInfoRequest {
+  // 接続ID
+  string connection_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 最新情報を取得（キャッシュを使用しない）
+  bool refresh = 3;
+}
+
+// OAuthユーザー情報取得レスポンス
+message GetOAuthUserInfoResponse {
+  // ユーザー情報（プロバイダー固有の形式）
+  google.protobuf.Struct user_info = 1;
+  // 取得日時
+  google.protobuf.Timestamp fetched_at = 2;
+}

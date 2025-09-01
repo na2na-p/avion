@@ -1,0 +1,348 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/descriptor.proto";
+
+// フィールドバリデーションオプション
+// protoファイルでフィールドレベルのバリデーションルールを定義するための拡張
+extend google.protobuf.FieldOptions {
+	// フィールドバリデーションルール
+	FieldValidation field_validation = 50000;
+}
+
+// フィールドバリデーションルール定義
+message FieldValidation {
+	// 必須フィールドかどうか
+	bool required = 1;
+	
+	// 文字列バリデーション
+	StringRules string = 2;
+	
+	// 数値バリデーション
+	NumericRules numeric = 3;
+	
+	// リストバリデーション
+	ListRules list = 4;
+	
+	// マップバリデーション
+	MapRules map = 5;
+	
+	// 日時バリデーション
+	TimestampRules timestamp = 6;
+	
+	// カスタムバリデーション式（CEL式）
+	string expression = 7;
+	
+	// エラーメッセージのカスタマイズ
+	string error_message = 8;
+}
+
+// 文字列バリデーションルール
+message StringRules {
+	// 最小文字数
+	uint32 min_length = 1;
+	
+	// 最大文字数
+	uint32 max_length = 2;
+	
+	// 正規表現パターン
+	string pattern = 3;
+	
+	// 空文字列を許可するか
+	bool allow_empty = 4;
+	
+	// 前後の空白を自動的にトリムするか
+	bool trim = 5;
+	
+	// 許可される値のリスト（enum的な使い方）
+	repeated string in = 6;
+	
+	// 禁止される値のリスト
+	repeated string not_in = 7;
+	
+	// 事前定義されたフォーマット
+	StringFormat format = 8;
+}
+
+// 文字列フォーマットの事前定義
+enum StringFormat {
+	// 未指定
+	STRING_FORMAT_UNSPECIFIED = 0;
+	// メールアドレス
+	STRING_FORMAT_EMAIL = 1;
+	// URL
+	STRING_FORMAT_URL = 2;
+	// UUID
+	STRING_FORMAT_UUID = 3;
+	// IPv4アドレス
+	STRING_FORMAT_IPV4 = 4;
+	// IPv6アドレス
+	STRING_FORMAT_IPV6 = 5;
+	// 電話番号（国際形式）
+	STRING_FORMAT_PHONE = 6;
+	// 日付（YYYY-MM-DD）
+	STRING_FORMAT_DATE = 7;
+	// 時刻（HH:MM:SS）
+	STRING_FORMAT_TIME = 8;
+	// 日時（RFC3339）
+	STRING_FORMAT_DATETIME = 9;
+	// Base64エンコード
+	STRING_FORMAT_BASE64 = 10;
+	// JWT トークン
+	STRING_FORMAT_JWT = 11;
+	// ユーザー名（英数字、アンダースコア、ハイフン）
+	STRING_FORMAT_USERNAME = 12;
+	// パスワード（セキュリティ要件を満たす）
+	STRING_FORMAT_PASSWORD = 13;
+}
+
+// 数値バリデーションルール
+message NumericRules {
+	// 最小値（以上）
+	double min = 1;
+	
+	// 最大値（以下）
+	double max = 2;
+	
+	// より大きい（超える）
+	double greater_than = 3;
+	
+	// より小さい（未満）
+	double less_than = 4;
+	
+	// 許可される値のリスト
+	repeated double in = 5;
+	
+	// 禁止される値のリスト
+	repeated double not_in = 6;
+	
+	// 倍数制約（例: 10の倍数のみ許可）
+	double multiple_of = 7;
+	
+	// 正の数のみ許可
+	bool positive = 8;
+	
+	// 負の数のみ許可
+	bool negative = 9;
+	
+	// ゼロを許可するか
+	bool allow_zero = 10;
+}
+
+// リストバリデーションルール
+message ListRules {
+	// 最小要素数
+	uint32 min_items = 1;
+	
+	// 最大要素数
+	uint32 max_items = 2;
+	
+	// 重複を許可しないか
+	bool unique = 3;
+	
+	// 各要素に適用するバリデーションルール
+	FieldValidation items = 4;
+}
+
+// マップバリデーションルール
+message MapRules {
+	// 最小エントリ数
+	uint32 min_entries = 1;
+	
+	// 最大エントリ数
+	uint32 max_entries = 2;
+	
+	// キーに適用するバリデーションルール
+	FieldValidation keys = 3;
+	
+	// 値に適用するバリデーションルール
+	FieldValidation values = 4;
+}
+
+// タイムスタンプバリデーションルール
+message TimestampRules {
+	// 最小日時（以降）
+	string min = 1;
+	
+	// 最大日時（以前）
+	string max = 2;
+	
+	// 現在時刻より後である必要があるか
+	bool future = 3;
+	
+	// 現在時刻より前である必要があるか
+	bool past = 4;
+	
+	// 現在時刻からの最大期間（秒）
+	int64 within_seconds = 5;
+	
+	// タイムゾーンの検証
+	bool validate_timezone = 6;
+}
+
+// バリデーション結果
+message ValidationResult {
+	// バリデーションが成功したか
+	bool valid = 1;
+	
+	// バリデーションエラーのリスト
+	repeated ValidationError errors = 2;
+}
+
+// バリデーションエラー詳細
+message ValidationError {
+	// エラーが発生したフィールドパス
+	string field = 1;
+	
+	// バリデーションルール名
+	string rule = 2;
+	
+	// エラーメッセージ
+	string message = 3;
+	
+	// 実際の値（デバッグ用）
+	string actual_value = 4;
+	
+	// 期待される値や条件（デバッグ用）
+	string expected = 5;
+}
+
+// 共通のバリデーションパターン
+// サービス間で統一的なバリデーションを提供
+
+// IDフィールドのバリデーション
+message IdValidation {
+	// ID形式
+	IdFormat format = 1;
+	
+	// カスタムパターン（formatがCUSTOMの場合）
+	string pattern = 2;
+}
+
+// ID形式の定義
+enum IdFormat {
+	// 未指定
+	ID_FORMAT_UNSPECIFIED = 0;
+	// UUID v4
+	ID_FORMAT_UUID = 1;
+	// ULID
+	ID_FORMAT_ULID = 2;
+	// Snowflake ID
+	ID_FORMAT_SNOWFLAKE = 3;
+	// 数値ID
+	ID_FORMAT_NUMERIC = 4;
+	// カスタム形式
+	ID_FORMAT_CUSTOM = 5;
+}
+
+// ユーザー名のバリデーション設定
+message UsernameValidation {
+	// 最小文字数（デフォルト: 3）
+	uint32 min_length = 1;
+	
+	// 最大文字数（デフォルト: 30）
+	uint32 max_length = 2;
+	
+	// 許可する文字パターン（デフォルト: ^[a-zA-Z0-9_-]+$）
+	string pattern = 3;
+	
+	// 予約語のリスト（これらは使用不可）
+	repeated string reserved_words = 4;
+	
+	// 大文字小文字を区別しない重複チェック
+	bool case_insensitive_unique = 5;
+}
+
+// パスワードのバリデーション設定
+message PasswordValidation {
+	// 最小文字数（デフォルト: 8）
+	uint32 min_length = 1;
+	
+	// 最大文字数（デフォルト: 128）
+	uint32 max_length = 2;
+	
+	// 大文字を含む必要があるか
+	bool require_uppercase = 3;
+	
+	// 小文字を含む必要があるか
+	bool require_lowercase = 4;
+	
+	// 数字を含む必要があるか
+	bool require_digit = 5;
+	
+	// 特殊文字を含む必要があるか
+	bool require_special = 6;
+	
+	// 禁止パターンのリスト（例: 連続する文字）
+	repeated string forbidden_patterns = 7;
+	
+	// パスワード強度の最小スコア（0-100）
+	uint32 min_strength_score = 8;
+}
+
+// メールアドレスのバリデーション設定
+message EmailValidation {
+	// 最大文字数（デフォルト: 254）
+	uint32 max_length = 1;
+	
+	// 許可するドメインのリスト（空の場合は全て許可）
+	repeated string allowed_domains = 2;
+	
+	// 禁止するドメインのリスト
+	repeated string blocked_domains = 3;
+	
+	// プラスアドレス（user+tag@example.com）を許可するか
+	bool allow_plus_addressing = 4;
+	
+	// 大文字小文字を区別しない重複チェック
+	bool case_insensitive_unique = 5;
+	
+	// メールアドレスの検証レベル
+	EmailVerificationLevel verification_level = 6;
+}
+
+// メールアドレス検証レベル
+enum EmailVerificationLevel {
+	// 未指定（デフォルト: SYNTAX）
+	EMAIL_VERIFICATION_LEVEL_UNSPECIFIED = 0;
+	// 構文チェックのみ
+	EMAIL_VERIFICATION_LEVEL_SYNTAX = 1;
+	// DNSレコードチェック
+	EMAIL_VERIFICATION_LEVEL_DNS = 2;
+	// SMTPチェック（到達可能性）
+	EMAIL_VERIFICATION_LEVEL_SMTP = 3;
+}
+
+// コンテンツのバリデーション設定（Drop、コメントなど）
+message ContentValidation {
+	// 最小文字数
+	uint32 min_length = 1;
+	
+	// 最大文字数
+	uint32 max_length = 2;
+	
+	// 許可するメディアタイプ
+	repeated string allowed_media_types = 3;
+	
+	// 最大メディアファイルサイズ（バイト）
+	int64 max_media_size = 4;
+	
+	// 最大メディア数
+	uint32 max_media_count = 5;
+	
+	// URLの自動リンク化
+	bool auto_link_urls = 6;
+	
+	// メンションの検証
+	bool validate_mentions = 7;
+	
+	// ハッシュタグの検証
+	bool validate_hashtags = 8;
+	
+	// 禁止語句のフィルタリング
+	bool filter_prohibited_words = 9;
+	
+	// スパム検出
+	bool spam_detection = 10;
+}
