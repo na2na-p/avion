@@ -1,0 +1,446 @@
+syntax = "proto3";
+
+package avion.community.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/metadata.proto";
+
+// グループの可視性設定
+enum GroupVisibility {
+  // 未指定
+  GROUP_VISIBILITY_UNSPECIFIED = 0;
+  // 公開（誰でも参加可能）
+  GROUP_VISIBILITY_PUBLIC = 1;
+  // 限定公開（承認制）
+  GROUP_VISIBILITY_RESTRICTED = 2;
+  // 非公開（招待制）
+  GROUP_VISIBILITY_PRIVATE = 3;
+}
+
+// グループのステータス
+enum GroupStatus {
+  // 未指定
+  GROUP_STATUS_UNSPECIFIED = 0;
+  // アクティブ
+  GROUP_STATUS_ACTIVE = 1;
+  // 一時停止
+  GROUP_STATUS_SUSPENDED = 2;
+  // アーカイブ済み
+  GROUP_STATUS_ARCHIVED = 3;
+  // 削除済み
+  GROUP_STATUS_DELETED = 4;
+}
+
+// イベントのステータス
+enum EventStatus {
+  // 未指定
+  EVENT_STATUS_UNSPECIFIED = 0;
+  // 下書き
+  EVENT_STATUS_DRAFT = 1;
+  // 公開済み
+  EVENT_STATUS_PUBLISHED = 2;
+  // 進行中
+  EVENT_STATUS_ONGOING = 3;
+  // 終了
+  EVENT_STATUS_ENDED = 4;
+  // キャンセル
+  EVENT_STATUS_CANCELLED = 5;
+}
+
+// イベントの形式
+enum EventFormat {
+  // 未指定
+  EVENT_FORMAT_UNSPECIFIED = 0;
+  // オフライン（対面）
+  EVENT_FORMAT_OFFLINE = 1;
+  // オンライン
+  EVENT_FORMAT_ONLINE = 2;
+  // ハイブリッド
+  EVENT_FORMAT_HYBRID = 3;
+}
+
+// チャンネルのタイプ
+enum ChannelType {
+  // 未指定
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  // テキストチャンネル
+  CHANNEL_TYPE_TEXT = 1;
+  // アナウンスチャンネル（管理者のみ投稿可能）
+  CHANNEL_TYPE_ANNOUNCEMENT = 2;
+  // ボイスチャンネル
+  CHANNEL_TYPE_VOICE = 3;
+  // ビデオチャンネル
+  CHANNEL_TYPE_VIDEO = 4;
+}
+
+// メンバーの役割
+enum MemberRole {
+  // 未指定
+  MEMBER_ROLE_UNSPECIFIED = 0;
+  // オーナー（グループ作成者）
+  MEMBER_ROLE_OWNER = 1;
+  // 管理者
+  MEMBER_ROLE_ADMIN = 2;
+  // モデレーター
+  MEMBER_ROLE_MODERATOR = 3;
+  // 一般メンバー
+  MEMBER_ROLE_MEMBER = 4;
+  // ゲスト
+  MEMBER_ROLE_GUEST = 5;
+}
+
+// メンバーのステータス
+enum MemberStatus {
+  // 未指定
+  MEMBER_STATUS_UNSPECIFIED = 0;
+  // アクティブ
+  MEMBER_STATUS_ACTIVE = 1;
+  // 招待中
+  MEMBER_STATUS_INVITED = 2;
+  // 申請中
+  MEMBER_STATUS_PENDING = 3;
+  // 停止中
+  MEMBER_STATUS_SUSPENDED = 4;
+  // 退出済み
+  MEMBER_STATUS_LEFT = 5;
+  // 追放済み
+  MEMBER_STATUS_BANNED = 6;
+}
+
+// 参加者のステータス
+enum ParticipantStatus {
+  // 未指定
+  PARTICIPANT_STATUS_UNSPECIFIED = 0;
+  // 参加予定
+  PARTICIPANT_STATUS_ATTENDING = 1;
+  // 興味あり
+  PARTICIPANT_STATUS_INTERESTED = 2;
+  // 不参加
+  PARTICIPANT_STATUS_NOT_ATTENDING = 3;
+  // キャンセル
+  PARTICIPANT_STATUS_CANCELLED = 4;
+}
+
+// 権限の種類
+enum Permission {
+  // 未指定
+  PERMISSION_UNSPECIFIED = 0;
+  // グループ設定の変更
+  PERMISSION_MANAGE_GROUP = 1;
+  // メンバー管理
+  PERMISSION_MANAGE_MEMBERS = 2;
+  // チャンネル管理
+  PERMISSION_MANAGE_CHANNELS = 3;
+  // イベント管理
+  PERMISSION_MANAGE_EVENTS = 4;
+  // 役割管理
+  PERMISSION_MANAGE_ROLES = 5;
+  // メッセージ投稿
+  PERMISSION_POST_MESSAGE = 6;
+  // メッセージ削除
+  PERMISSION_DELETE_MESSAGE = 7;
+  // メンバー招待
+  PERMISSION_INVITE_MEMBERS = 8;
+  // メンバー追放
+  PERMISSION_BAN_MEMBERS = 9;
+  // アナウンス投稿
+  PERMISSION_POST_ANNOUNCEMENT = 10;
+}
+
+// グループ情報
+message Group {
+  // グループID
+  string id = 1;
+  // グループ名
+  string name = 2;
+  // グループの説明
+  string description = 3;
+  // アバター画像URL
+  string avatar_url = 4;
+  // ヘッダー画像URL
+  string header_url = 5;
+  // オーナーID
+  string owner_id = 6;
+  // 可視性設定
+  GroupVisibility visibility = 7;
+  // ステータス
+  GroupStatus status = 8;
+  // メンバー数
+  int64 member_count = 9;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 10;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 11;
+  // カテゴリタグ
+  repeated string tags = 12;
+  // メタデータ
+  avion.common.v1.ResourceMetadata metadata = 13;
+}
+
+// グループ設定
+message GroupSettings {
+  // グループID
+  string group_id = 1;
+  // 新規メンバーの承認が必要か
+  bool require_approval = 2;
+  // メンバー上限数
+  int32 max_members = 3;
+  // 投稿の事前承認が必要か
+  bool require_post_approval = 4;
+  // メンバーのみ閲覧可能か
+  bool members_only_view = 5;
+  // メンバーがイベントを作成可能か
+  bool allow_member_events = 6;
+  // メンバーがチャンネルを作成可能か
+  bool allow_member_channels = 7;
+  // 通知設定
+  NotificationSettings notification_settings = 8;
+}
+
+// イベント情報
+message Event {
+  // イベントID
+  string id = 1;
+  // グループID
+  string group_id = 2;
+  // イベントタイトル
+  string title = 3;
+  // イベントの説明
+  string description = 4;
+  // カバー画像URL
+  string cover_image_url = 5;
+  // 開催者ID
+  string organizer_id = 6;
+  // 開始日時
+  google.protobuf.Timestamp start_time = 7;
+  // 終了日時
+  google.protobuf.Timestamp end_time = 8;
+  // 開催形式
+  EventFormat format = 9;
+  // 開催場所（オフラインの場合）
+  EventLocation location = 10;
+  // オンラインURL（オンラインの場合）
+  string online_url = 11;
+  // ステータス
+  EventStatus status = 12;
+  // 参加者数上限
+  int32 max_participants = 13;
+  // 現在の参加者数
+  int32 participant_count = 14;
+  // 参加費（任意）
+  EventFee fee = 15;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 16;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 17;
+  // タグ
+  repeated string tags = 18;
+  // メタデータ
+  avion.common.v1.ResourceMetadata metadata = 19;
+}
+
+// イベント開催場所
+message EventLocation {
+  // 場所名
+  string name = 1;
+  // 住所
+  string address = 2;
+  // 緯度
+  double latitude = 3;
+  // 経度
+  double longitude = 4;
+  // 詳細情報
+  string details = 5;
+}
+
+// イベント参加費
+message EventFee {
+  // 通貨コード（ISO 4217）
+  string currency = 1;
+  // 金額（最小単位）
+  int64 amount = 2;
+  // 説明
+  string description = 3;
+}
+
+// チャンネル情報
+message Channel {
+  // チャンネルID
+  string id = 1;
+  // グループID
+  string group_id = 2;
+  // チャンネル名
+  string name = 3;
+  // チャンネルの説明
+  string description = 4;
+  // チャンネルタイプ
+  ChannelType type = 5;
+  // 表示順序
+  int32 position = 6;
+  // アーカイブフラグ
+  bool is_archived = 7;
+  // 作成者ID
+  string creator_id = 8;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 9;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 10;
+  // 最後のメッセージ日時
+  google.protobuf.Timestamp last_message_at = 11;
+  // メッセージ数
+  int64 message_count = 12;
+  // チャンネル設定
+  ChannelSettings settings = 13;
+}
+
+// チャンネル設定
+message ChannelSettings {
+  // メンバーのみ投稿可能か
+  bool members_only_post = 1;
+  // スレッド作成を許可するか
+  bool allow_threads = 2;
+  // メッセージの自動削除期間（秒）
+  int32 auto_delete_after = 3;
+  // スローモード間隔（秒）
+  int32 slow_mode_interval = 4;
+  // ピン留めメッセージ上限
+  int32 max_pinned_messages = 5;
+}
+
+// メンバー情報
+message Member {
+  // メンバーID（複合キー: group_id + user_id）
+  string id = 1;
+  // グループID
+  string group_id = 2;
+  // ユーザーID
+  string user_id = 3;
+  // 役割
+  MemberRole role = 4;
+  // ステータス
+  MemberStatus status = 5;
+  // 参加日時
+  google.protobuf.Timestamp joined_at = 6;
+  // 招待者ID
+  string invited_by = 7;
+  // カスタム役割ID（任意）
+  string custom_role_id = 8;
+  // 最終活動日時
+  google.protobuf.Timestamp last_active_at = 9;
+  // 通知設定
+  MemberNotificationSettings notification_settings = 10;
+}
+
+// イベント参加者
+message Participant {
+  // 参加者ID（複合キー: event_id + user_id）
+  string id = 1;
+  // イベントID
+  string event_id = 2;
+  // ユーザーID
+  string user_id = 3;
+  // 参加ステータス
+  ParticipantStatus status = 4;
+  // 登録日時
+  google.protobuf.Timestamp registered_at = 5;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 6;
+  // コメント
+  string comment = 7;
+  // 同伴者数
+  int32 guest_count = 8;
+}
+
+// 役割情報
+message Role {
+  // 役割ID
+  string id = 1;
+  // グループID
+  string group_id = 2;
+  // 役割名
+  string name = 3;
+  // 役割の説明
+  string description = 4;
+  // 色（16進数カラーコード）
+  string color = 5;
+  // 表示順序（高い方が上位）
+  int32 position = 6;
+  // 権限リスト
+  repeated Permission permissions = 7;
+  // メンション可能か
+  bool mentionable = 8;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 9;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// 通知設定
+message NotificationSettings {
+  // 新規メンバー参加
+  bool new_member = 1;
+  // 新規投稿
+  bool new_post = 2;
+  // 新規イベント
+  bool new_event = 3;
+  // メンション
+  bool mentions = 4;
+  // アナウンス
+  bool announcements = 5;
+}
+
+// メンバーの通知設定
+message MemberNotificationSettings {
+  // 通知ミュート
+  bool muted = 1;
+  // 新規投稿通知
+  bool new_posts = 2;
+  // イベント通知
+  bool events = 3;
+  // メンション通知
+  bool mentions = 4;
+  // アナウンス通知
+  bool announcements = 5;
+  // 通知頻度（immediate, daily, weekly）
+  string frequency = 6;
+}
+
+// グループ招待
+message GroupInvite {
+  // 招待ID
+  string id = 1;
+  // グループID
+  string group_id = 2;
+  // 招待コード
+  string code = 3;
+  // 作成者ID
+  string creator_id = 4;
+  // 有効期限
+  google.protobuf.Timestamp expires_at = 5;
+  // 使用回数上限
+  int32 max_uses = 6;
+  // 現在の使用回数
+  int32 uses = 7;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// グループ統計
+message GroupStats {
+  // グループID
+  string group_id = 1;
+  // 総メンバー数
+  int64 total_members = 2;
+  // アクティブメンバー数（30日以内）
+  int64 active_members = 3;
+  // 総投稿数
+  int64 total_posts = 4;
+  // 総イベント数
+  int64 total_events = 5;
+  // 今月の新規メンバー数
+  int64 new_members_this_month = 6;
+  // 今月の投稿数
+  int64 posts_this_month = 7;
+  // 成長率（前月比）
+  double growth_rate = 8;
+}

@@ -1,0 +1,733 @@
+syntax = "proto3";
+
+package avion.moderation.v1;
+
+import "avion/moderation/v1/moderation.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// モデレーションサービス
+service ModerationService {
+	// ユーザー報告関連
+	// ユーザー報告を作成
+	rpc CreateUserReport(CreateUserReportRequest) returns (CreateUserReportResponse);
+	// ユーザー報告を取得
+	rpc GetUserReport(GetUserReportRequest) returns (GetUserReportResponse);
+	// ユーザー報告を一覧取得
+	rpc ListUserReports(ListUserReportsRequest) returns (ListUserReportsResponse);
+	// ユーザー報告を更新
+	rpc UpdateUserReport(UpdateUserReportRequest) returns (UpdateUserReportResponse);
+	// ユーザー報告を処理
+	rpc ProcessUserReport(ProcessUserReportRequest) returns (ProcessUserReportResponse);
+
+	// コンテンツモデレーション
+	// コンテンツを審査
+	rpc ModerateContent(ModerateContentRequest) returns (ModerateContentResponse);
+	// バッチでコンテンツを審査
+	rpc BatchModerateContent(BatchModerateContentRequest) returns (BatchModerateContentResponse);
+	// コンテンツのモデレーション状態を取得
+	rpc GetContentModerationStatus(GetContentModerationStatusRequest) returns (GetContentModerationStatusResponse);
+
+	// モデレーションアクション
+	// モデレーションアクションを実行
+	rpc ExecuteModerationAction(ExecuteModerationActionRequest) returns (ExecuteModerationActionResponse);
+	// モデレーションアクションを取得
+	rpc GetModerationAction(GetModerationActionRequest) returns (GetModerationActionResponse);
+	// モデレーションアクションを一覧取得
+	rpc ListModerationActions(ListModerationActionsRequest) returns (ListModerationActionsResponse);
+	// モデレーションアクションを取り消し
+	rpc RevokeModerationAction(RevokeModerationActionRequest) returns (RevokeModerationActionResponse);
+
+	// アピール（異議申し立て）
+	// アピールを作成
+	rpc CreateAppeal(CreateAppealRequest) returns (CreateAppealResponse);
+	// アピールを取得
+	rpc GetAppeal(GetAppealRequest) returns (GetAppealResponse);
+	// アピールを一覧取得
+	rpc ListAppeals(ListAppealsRequest) returns (ListAppealsResponse);
+	// アピールを審査
+	rpc ReviewAppeal(ReviewAppealRequest) returns (ReviewAppealResponse);
+
+	// フィルタ管理
+	// フィルタールールを作成
+	rpc CreateFilterRule(CreateFilterRuleRequest) returns (CreateFilterRuleResponse);
+	// フィルタールールを取得
+	rpc GetFilterRule(GetFilterRuleRequest) returns (GetFilterRuleResponse);
+	// フィルタールールを一覧取得
+	rpc ListFilterRules(ListFilterRulesRequest) returns (ListFilterRulesResponse);
+	// フィルタールールを更新
+	rpc UpdateFilterRule(UpdateFilterRuleRequest) returns (UpdateFilterRuleResponse);
+	// フィルタールールを削除
+	rpc DeleteFilterRule(DeleteFilterRuleRequest) returns (DeleteFilterRuleResponse);
+	// コンテンツをフィルタリング
+	rpc ApplyContentFilter(ApplyContentFilterRequest) returns (ApplyContentFilterResponse);
+
+	// モデレーションログ
+	// モデレーションログを作成
+	rpc CreateModerationLog(CreateModerationLogRequest) returns (CreateModerationLogResponse);
+	// モデレーションログを一覧取得
+	rpc ListModerationLogs(ListModerationLogsRequest) returns (ListModerationLogsResponse);
+	// モデレーションログをエクスポート
+	rpc ExportModerationLogs(ExportModerationLogsRequest) returns (ExportModerationLogsResponse);
+
+	// 統計・レポート
+	// モデレーション統計を取得
+	rpc GetModerationStats(GetModerationStatsRequest) returns (GetModerationStatsResponse);
+	// モデレーターのパフォーマンスを取得
+	rpc GetModeratorPerformance(GetModeratorPerformanceRequest) returns (GetModeratorPerformanceResponse);
+
+	// モデレーター管理
+	// モデレーターを登録
+	rpc RegisterModerator(RegisterModeratorRequest) returns (RegisterModeratorResponse);
+	// モデレーター情報を更新
+	rpc UpdateModerator(UpdateModeratorRequest) returns (UpdateModeratorResponse);
+	// モデレーターを一覧取得
+	rpc ListModerators(ListModeratorsRequest) returns (ListModeratorsResponse);
+	// モデレーターを無効化
+	rpc DeactivateModerator(DeactivateModeratorRequest) returns (DeactivateModeratorResponse);
+}
+
+// ========== ユーザー報告関連 ==========
+
+// ユーザー報告作成リクエスト
+message CreateUserReportRequest {
+	// 報告者のユーザーID
+	string reporter_user_id = 1;
+	// コンテンツタイプ
+	ContentType content_type = 2;
+	// コンテンツID
+	string content_id = 3;
+	// 違反カテゴリ
+	ViolationCategory category = 4;
+	// 報告理由
+	string reason = 5;
+	// 証拠URL
+	repeated string evidence_urls = 6;
+	// 優先度
+	Priority priority = 7;
+}
+
+// ユーザー報告作成レスポンス
+message CreateUserReportResponse {
+	// 作成された報告
+	UserReport report = 1;
+}
+
+// ユーザー報告取得リクエスト
+message GetUserReportRequest {
+	// 報告ID
+	string report_id = 1;
+}
+
+// ユーザー報告取得レスポンス
+message GetUserReportResponse {
+	// 報告
+	UserReport report = 1;
+}
+
+// ユーザー報告一覧取得リクエスト
+message ListUserReportsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：ステータス
+	ModerationStatus status = 2;
+	// フィルタ：違反カテゴリ
+	ViolationCategory category = 3;
+	// フィルタ：報告者ID
+	string reporter_user_id = 4;
+	// フィルタ：対象ユーザーID
+	string target_user_id = 5;
+	// フィルタ：優先度
+	Priority priority = 6;
+	// フィルタ：期間（開始）
+	google.protobuf.Timestamp from_date = 7;
+	// フィルタ：期間（終了）
+	google.protobuf.Timestamp to_date = 8;
+	// ソート順（created_at, priority等）
+	string order_by = 9;
+}
+
+// ユーザー報告一覧取得レスポンス
+message ListUserReportsResponse {
+	// 報告リスト
+	repeated UserReport reports = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ユーザー報告更新リクエスト
+message UpdateUserReportRequest {
+	// 報告ID
+	string report_id = 1;
+	// 更新対象フィールド
+	google.protobuf.FieldMask update_mask = 2;
+	// ステータス
+	ModerationStatus status = 3;
+	// 優先度
+	Priority priority = 4;
+	// 担当者ID
+	string assigned_to = 5;
+	// メモ
+	string note = 6;
+}
+
+// ユーザー報告更新レスポンス
+message UpdateUserReportResponse {
+	// 更新された報告
+	UserReport report = 1;
+}
+
+// ユーザー報告処理リクエスト
+message ProcessUserReportRequest {
+	// 報告ID
+	string report_id = 1;
+	// 処理結果（承認/拒否）
+	ModerationStatus resolution = 2;
+	// 処理理由
+	string resolution_note = 3;
+	// 実行するアクション
+	ModerationActionType action_type = 4;
+	// アクションの詳細
+	string action_reason = 5;
+	// 処分期間（一時停止の場合）
+	google.protobuf.Timestamp suspension_until = 6;
+}
+
+// ユーザー報告処理レスポンス
+message ProcessUserReportResponse {
+	// 処理された報告
+	UserReport report = 1;
+	// 実行されたアクション
+	ModerationAction action = 2;
+}
+
+// ========== コンテンツモデレーション ==========
+
+// コンテンツ審査リクエスト
+message ModerateContentRequest {
+	// コンテンツ
+	ModerationContent content = 1;
+	// 自動フィルタを適用するか
+	bool apply_auto_filters = 2;
+	// 審査の厳格度（0-100）
+	int32 strictness_level = 3;
+}
+
+// コンテンツ審査レスポンス
+message ModerateContentResponse {
+	// モデレーション結果
+	ModerationResult result = 1;
+	// フィルタリング結果
+	FilterResult filter_result = 2;
+}
+
+// バッチコンテンツ審査リクエスト
+message BatchModerateContentRequest {
+	// コンテンツリスト
+	repeated ModerationContent contents = 1;
+	// 自動フィルタを適用するか
+	bool apply_auto_filters = 2;
+	// 審査の厳格度（0-100）
+	int32 strictness_level = 3;
+}
+
+// バッチコンテンツ審査レスポンス
+message BatchModerateContentResponse {
+	// バッチ処理結果
+	BatchModerationResult result = 1;
+}
+
+// コンテンツモデレーション状態取得リクエスト
+message GetContentModerationStatusRequest {
+	// コンテンツタイプ
+	ContentType content_type = 1;
+	// コンテンツID
+	string content_id = 2;
+}
+
+// コンテンツモデレーション状態取得レスポンス
+message GetContentModerationStatusResponse {
+	// モデレーションステータス
+	ModerationStatus status = 1;
+	// 最新のモデレーション結果
+	ModerationResult latest_result = 2;
+	// 関連するアクション
+	repeated ModerationAction actions = 3;
+	// 関連する報告
+	repeated UserReport reports = 4;
+}
+
+// ========== モデレーションアクション ==========
+
+// モデレーションアクション実行リクエスト
+message ExecuteModerationActionRequest {
+	// アクションタイプ
+	ModerationActionType action_type = 1;
+	// 対象ユーザーID
+	string target_user_id = 2;
+	// 対象コンテンツID（該当する場合）
+	string target_content_id = 3;
+	// アクションの理由
+	string reason = 4;
+	// 違反カテゴリ
+	ViolationCategory violation_category = 5;
+	// 処分期間（一時停止の場合）
+	google.protobuf.Timestamp suspension_until = 6;
+	// 関連する報告ID
+	repeated string report_ids = 7;
+	// メタデータ
+	map<string, string> metadata = 8;
+}
+
+// モデレーションアクション実行レスポンス
+message ExecuteModerationActionResponse {
+	// 実行されたアクション
+	ModerationAction action = 1;
+}
+
+// モデレーションアクション取得リクエスト
+message GetModerationActionRequest {
+	// アクションID
+	string action_id = 1;
+}
+
+// モデレーションアクション取得レスポンス
+message GetModerationActionResponse {
+	// アクション
+	ModerationAction action = 1;
+}
+
+// モデレーションアクション一覧取得リクエスト
+message ListModerationActionsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：対象ユーザーID
+	string target_user_id = 2;
+	// フィルタ：アクションタイプ
+	ModerationActionType action_type = 3;
+	// フィルタ：違反カテゴリ
+	ViolationCategory violation_category = 4;
+	// フィルタ：実行者ID
+	string executed_by = 5;
+	// フィルタ：期間（開始）
+	google.protobuf.Timestamp from_date = 6;
+	// フィルタ：期間（終了）
+	google.protobuf.Timestamp to_date = 7;
+}
+
+// モデレーションアクション一覧取得レスポンス
+message ListModerationActionsResponse {
+	// アクションリスト
+	repeated ModerationAction actions = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// モデレーションアクション取り消しリクエスト
+message RevokeModerationActionRequest {
+	// アクションID
+	string action_id = 1;
+	// 取り消し理由
+	string reason = 2;
+}
+
+// モデレーションアクション取り消しレスポンス
+message RevokeModerationActionResponse {
+	// 取り消されたアクション
+	ModerationAction action = 1;
+}
+
+// ========== アピール（異議申し立て） ==========
+
+// アピール作成リクエスト
+message CreateAppealRequest {
+	// モデレーションアクションID
+	string action_id = 1;
+	// 申し立て理由
+	string reason = 2;
+	// 追加情報
+	string additional_info = 3;
+	// 証拠URL
+	repeated string evidence_urls = 4;
+}
+
+// アピール作成レスポンス
+message CreateAppealResponse {
+	// 作成されたアピール
+	Appeal appeal = 1;
+}
+
+// アピール取得リクエスト
+message GetAppealRequest {
+	// アピールID
+	string appeal_id = 1;
+}
+
+// アピール取得レスポンス
+message GetAppealResponse {
+	// アピール
+	Appeal appeal = 1;
+}
+
+// アピール一覧取得リクエスト
+message ListAppealsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：申し立て者ID
+	string appellant_user_id = 2;
+	// フィルタ：ステータス
+	AppealStatus status = 3;
+	// フィルタ：期間（開始）
+	google.protobuf.Timestamp from_date = 4;
+	// フィルタ：期間（終了）
+	google.protobuf.Timestamp to_date = 5;
+}
+
+// アピール一覧取得レスポンス
+message ListAppealsResponse {
+	// アピールリスト
+	repeated Appeal appeals = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// アピール審査リクエスト
+message ReviewAppealRequest {
+	// アピールID
+	string appeal_id = 1;
+	// 審査結果
+	AppealStatus decision = 2;
+	// 審査理由
+	string review_reason = 3;
+	// 修正アクション（承認時）
+	ModerationAction revised_action = 4;
+}
+
+// アピール審査レスポンス
+message ReviewAppealResponse {
+	// 審査されたアピール
+	Appeal appeal = 1;
+	// 修正されたアクション（該当する場合）
+	ModerationAction revised_action = 2;
+}
+
+// ========== フィルタ管理 ==========
+
+// フィルタールール作成リクエスト
+message CreateFilterRuleRequest {
+	// ルール名
+	string name = 1;
+	// 説明
+	string description = 2;
+	// フィルタータイプ
+	FilterType type = 3;
+	// パターン
+	string pattern = 4;
+	// 対象コンテンツタイプ
+	repeated ContentType target_content_types = 5;
+	// アクション
+	FilterAction action = 6;
+	// 優先度
+	int32 priority = 7;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 8;
+	// メタデータ
+	map<string, string> metadata = 9;
+}
+
+// フィルタールール作成レスポンス
+message CreateFilterRuleResponse {
+	// 作成されたルール
+	FilterRule rule = 1;
+}
+
+// フィルタールール取得リクエスト
+message GetFilterRuleRequest {
+	// ルールID
+	string rule_id = 1;
+}
+
+// フィルタールール取得レスポンス
+message GetFilterRuleResponse {
+	// ルール
+	FilterRule rule = 1;
+}
+
+// フィルタールール一覧取得リクエスト
+message ListFilterRulesRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：タイプ
+	FilterType type = 2;
+	// フィルタ：有効/無効
+	bool enabled = 3;
+	// フィルタ：対象コンテンツタイプ
+	ContentType target_content_type = 4;
+}
+
+// フィルタールール一覧取得レスポンス
+message ListFilterRulesResponse {
+	// ルールリスト
+	repeated FilterRule rules = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// フィルタールール更新リクエスト
+message UpdateFilterRuleRequest {
+	// ルールID
+	string rule_id = 1;
+	// 更新対象フィールド
+	google.protobuf.FieldMask update_mask = 2;
+	// ルール名
+	string name = 3;
+	// 説明
+	string description = 4;
+	// パターン
+	string pattern = 5;
+	// アクション
+	FilterAction action = 6;
+	// 優先度
+	int32 priority = 7;
+	// 有効/無効
+	bool enabled = 8;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 9;
+	// メタデータ
+	map<string, string> metadata = 10;
+}
+
+// フィルタールール更新レスポンス
+message UpdateFilterRuleResponse {
+	// 更新されたルール
+	FilterRule rule = 1;
+}
+
+// フィルタールール削除リクエスト
+message DeleteFilterRuleRequest {
+	// ルールID
+	string rule_id = 1;
+}
+
+// フィルタールール削除レスポンス
+message DeleteFilterRuleResponse {
+	// 削除成功
+	bool success = 1;
+}
+
+// コンテンツフィルタ適用リクエスト
+message ApplyContentFilterRequest {
+	// コンテンツ
+	ModerationContent content = 1;
+	// 適用するルールID（空の場合は全ルール）
+	repeated string rule_ids = 2;
+}
+
+// コンテンツフィルタ適用レスポンス
+message ApplyContentFilterResponse {
+	// フィルタリング結果
+	FilterResult result = 1;
+}
+
+// ========== モデレーションログ ==========
+
+// モデレーションログ作成リクエスト
+message CreateModerationLogRequest {
+	// イベントタイプ
+	string event_type = 1;
+	// 対象ユーザーID
+	string target_user_id = 2;
+	// 対象コンテンツID
+	string target_content_id = 3;
+	// アクションタイプ
+	ModerationActionType action_type = 4;
+	// 説明
+	string description = 5;
+	// 変更前の値
+	map<string, string> before_values = 6;
+	// 変更後の値
+	map<string, string> after_values = 7;
+	// メタデータ
+	map<string, string> metadata = 8;
+}
+
+// モデレーションログ作成レスポンス
+message CreateModerationLogResponse {
+	// 作成されたログ
+	ModerationLog log = 1;
+}
+
+// モデレーションログ一覧取得リクエスト
+message ListModerationLogsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：実行者ID
+	string actor_id = 2;
+	// フィルタ：対象ユーザーID
+	string target_user_id = 3;
+	// フィルタ：イベントタイプ
+	string event_type = 4;
+	// フィルタ：期間（開始）
+	google.protobuf.Timestamp from_date = 5;
+	// フィルタ：期間（終了）
+	google.protobuf.Timestamp to_date = 6;
+}
+
+// モデレーションログ一覧取得レスポンス
+message ListModerationLogsResponse {
+	// ログリスト
+	repeated ModerationLog logs = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// モデレーションログエクスポートリクエスト
+message ExportModerationLogsRequest {
+	// エクスポート形式（csv, json等）
+	string format = 1;
+	// フィルタ：期間（開始）
+	google.protobuf.Timestamp from_date = 2;
+	// フィルタ：期間（終了）
+	google.protobuf.Timestamp to_date = 3;
+	// フィルタ：実行者ID
+	string actor_id = 4;
+	// フィルタ：対象ユーザーID
+	string target_user_id = 5;
+}
+
+// モデレーションログエクスポートレスポンス
+message ExportModerationLogsResponse {
+	// エクスポートファイルURL
+	string export_url = 1;
+	// エクスポートされた件数
+	int32 exported_count = 2;
+	// ファイルサイズ（バイト）
+	int64 file_size = 3;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 4;
+}
+
+// ========== 統計・レポート ==========
+
+// モデレーション統計取得リクエスト
+message GetModerationStatsRequest {
+	// 期間（開始）
+	google.protobuf.Timestamp from_date = 1;
+	// 期間（終了）
+	google.protobuf.Timestamp to_date = 2;
+	// グループ化単位（hour, day, week, month）
+	string group_by = 3;
+	// カテゴリでフィルタ
+	repeated ViolationCategory categories = 4;
+}
+
+// モデレーション統計取得レスポンス
+message GetModerationStatsResponse {
+	// 統計データ
+	ModerationStats stats = 1;
+	// 時系列データ
+	repeated ModerationStats time_series = 2;
+}
+
+// モデレーターパフォーマンス取得リクエスト
+message GetModeratorPerformanceRequest {
+	// モデレーターID
+	string moderator_id = 1;
+	// 期間（開始）
+	google.protobuf.Timestamp from_date = 2;
+	// 期間（終了）
+	google.protobuf.Timestamp to_date = 3;
+}
+
+// モデレーターパフォーマンス取得レスポンス
+message GetModeratorPerformanceResponse {
+	// モデレーター情報
+	Moderator moderator = 1;
+	// 処理した報告数
+	int64 processed_reports = 2;
+	// 平均処理時間（秒）
+	int64 average_processing_time = 3;
+	// 承認率
+	double approval_rate = 4;
+	// アピール覆し率
+	double appeal_overturn_rate = 5;
+	// カテゴリ別の処理数
+	map<string, int64> reports_by_category = 6;
+	// アクションタイプ別の処理数
+	map<string, int64> actions_by_type = 7;
+}
+
+// ========== モデレーター管理 ==========
+
+// モデレーター登録リクエスト
+message RegisterModeratorRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 表示名
+	string display_name = 2;
+	// 権限レベル
+	string permission_level = 3;
+	// 担当カテゴリ
+	repeated ViolationCategory assigned_categories = 4;
+}
+
+// モデレーター登録レスポンス
+message RegisterModeratorResponse {
+	// 登録されたモデレーター
+	Moderator moderator = 1;
+}
+
+// モデレーター更新リクエスト
+message UpdateModeratorRequest {
+	// モデレーターID
+	string moderator_id = 1;
+	// 更新対象フィールド
+	google.protobuf.FieldMask update_mask = 2;
+	// 表示名
+	string display_name = 3;
+	// 権限レベル
+	string permission_level = 4;
+	// 担当カテゴリ
+	repeated ViolationCategory assigned_categories = 5;
+	// アクティブ状態
+	bool is_active = 6;
+}
+
+// モデレーター更新レスポンス
+message UpdateModeratorResponse {
+	// 更新されたモデレーター
+	Moderator moderator = 1;
+}
+
+// モデレーター一覧取得リクエスト
+message ListModeratorsRequest {
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルタ：アクティブ状態
+	bool is_active = 2;
+	// フィルタ：権限レベル
+	string permission_level = 3;
+}
+
+// モデレーター一覧取得レスポンス
+message ListModeratorsResponse {
+	// モデレーターリスト
+	repeated Moderator moderators = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// モデレーター無効化リクエスト
+message DeactivateModeratorRequest {
+	// モデレーターID
+	string moderator_id = 1;
+	// 無効化理由
+	string reason = 2;
+}
+
+// モデレーター無効化レスポンス
+message DeactivateModeratorResponse {
+	// 無効化されたモデレーター
+	Moderator moderator = 1;
+}

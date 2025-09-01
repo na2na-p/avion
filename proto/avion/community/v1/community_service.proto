@@ -1,0 +1,925 @@
+syntax = "proto3";
+
+package avion.community.v1;
+
+import "avion/common/v1/pagination.proto";
+import "avion/community/v1/community.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// コミュニティサービス
+service CommunityService {
+  // グループ管理
+  // グループ作成
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  // グループ取得
+  rpc GetGroup(GetGroupRequest) returns (GetGroupResponse);
+  // グループ更新
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  // グループ削除
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+  // グループ一覧取得
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  // グループ検索
+  rpc SearchGroups(SearchGroupsRequest) returns (SearchGroupsResponse);
+  // グループ統計取得
+  rpc GetGroupStats(GetGroupStatsRequest) returns (GetGroupStatsResponse);
+
+  // メンバー管理
+  // メンバー追加（参加）
+  rpc JoinGroup(JoinGroupRequest) returns (JoinGroupResponse);
+  // メンバー削除（退出）
+  rpc LeaveGroup(LeaveGroupRequest) returns (LeaveGroupResponse);
+  // メンバー招待
+  rpc InviteMember(InviteMemberRequest) returns (InviteMemberResponse);
+  // メンバー追放
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  // メンバー役割更新
+  rpc UpdateMemberRole(UpdateMemberRoleRequest) returns (UpdateMemberRoleResponse);
+  // メンバー一覧取得
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  // メンバー取得
+  rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
+  // 参加申請承認
+  rpc ApproveMember(ApproveMemberRequest) returns (ApproveMemberResponse);
+  // 参加申請拒否
+  rpc RejectMember(RejectMemberRequest) returns (RejectMemberResponse);
+
+  // イベント管理
+  // イベント作成
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  // イベント取得
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  // イベント更新
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
+  // イベント削除
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+  // イベント一覧取得
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  // イベント検索
+  rpc SearchEvents(SearchEventsRequest) returns (SearchEventsResponse);
+  // イベント参加
+  rpc JoinEvent(JoinEventRequest) returns (JoinEventResponse);
+  // イベント参加キャンセル
+  rpc LeaveEvent(LeaveEventRequest) returns (LeaveEventResponse);
+  // イベント参加者一覧取得
+  rpc ListParticipants(ListParticipantsRequest) returns (ListParticipantsResponse);
+  // イベント参加者ステータス更新
+  rpc UpdateParticipantStatus(UpdateParticipantStatusRequest) returns (UpdateParticipantStatusResponse);
+
+  // チャンネル管理
+  // チャンネル作成
+  rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse);
+  // チャンネル取得
+  rpc GetChannel(GetChannelRequest) returns (GetChannelResponse);
+  // チャンネル更新
+  rpc UpdateChannel(UpdateChannelRequest) returns (UpdateChannelResponse);
+  // チャンネル削除
+  rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse);
+  // チャンネル一覧取得
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  // チャンネル並び替え
+  rpc ReorderChannels(ReorderChannelsRequest) returns (ReorderChannelsResponse);
+
+  // 役割管理
+  // 役割作成
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  // 役割取得
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // 役割更新
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  // 役割削除
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  // 役割一覧取得
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // 役割メンバー一覧取得
+  rpc ListRoleMembers(ListRoleMembersRequest) returns (ListRoleMembersResponse);
+
+  // 招待管理
+  // 招待作成
+  rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse);
+  // 招待取得
+  rpc GetInvite(GetInviteRequest) returns (GetInviteResponse);
+  // 招待削除
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse);
+  // 招待一覧取得
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse);
+  // 招待使用
+  rpc UseInvite(UseInviteRequest) returns (UseInviteResponse);
+}
+
+// グループ作成リクエスト
+message CreateGroupRequest {
+  // グループ名
+  string name = 1;
+  // グループの説明
+  string description = 2;
+  // アバター画像URL
+  string avatar_url = 3;
+  // ヘッダー画像URL
+  string header_url = 4;
+  // 可視性設定
+  GroupVisibility visibility = 5;
+  // カテゴリタグ
+  repeated string tags = 6;
+  // グループ設定
+  GroupSettings settings = 7;
+}
+
+// グループ作成レスポンス
+message CreateGroupResponse {
+  // 作成されたグループ
+  Group group = 1;
+}
+
+// グループ取得リクエスト
+message GetGroupRequest {
+  // グループID
+  string group_id = 1;
+}
+
+// グループ取得レスポンス
+message GetGroupResponse {
+  // グループ情報
+  Group group = 1;
+  // グループ設定
+  GroupSettings settings = 2;
+  // リクエスターのメンバー情報（メンバーの場合）
+  Member requester_member = 3;
+}
+
+// グループ更新リクエスト
+message UpdateGroupRequest {
+  // グループID
+  string group_id = 1;
+  // 更新するフィールドのマスク
+  google.protobuf.FieldMask update_mask = 2;
+  // グループ情報
+  Group group = 3;
+  // グループ設定
+  GroupSettings settings = 4;
+}
+
+// グループ更新レスポンス
+message UpdateGroupResponse {
+  // 更新されたグループ
+  Group group = 1;
+  // 更新されたグループ設定
+  GroupSettings settings = 2;
+}
+
+// グループ削除リクエスト
+message DeleteGroupRequest {
+  // グループID
+  string group_id = 1;
+}
+
+// グループ削除レスポンス
+message DeleteGroupResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// グループ一覧取得リクエスト
+message ListGroupsRequest {
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 1;
+  // フィルター条件
+  ListGroupsFilter filter = 2;
+  // ソート条件
+  ListGroupsSort sort = 3;
+}
+
+// グループ一覧フィルター
+message ListGroupsFilter {
+  // オーナーIDでフィルター
+  string owner_id = 1;
+  // メンバーIDでフィルター（該当ユーザーが参加しているグループ）
+  string member_id = 2;
+  // 可視性でフィルター
+  GroupVisibility visibility = 3;
+  // ステータスでフィルター
+  GroupStatus status = 4;
+  // タグでフィルター
+  repeated string tags = 5;
+}
+
+// グループ一覧ソート
+message ListGroupsSort {
+  // ソートフィールド（created_at, updated_at, member_count, name）
+  string field = 1;
+  // 降順フラグ
+  bool descending = 2;
+}
+
+// グループ一覧取得レスポンス
+message ListGroupsResponse {
+  // グループリスト
+  repeated Group groups = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// グループ検索リクエスト
+message SearchGroupsRequest {
+  // 検索クエリ
+  string query = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // フィルター条件
+  SearchGroupsFilter filter = 3;
+}
+
+// グループ検索フィルター
+message SearchGroupsFilter {
+  // 可視性でフィルター
+  GroupVisibility visibility = 1;
+  // タグでフィルター
+  repeated string tags = 2;
+  // 最小メンバー数
+  int32 min_members = 3;
+  // 最大メンバー数
+  int32 max_members = 4;
+}
+
+// グループ検索レスポンス
+message SearchGroupsResponse {
+  // 検索結果
+  repeated Group groups = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// グループ統計取得リクエスト
+message GetGroupStatsRequest {
+  // グループID
+  string group_id = 1;
+}
+
+// グループ統計取得レスポンス
+message GetGroupStatsResponse {
+  // グループ統計
+  GroupStats stats = 1;
+}
+
+// グループ参加リクエスト
+message JoinGroupRequest {
+  // グループID
+  string group_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 参加メッセージ（承認制の場合）
+  string message = 3;
+}
+
+// グループ参加レスポンス
+message JoinGroupResponse {
+  // メンバー情報
+  Member member = 1;
+  // 承認待ちフラグ
+  bool pending_approval = 2;
+}
+
+// グループ退出リクエスト
+message LeaveGroupRequest {
+  // グループID
+  string group_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// グループ退出レスポンス
+message LeaveGroupResponse {
+  // 退出成功フラグ
+  bool success = 1;
+}
+
+// メンバー招待リクエスト
+message InviteMemberRequest {
+  // グループID
+  string group_id = 1;
+  // 招待するユーザーID
+  string user_id = 2;
+  // 招待者ID
+  string inviter_id = 3;
+  // 招待メッセージ
+  string message = 4;
+}
+
+// メンバー招待レスポンス
+message InviteMemberResponse {
+  // メンバー情報
+  Member member = 1;
+}
+
+// メンバー削除リクエスト
+message RemoveMemberRequest {
+  // グループID
+  string group_id = 1;
+  // 削除するメンバーのユーザーID
+  string user_id = 2;
+  // 削除理由
+  string reason = 3;
+}
+
+// メンバー削除レスポンス
+message RemoveMemberResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// メンバー役割更新リクエスト
+message UpdateMemberRoleRequest {
+  // グループID
+  string group_id = 1;
+  // 対象メンバーのユーザーID
+  string user_id = 2;
+  // 新しい役割
+  MemberRole role = 3;
+  // カスタム役割ID（任意）
+  string custom_role_id = 4;
+}
+
+// メンバー役割更新レスポンス
+message UpdateMemberRoleResponse {
+  // 更新されたメンバー情報
+  Member member = 1;
+}
+
+// メンバー一覧取得リクエスト
+message ListMembersRequest {
+  // グループID
+  string group_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // フィルター条件
+  ListMembersFilter filter = 3;
+}
+
+// メンバー一覧フィルター
+message ListMembersFilter {
+  // 役割でフィルター
+  MemberRole role = 1;
+  // ステータスでフィルター
+  MemberStatus status = 2;
+  // カスタム役割IDでフィルター
+  string custom_role_id = 3;
+}
+
+// メンバー一覧取得レスポンス
+message ListMembersResponse {
+  // メンバーリスト
+  repeated Member members = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// メンバー取得リクエスト
+message GetMemberRequest {
+  // グループID
+  string group_id = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// メンバー取得レスポンス
+message GetMemberResponse {
+  // メンバー情報
+  Member member = 1;
+}
+
+// メンバー承認リクエスト
+message ApproveMemberRequest {
+  // グループID
+  string group_id = 1;
+  // 承認するユーザーID
+  string user_id = 2;
+  // 承認者ID
+  string approver_id = 3;
+}
+
+// メンバー承認レスポンス
+message ApproveMemberResponse {
+  // 承認されたメンバー情報
+  Member member = 1;
+}
+
+// メンバー拒否リクエスト
+message RejectMemberRequest {
+  // グループID
+  string group_id = 1;
+  // 拒否するユーザーID
+  string user_id = 2;
+  // 拒否理由
+  string reason = 3;
+}
+
+// メンバー拒否レスポンス
+message RejectMemberResponse {
+  // 拒否成功フラグ
+  bool success = 1;
+}
+
+// イベント作成リクエスト
+message CreateEventRequest {
+  // グループID
+  string group_id = 1;
+  // イベントタイトル
+  string title = 2;
+  // イベントの説明
+  string description = 3;
+  // カバー画像URL
+  string cover_image_url = 4;
+  // 開始日時
+  google.protobuf.Timestamp start_time = 5;
+  // 終了日時
+  google.protobuf.Timestamp end_time = 6;
+  // 開催形式
+  EventFormat format = 7;
+  // 開催場所（オフラインの場合）
+  EventLocation location = 8;
+  // オンラインURL（オンラインの場合）
+  string online_url = 9;
+  // 参加者数上限
+  int32 max_participants = 10;
+  // 参加費
+  EventFee fee = 11;
+  // タグ
+  repeated string tags = 12;
+}
+
+// イベント作成レスポンス
+message CreateEventResponse {
+  // 作成されたイベント
+  Event event = 1;
+}
+
+// イベント取得リクエスト
+message GetEventRequest {
+  // イベントID
+  string event_id = 1;
+}
+
+// イベント取得レスポンス
+message GetEventResponse {
+  // イベント情報
+  Event event = 1;
+  // リクエスターの参加情報（参加者の場合）
+  Participant requester_participant = 2;
+}
+
+// イベント更新リクエスト
+message UpdateEventRequest {
+  // イベントID
+  string event_id = 1;
+  // 更新するフィールドのマスク
+  google.protobuf.FieldMask update_mask = 2;
+  // イベント情報
+  Event event = 3;
+}
+
+// イベント更新レスポンス
+message UpdateEventResponse {
+  // 更新されたイベント
+  Event event = 1;
+}
+
+// イベント削除リクエスト
+message DeleteEventRequest {
+  // イベントID
+  string event_id = 1;
+  // 削除理由
+  string reason = 2;
+}
+
+// イベント削除レスポンス
+message DeleteEventResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// イベント一覧取得リクエスト
+message ListEventsRequest {
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 1;
+  // フィルター条件
+  ListEventsFilter filter = 2;
+  // ソート条件
+  ListEventsSort sort = 3;
+}
+
+// イベント一覧フィルター
+message ListEventsFilter {
+  // グループIDでフィルター
+  string group_id = 1;
+  // 開催者IDでフィルター
+  string organizer_id = 2;
+  // ステータスでフィルター
+  EventStatus status = 3;
+  // 開催形式でフィルター
+  EventFormat format = 4;
+  // 開始日時の範囲（開始）
+  google.protobuf.Timestamp start_time_from = 5;
+  // 開始日時の範囲（終了）
+  google.protobuf.Timestamp start_time_to = 6;
+  // タグでフィルター
+  repeated string tags = 7;
+}
+
+// イベント一覧ソート
+message ListEventsSort {
+  // ソートフィールド（start_time, created_at, participant_count）
+  string field = 1;
+  // 降順フラグ
+  bool descending = 2;
+}
+
+// イベント一覧取得レスポンス
+message ListEventsResponse {
+  // イベントリスト
+  repeated Event events = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// イベント検索リクエスト
+message SearchEventsRequest {
+  // 検索クエリ
+  string query = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // フィルター条件
+  SearchEventsFilter filter = 3;
+}
+
+// イベント検索フィルター
+message SearchEventsFilter {
+  // 開催形式でフィルター
+  EventFormat format = 1;
+  // 日付範囲（開始）
+  google.protobuf.Timestamp date_from = 2;
+  // 日付範囲（終了）
+  google.protobuf.Timestamp date_to = 3;
+  // 場所（都市名など）
+  string location = 4;
+  // 無料イベントのみ
+  bool free_only = 5;
+  // タグでフィルター
+  repeated string tags = 6;
+}
+
+// イベント検索レスポンス
+message SearchEventsResponse {
+  // 検索結果
+  repeated Event events = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// イベント参加リクエスト
+message JoinEventRequest {
+  // イベントID
+  string event_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 参加ステータス
+  ParticipantStatus status = 3;
+  // コメント
+  string comment = 4;
+  // 同伴者数
+  int32 guest_count = 5;
+}
+
+// イベント参加レスポンス
+message JoinEventResponse {
+  // 参加者情報
+  Participant participant = 1;
+}
+
+// イベント参加キャンセルリクエスト
+message LeaveEventRequest {
+  // イベントID
+  string event_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // キャンセル理由
+  string reason = 3;
+}
+
+// イベント参加キャンセルレスポンス
+message LeaveEventResponse {
+  // キャンセル成功フラグ
+  bool success = 1;
+}
+
+// イベント参加者一覧取得リクエスト
+message ListParticipantsRequest {
+  // イベントID
+  string event_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // フィルター条件
+  ListParticipantsFilter filter = 3;
+}
+
+// イベント参加者一覧フィルター
+message ListParticipantsFilter {
+  // ステータスでフィルター
+  ParticipantStatus status = 1;
+}
+
+// イベント参加者一覧取得レスポンス
+message ListParticipantsResponse {
+  // 参加者リスト
+  repeated Participant participants = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// イベント参加者ステータス更新リクエスト
+message UpdateParticipantStatusRequest {
+  // イベントID
+  string event_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 新しいステータス
+  ParticipantStatus status = 3;
+  // コメント
+  string comment = 4;
+}
+
+// イベント参加者ステータス更新レスポンス
+message UpdateParticipantStatusResponse {
+  // 更新された参加者情報
+  Participant participant = 1;
+}
+
+// チャンネル作成リクエスト
+message CreateChannelRequest {
+  // グループID
+  string group_id = 1;
+  // チャンネル名
+  string name = 2;
+  // チャンネルの説明
+  string description = 3;
+  // チャンネルタイプ
+  ChannelType type = 4;
+  // 表示順序
+  int32 position = 5;
+  // チャンネル設定
+  ChannelSettings settings = 6;
+}
+
+// チャンネル作成レスポンス
+message CreateChannelResponse {
+  // 作成されたチャンネル
+  Channel channel = 1;
+}
+
+// チャンネル取得リクエスト
+message GetChannelRequest {
+  // チャンネルID
+  string channel_id = 1;
+}
+
+// チャンネル取得レスポンス
+message GetChannelResponse {
+  // チャンネル情報
+  Channel channel = 1;
+}
+
+// チャンネル更新リクエスト
+message UpdateChannelRequest {
+  // チャンネルID
+  string channel_id = 1;
+  // 更新するフィールドのマスク
+  google.protobuf.FieldMask update_mask = 2;
+  // チャンネル情報
+  Channel channel = 3;
+  // チャンネル設定
+  ChannelSettings settings = 4;
+}
+
+// チャンネル更新レスポンス
+message UpdateChannelResponse {
+  // 更新されたチャンネル
+  Channel channel = 1;
+}
+
+// チャンネル削除リクエスト
+message DeleteChannelRequest {
+  // チャンネルID
+  string channel_id = 1;
+}
+
+// チャンネル削除レスポンス
+message DeleteChannelResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// チャンネル一覧取得リクエスト
+message ListChannelsRequest {
+  // グループID
+  string group_id = 1;
+  // フィルター条件
+  ListChannelsFilter filter = 2;
+}
+
+// チャンネル一覧フィルター
+message ListChannelsFilter {
+  // チャンネルタイプでフィルター
+  ChannelType type = 1;
+  // アーカイブ済みを含むか
+  bool include_archived = 2;
+}
+
+// チャンネル一覧取得レスポンス
+message ListChannelsResponse {
+  // チャンネルリスト
+  repeated Channel channels = 1;
+}
+
+// チャンネル並び替えリクエスト
+message ReorderChannelsRequest {
+  // グループID
+  string group_id = 1;
+  // チャンネルIDと新しい位置のマッピング
+  map<string, int32> channel_positions = 2;
+}
+
+// チャンネル並び替えレスポンス
+message ReorderChannelsResponse {
+  // 並び替え後のチャンネルリスト
+  repeated Channel channels = 1;
+}
+
+// 役割作成リクエスト
+message CreateRoleRequest {
+  // グループID
+  string group_id = 1;
+  // 役割名
+  string name = 2;
+  // 役割の説明
+  string description = 3;
+  // 色（16進数カラーコード）
+  string color = 4;
+  // 表示順序
+  int32 position = 5;
+  // 権限リスト
+  repeated Permission permissions = 6;
+  // メンション可能か
+  bool mentionable = 7;
+}
+
+// 役割作成レスポンス
+message CreateRoleResponse {
+  // 作成された役割
+  Role role = 1;
+}
+
+// 役割取得リクエスト
+message GetRoleRequest {
+  // 役割ID
+  string role_id = 1;
+}
+
+// 役割取得レスポンス
+message GetRoleResponse {
+  // 役割情報
+  Role role = 1;
+}
+
+// 役割更新リクエスト
+message UpdateRoleRequest {
+  // 役割ID
+  string role_id = 1;
+  // 更新するフィールドのマスク
+  google.protobuf.FieldMask update_mask = 2;
+  // 役割情報
+  Role role = 3;
+}
+
+// 役割更新レスポンス
+message UpdateRoleResponse {
+  // 更新された役割
+  Role role = 1;
+}
+
+// 役割削除リクエスト
+message DeleteRoleRequest {
+  // 役割ID
+  string role_id = 1;
+}
+
+// 役割削除レスポンス
+message DeleteRoleResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// 役割一覧取得リクエスト
+message ListRolesRequest {
+  // グループID
+  string group_id = 1;
+}
+
+// 役割一覧取得レスポンス
+message ListRolesResponse {
+  // 役割リスト（表示順序でソート済み）
+  repeated Role roles = 1;
+}
+
+// 役割メンバー一覧取得リクエスト
+message ListRoleMembersRequest {
+  // 役割ID
+  string role_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// 役割メンバー一覧取得レスポンス
+message ListRoleMembersResponse {
+  // メンバーリスト
+  repeated Member members = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 招待作成リクエスト
+message CreateInviteRequest {
+  // グループID
+  string group_id = 1;
+  // 作成者ID
+  string creator_id = 2;
+  // 有効期限（秒）
+  int32 expires_in = 3;
+  // 使用回数上限
+  int32 max_uses = 4;
+}
+
+// 招待作成レスポンス
+message CreateInviteResponse {
+  // 作成された招待
+  GroupInvite invite = 1;
+}
+
+// 招待取得リクエスト
+message GetInviteRequest {
+  // 招待コード
+  string code = 1;
+}
+
+// 招待取得レスポンス
+message GetInviteResponse {
+  // 招待情報
+  GroupInvite invite = 1;
+  // グループ情報
+  Group group = 2;
+}
+
+// 招待削除リクエスト
+message RevokeInviteRequest {
+  // 招待ID
+  string invite_id = 1;
+}
+
+// 招待削除レスポンス
+message RevokeInviteResponse {
+  // 削除成功フラグ
+  bool success = 1;
+}
+
+// 招待一覧取得リクエスト
+message ListInvitesRequest {
+  // グループID
+  string group_id = 1;
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 2;
+  // アクティブな招待のみ
+  bool active_only = 3;
+}
+
+// 招待一覧取得レスポンス
+message ListInvitesResponse {
+  // 招待リスト
+  repeated GroupInvite invites = 1;
+  // ページネーション情報
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 招待使用リクエスト
+message UseInviteRequest {
+  // 招待コード
+  string code = 1;
+  // ユーザーID
+  string user_id = 2;
+}
+
+// 招待使用レスポンス
+message UseInviteResponse {
+  // グループ情報
+  Group group = 1;
+  // メンバー情報
+  Member member = 2;
+}

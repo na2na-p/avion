@@ -1,0 +1,808 @@
+syntax = "proto3";
+
+package avion.user.v1;
+
+import "avion/user/v1/user.proto";
+import "avion/common/v1/pagination.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+// ユーザーサービス
+service UserService {
+	// ユーザー作成
+	rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+	// ユーザー取得
+	rpc GetUser(GetUserRequest) returns (GetUserResponse);
+	// ユーザー更新
+	rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+	// ユーザー削除
+	rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+	// ユーザー一覧取得
+	rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+	// ユーザー検索
+	rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+	// フォロー
+	rpc FollowUser(FollowUserRequest) returns (FollowUserResponse);
+	// フォロー解除
+	rpc UnfollowUser(UnfollowUserRequest) returns (UnfollowUserResponse);
+	// フォロワー一覧取得
+	rpc ListFollowers(ListFollowersRequest) returns (ListFollowersResponse);
+	// フォロー中一覧取得
+	rpc ListFollowing(ListFollowingRequest) returns (ListFollowingResponse);
+	// ブロック
+	rpc BlockUser(BlockUserRequest) returns (BlockUserResponse);
+	// ブロック解除
+	rpc UnblockUser(UnblockUserRequest) returns (UnblockUserResponse);
+	// ミュート
+	rpc MuteUser(MuteUserRequest) returns (MuteUserResponse);
+	// ミュート解除
+	rpc UnmuteUser(UnmuteUserRequest) returns (UnmuteUserResponse);
+	// ブロック一覧取得
+	rpc ListBlockedUsers(ListBlockedUsersRequest) returns (ListBlockedUsersResponse);
+	// ミュート一覧取得
+	rpc ListMutedUsers(ListMutedUsersRequest) returns (ListMutedUsersResponse);
+	
+	// バッチ操作
+	// 複数ユーザー情報取得
+	rpc GetUsersByIDs(GetUsersByIDsRequest) returns (GetUsersByIDsResponse);
+	// 複数ユーザーのフォロー状態確認
+	rpc BatchCheckFollowStatus(BatchCheckFollowStatusRequest) returns (BatchCheckFollowStatusResponse);
+	
+	// プロフィール管理
+	// プロフィール取得
+	rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+	// プロフィール更新
+	rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+	
+	// プライバシー設定管理
+	// プライバシー設定取得
+	rpc GetUserPrivacySettings(GetUserPrivacySettingsRequest) returns (GetUserPrivacySettingsResponse);
+	// プライバシー設定更新
+	rpc UpdateUserPrivacySettings(UpdateUserPrivacySettingsRequest) returns (UpdateUserPrivacySettingsResponse);
+	
+	// フォローリクエスト管理（非公開アカウント用）
+	// フォローリクエスト承認
+	rpc ApproveFollowRequest(ApproveFollowRequestRequest) returns (ApproveFollowRequestResponse);
+	// フォローリクエスト拒否
+	rpc RejectFollowRequest(RejectFollowRequestRequest) returns (RejectFollowRequestResponse);
+	// フォローリクエスト一覧取得
+	rpc ListFollowRequests(ListFollowRequestsRequest) returns (ListFollowRequestsResponse);
+	
+	// 関係性確認
+	// ユーザー間の関係性を確認
+	rpc CheckUserRelationship(CheckUserRelationshipRequest) returns (CheckUserRelationshipResponse);
+	
+	// ユーザーリスト管理
+	// ユーザーリスト作成
+	rpc CreateUserList(CreateUserListRequest) returns (CreateUserListResponse);
+	// ユーザーリスト取得
+	rpc GetUserList(GetUserListRequest) returns (GetUserListResponse);
+	// ユーザーリスト更新
+	rpc UpdateUserList(UpdateUserListRequest) returns (UpdateUserListResponse);
+	// ユーザーリスト削除
+	rpc DeleteUserList(DeleteUserListRequest) returns (DeleteUserListResponse);
+	// ユーザーリストにユーザー追加
+	rpc AddUsersToList(AddUsersToListRequest) returns (AddUsersToListResponse);
+	// ユーザーリストからユーザー削除
+	rpc RemoveUsersFromList(RemoveUsersFromListRequest) returns (RemoveUsersFromListResponse);
+	// ユーザーリスト一覧取得
+	rpc ListUserLists(ListUserListsRequest) returns (ListUserListsResponse);
+	// ユーザーリストのメンバー取得
+	rpc GetUserListMembers(GetUserListMembersRequest) returns (GetUserListMembersResponse);
+	
+	// キーワードミュート管理
+	// キーワードミュート作成
+	rpc CreateMuteKeyword(CreateMuteKeywordRequest) returns (CreateMuteKeywordResponse);
+	// キーワードミュート削除
+	rpc DeleteMuteKeyword(DeleteMuteKeywordRequest) returns (DeleteMuteKeywordResponse);
+	// キーワードミュート一覧取得
+	rpc ListMuteKeywords(ListMuteKeywordsRequest) returns (ListMuteKeywordsResponse);
+	
+	// ユーザー統計
+	// ユーザー統計情報取得
+	rpc GetUserStats(GetUserStatsRequest) returns (GetUserStatsResponse);
+	
+	// 管理者機能
+	// ユーザー停止
+	rpc SuspendUser(SuspendUserRequest) returns (SuspendUserResponse);
+	// ユーザー停止解除
+	rpc UnsuspendUser(UnsuspendUserRequest) returns (UnsuspendUserResponse);
+}
+
+// ユーザー作成リクエスト
+message CreateUserRequest {
+	// ユーザー名（一意）
+	string username = 1;
+	// 表示名
+	string display_name = 2;
+	// メールアドレス
+	string email = 3;
+	// パスワード
+	string password = 4;
+	// 自己紹介
+	string bio = 5;
+}
+
+// ユーザー作成レスポンス
+message CreateUserResponse {
+	// 作成されたユーザー
+	User user = 1;
+}
+
+// ユーザー取得リクエスト
+message GetUserRequest {
+	// ユーザーID
+	string user_id = 1;
+}
+
+// ユーザー取得レスポンス
+message GetUserResponse {
+	// ユーザー情報
+	User user = 1;
+	// プロフィール情報
+	UserProfile profile = 2;
+	// プライバシー設定
+	UserPrivacySettings privacy_settings = 3;
+}
+
+// ユーザー更新リクエスト
+message UpdateUserRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// ユーザー情報
+	User user = 3;
+	// プロフィール情報
+	UserProfile profile = 4;
+	// プライバシー設定
+	UserPrivacySettings privacy_settings = 5;
+}
+
+// ユーザー更新レスポンス
+message UpdateUserResponse {
+	// 更新されたユーザー
+	User user = 1;
+	// 更新されたプロフィール
+	UserProfile profile = 2;
+	// 更新されたプライバシー設定
+	UserPrivacySettings privacy_settings = 3;
+}
+
+// ユーザー削除リクエスト
+message DeleteUserRequest {
+	// ユーザーID
+	string user_id = 1;
+}
+
+// ユーザー削除レスポンス
+message DeleteUserResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}
+
+// ユーザー一覧取得リクエスト
+message ListUsersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// フィルター条件
+	ListUsersFilter filter = 2;
+}
+
+// ユーザー一覧フィルター
+message ListUsersFilter {
+	// ステータスでフィルター
+	UserStatus status = 1;
+	// 認証済みユーザーのみ
+	bool verified_only = 2;
+}
+
+// ユーザー一覧取得レスポンス
+message ListUsersResponse {
+	// ユーザーリスト
+	repeated User users = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// ユーザー検索リクエスト
+message SearchUsersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// 検索クエリ
+	string query = 2;
+}
+
+// ユーザー検索レスポンス
+message SearchUsersResponse {
+	// 検索結果
+	repeated User users = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// フォローリクエスト
+message FollowUserRequest {
+	// フォロワーID（リクエスト送信者）
+	string follower_id = 1;
+	// フォロー対象ID
+	string following_id = 2;
+}
+
+// フォローレスポンス
+message FollowUserResponse {
+	// フォロー関係
+	Follow follow = 1;
+	// 承認待ちフラグ（非公開アカウントの場合）
+	bool pending_approval = 2;
+}
+
+// フォロー解除リクエスト
+message UnfollowUserRequest {
+	// フォロワーID（リクエスト送信者）
+	string follower_id = 1;
+	// フォロー解除対象ID
+	string following_id = 2;
+}
+
+// フォロー解除レスポンス
+message UnfollowUserResponse {
+	// 解除成功フラグ
+	bool success = 1;
+}
+
+// フォロワー一覧取得リクエスト
+message ListFollowersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// フォロワー一覧取得レスポンス
+message ListFollowersResponse {
+	// フォロワーリスト
+	repeated User followers = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// フォロー中一覧取得リクエスト
+message ListFollowingRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// フォロー中一覧取得レスポンス
+message ListFollowingResponse {
+	// フォロー中リスト
+	repeated User following = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// ブロックリクエスト
+message BlockUserRequest {
+	// ブロック実行者ID
+	string blocker_id = 1;
+	// ブロック対象ID
+	string blocked_id = 2;
+}
+
+// ブロックレスポンス
+message BlockUserResponse {
+	// ブロック関係
+	Block block = 1;
+}
+
+// ブロック解除リクエスト
+message UnblockUserRequest {
+	// ブロック実行者ID
+	string blocker_id = 1;
+	// ブロック解除対象ID
+	string blocked_id = 2;
+}
+
+// ブロック解除レスポンス
+message UnblockUserResponse {
+	// 解除成功フラグ
+	bool success = 1;
+}
+
+// ミュートリクエスト
+message MuteUserRequest {
+	// ミュート実行者ID
+	string muter_id = 1;
+	// ミュート対象ID
+	string muted_id = 2;
+	// ミュート期限（nullの場合は無期限）
+	google.protobuf.Timestamp expires_at = 3;
+}
+
+// ミュートレスポンス
+message MuteUserResponse {
+	// ミュート関係
+	Mute mute = 1;
+}
+
+// ミュート解除リクエスト
+message UnmuteUserRequest {
+	// ミュート実行者ID
+	string muter_id = 1;
+	// ミュート解除対象ID
+	string muted_id = 2;
+}
+
+// ミュート解除レスポンス
+message UnmuteUserResponse {
+	// 解除成功フラグ
+	bool success = 1;
+}
+
+// ブロック一覧取得リクエスト
+message ListBlockedUsersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// ブロック一覧取得レスポンス
+message ListBlockedUsersResponse {
+	// ブロックしているユーザーリスト
+	repeated User blocked_users = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// ミュート一覧取得リクエスト
+message ListMutedUsersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// ミュート一覧取得レスポンス
+message ListMutedUsersResponse {
+	// ミュートしているユーザーリスト
+	repeated User muted_users = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// バッチユーザー取得リクエスト
+message GetUsersByIDsRequest {
+	// 取得するユーザーIDリスト（最大100件）
+	repeated string user_ids = 1;
+	// プロフィール情報を含むか
+	bool include_profile = 2;
+	// プライバシー設定を含むか
+	bool include_privacy_settings = 3;
+}
+
+// バッチユーザー取得レスポンス
+message GetUsersByIDsResponse {
+	// ユーザー情報マップ（key: user_id）
+	map<string, UserWithDetails> users = 1;
+	// 見つからなかったユーザーIDリスト
+	repeated string not_found_ids = 2;
+}
+
+// ユーザー詳細情報
+message UserWithDetails {
+	// ユーザー基本情報
+	User user = 1;
+	// プロフィール情報（オプション）
+	UserProfile profile = 2;
+	// プライバシー設定（オプション）
+	UserPrivacySettings privacy_settings = 3;
+}
+
+// バッチフォロー状態確認リクエスト
+message BatchCheckFollowStatusRequest {
+	// 確認元ユーザーID
+	string from_user_id = 1;
+	// 確認対象ユーザーIDリスト（最大100件）
+	repeated string to_user_ids = 2;
+}
+
+// バッチフォロー状態確認レスポンス
+message BatchCheckFollowStatusResponse {
+	// フォロー状態マップ（key: user_id）
+	map<string, FollowStatus> follow_statuses = 1;
+}
+
+// フォロー状態
+message FollowStatus {
+	// フォローしているか
+	bool is_following = 1;
+	// フォローされているか
+	bool is_followed_by = 2;
+	// フォローリクエスト承認待ちか
+	bool is_pending_approval = 3;
+	// フォローリクエストを受信しているか
+	bool has_pending_request = 4;
+}
+
+// プロフィール取得リクエスト
+message GetUserProfileRequest {
+	// ユーザーID
+	string user_id = 1;
+	// リクエスト元ユーザーID（プライバシー制御用）
+	string viewer_id = 2;
+}
+
+// プロフィール取得レスポンス
+message GetUserProfileResponse {
+	// プロフィール情報
+	UserProfile profile = 1;
+	// 閲覧可能フラグ
+	bool is_viewable = 2;
+	// 制限理由（非公開、ブロック等）
+	string restriction_reason = 3;
+}
+
+// プロフィール更新リクエスト
+message UpdateUserProfileRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// プロフィール情報
+	UserProfile profile = 3;
+}
+
+// プロフィール更新レスポンス
+message UpdateUserProfileResponse {
+	// 更新されたプロフィール
+	UserProfile profile = 1;
+}
+
+// プライバシー設定取得リクエスト
+message GetUserPrivacySettingsRequest {
+	// ユーザーID
+	string user_id = 1;
+}
+
+// プライバシー設定取得レスポンス
+message GetUserPrivacySettingsResponse {
+	// プライバシー設定
+	UserPrivacySettings privacy_settings = 1;
+}
+
+// プライバシー設定更新リクエスト
+message UpdateUserPrivacySettingsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// プライバシー設定
+	UserPrivacySettings privacy_settings = 3;
+}
+
+// プライバシー設定更新レスポンス
+message UpdateUserPrivacySettingsResponse {
+	// 更新されたプライバシー設定
+	UserPrivacySettings privacy_settings = 1;
+}
+
+// フォローリクエスト承認リクエスト
+message ApproveFollowRequestRequest {
+	// 承認者ID（フォローされる側）
+	string approver_id = 1;
+	// リクエスト送信者ID（フォローする側）
+	string requester_id = 2;
+}
+
+// フォローリクエスト承認レスポンス
+message ApproveFollowRequestResponse {
+	// 承認されたフォロー関係
+	Follow follow = 1;
+}
+
+// フォローリクエスト拒否リクエスト
+message RejectFollowRequestRequest {
+	// 拒否者ID（フォローされる側）
+	string rejector_id = 1;
+	// リクエスト送信者ID（フォローする側）
+	string requester_id = 2;
+}
+
+// フォローリクエスト拒否レスポンス
+message RejectFollowRequestResponse {
+	// 拒否成功フラグ
+	bool success = 1;
+}
+
+// フォローリクエスト一覧取得リクエスト
+message ListFollowRequestsRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 受信リクエストか送信リクエストか
+	FollowRequestType request_type = 3;
+}
+
+// フォローリクエストタイプ
+enum FollowRequestType {
+	// 未指定
+	FOLLOW_REQUEST_TYPE_UNSPECIFIED = 0;
+	// 受信したリクエスト
+	FOLLOW_REQUEST_TYPE_RECEIVED = 1;
+	// 送信したリクエスト
+	FOLLOW_REQUEST_TYPE_SENT = 2;
+}
+
+// フォローリクエスト一覧取得レスポンス
+message ListFollowRequestsResponse {
+	// フォローリクエストリスト
+	repeated FollowRequest requests = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// フォローリクエスト
+message FollowRequest {
+	// リクエスト送信者
+	User requester = 1;
+	// リクエスト受信者
+	User requested = 2;
+	// リクエスト日時
+	google.protobuf.Timestamp created_at = 3;
+}
+
+// ユーザー関係性確認リクエスト
+message CheckUserRelationshipRequest {
+	// 確認元ユーザーID
+	string from_user_id = 1;
+	// 確認対象ユーザーID
+	string to_user_id = 2;
+}
+
+// ユーザー関係性確認レスポンス
+message CheckUserRelationshipResponse {
+	// フォロー関係
+	FollowStatus follow_status = 1;
+	// ブロックしているか
+	bool is_blocking = 2;
+	// ブロックされているか
+	bool is_blocked_by = 3;
+	// ミュートしているか
+	bool is_muting = 4;
+	// ミュートされているか
+	bool is_muted_by = 5;
+}
+
+// ユーザーリスト作成リクエスト
+message CreateUserListRequest {
+	// リスト名
+	string name = 1;
+	// リスト説明
+	string description = 2;
+	// 公開設定
+	bool is_public = 3;
+}
+
+// ユーザーリスト作成レスポンス
+message CreateUserListResponse {
+	// 作成されたリスト
+	UserList user_list = 1;
+}
+
+// ユーザーリスト取得リクエスト
+message GetUserListRequest {
+	// リストID
+	string list_id = 1;
+}
+
+// ユーザーリスト取得レスポンス
+message GetUserListResponse {
+	// ユーザーリスト
+	UserList user_list = 1;
+}
+
+// ユーザーリスト更新リクエスト
+message UpdateUserListRequest {
+	// リストID
+	string list_id = 1;
+	// 更新するフィールドのマスク
+	google.protobuf.FieldMask update_mask = 2;
+	// リスト名
+	string name = 3;
+	// リスト説明
+	string description = 4;
+	// 公開設定
+	bool is_public = 5;
+}
+
+// ユーザーリスト更新レスポンス
+message UpdateUserListResponse {
+	// 更新されたリスト
+	UserList user_list = 1;
+}
+
+// ユーザーリスト削除リクエスト
+message DeleteUserListRequest {
+	// リストID
+	string list_id = 1;
+}
+
+// ユーザーリスト削除レスポンス
+message DeleteUserListResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}
+
+// ユーザーリストにユーザー追加リクエスト
+message AddUsersToListRequest {
+	// リストID
+	string list_id = 1;
+	// 追加するユーザーIDリスト
+	repeated string user_ids = 2;
+}
+
+// ユーザーリストにユーザー追加レスポンス
+message AddUsersToListResponse {
+	// 追加成功したユーザーID
+	repeated string added_user_ids = 1;
+	// 追加失敗したユーザーID
+	repeated string failed_user_ids = 2;
+}
+
+// ユーザーリストからユーザー削除リクエスト
+message RemoveUsersFromListRequest {
+	// リストID
+	string list_id = 1;
+	// 削除するユーザーIDリスト
+	repeated string user_ids = 2;
+}
+
+// ユーザーリストからユーザー削除レスポンス
+message RemoveUsersFromListResponse {
+	// 削除成功したユーザーID
+	repeated string removed_user_ids = 1;
+	// 削除失敗したユーザーID
+	repeated string failed_user_ids = 2;
+}
+
+// ユーザーリスト一覧取得リクエスト
+message ListUserListsRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// オーナーユーザーID
+	string owner_id = 2;
+}
+
+// ユーザーリスト一覧取得レスポンス
+message ListUserListsResponse {
+	// ユーザーリスト
+	repeated UserList user_lists = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// ユーザーリストのメンバー取得リクエスト
+message GetUserListMembersRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// リストID
+	string list_id = 2;
+}
+
+// ユーザーリストのメンバー取得レスポンス
+message GetUserListMembersResponse {
+	// メンバーリスト
+	repeated User members = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// キーワードミュート作成リクエスト
+message CreateMuteKeywordRequest {
+	// ミュートするキーワード
+	string keyword = 1;
+	// 大文字小文字を区別するか
+	bool case_sensitive = 2;
+	// 完全一致のみか
+	bool whole_word = 3;
+	// 有効期限（nullの場合は無期限）
+	google.protobuf.Timestamp expires_at = 4;
+}
+
+// キーワードミュート作成レスポンス
+message CreateMuteKeywordResponse {
+	// 作成されたキーワードミュート
+	MuteKeyword mute_keyword = 1;
+}
+
+// キーワードミュート削除リクエスト
+message DeleteMuteKeywordRequest {
+	// キーワードID
+	string keyword_id = 1;
+}
+
+// キーワードミュート削除レスポンス
+message DeleteMuteKeywordResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}
+
+// キーワードミュート一覧取得リクエスト
+message ListMuteKeywordsRequest {
+	// ページネーション設定
+	avion.common.v1.PaginationRequest pagination = 1;
+	// ユーザーID
+	string user_id = 2;
+}
+
+// キーワードミュート一覧取得レスポンス
+message ListMuteKeywordsResponse {
+	// キーワードミュートリスト
+	repeated MuteKeyword mute_keywords = 1;
+	// 次のページトークン
+	string next_page_token = 2;
+	// 総件数
+	int64 total_count = 3;
+}
+
+// ユーザー統計情報取得リクエスト
+message GetUserStatsRequest {
+	// ユーザーID
+	string user_id = 1;
+}
+
+// ユーザー統計情報取得レスポンス
+message GetUserStatsResponse {
+	// ユーザー統計情報
+	UserStats user_stats = 1;
+}
+
+// ユーザー停止リクエスト
+message SuspendUserRequest {
+	// 停止対象ユーザーID
+	string user_id = 1;
+	// 停止理由
+	string reason = 2;
+	// 停止期限（nullの場合は無期限）
+	google.protobuf.Timestamp expires_at = 3;
+}
+
+// ユーザー停止レスポンス
+message SuspendUserResponse {
+	// 更新されたユーザー
+	User user = 1;
+}
+
+// ユーザー停止解除リクエスト
+message UnsuspendUserRequest {
+	// 停止解除対象ユーザーID
+	string user_id = 1;
+}
+
+// ユーザー停止解除レスポンス
+message UnsuspendUserResponse {
+	// 更新されたユーザー
+	User user = 1;
+}

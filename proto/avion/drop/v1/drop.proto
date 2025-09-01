@@ -1,0 +1,307 @@
+syntax = "proto3";
+
+package avion.drop.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Dropの可視性
+enum DropVisibility {
+	// 未指定
+	DROP_VISIBILITY_UNSPECIFIED = 0;
+	// 公開
+	DROP_VISIBILITY_PUBLIC = 1;
+	// フォロワーのみ
+	DROP_VISIBILITY_FOLLOWERS_ONLY = 2;
+	// メンションされたユーザーのみ
+	DROP_VISIBILITY_MENTIONED_ONLY = 3;
+	// 非公開（本人のみ）
+	DROP_VISIBILITY_PRIVATE = 4;
+}
+
+// リアクションタイプ
+enum ReactionType {
+	// 未指定
+	REACTION_TYPE_UNSPECIFIED = 0;
+	// いいね
+	REACTION_TYPE_LIKE = 1;
+	// リドロップ（リツイート相当）
+	REACTION_TYPE_REDROP = 2;
+	// ブックマーク
+	REACTION_TYPE_BOOKMARK = 3;
+}
+
+// メディアタイプ
+enum MediaType {
+	// 未指定
+	MEDIA_TYPE_UNSPECIFIED = 0;
+	// 画像
+	MEDIA_TYPE_IMAGE = 1;
+	// 動画
+	MEDIA_TYPE_VIDEO = 2;
+	// 音声
+	MEDIA_TYPE_AUDIO = 3;
+	// GIF画像
+	MEDIA_TYPE_GIF = 4;
+}
+
+// Dropステータス
+enum DropStatus {
+	// 未指定
+	DROP_STATUS_UNSPECIFIED = 0;
+	// アクティブ
+	DROP_STATUS_ACTIVE = 1;
+	// 削除済み
+	DROP_STATUS_DELETED = 2;
+	// 一時停止
+	DROP_STATUS_SUSPENDED = 3;
+	// アーカイブ済み
+	DROP_STATUS_ARCHIVED = 4;
+}
+
+// Drop（投稿）メッセージ
+message Drop {
+	// DropのID
+	string id = 1;
+	// 投稿者のユーザーID
+	string user_id = 2;
+	// 投稿内容
+	string content = 3;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 4;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 5;
+	// リプライ元のDropID（リプライの場合）
+	string reply_to_id = 6;
+	// 引用元のDropID（引用の場合）
+	string quote_drop_id = 7;
+	// 削除フラグ
+	bool is_deleted = 8;
+	// 可視性
+	DropVisibility visibility = 9;
+	// いいね数
+	int32 like_count = 10;
+	// リドロップ数
+	int32 redrop_count = 11;
+	// リプライ数
+	int32 reply_count = 12;
+	// ブックマーク数
+	int32 bookmark_count = 13;
+	// コンテンツ警告（オプション）
+	ContentWarning content_warning = 14;
+	// 編集済みフラグ
+	bool is_edited = 15;
+	// 最終編集日時
+	google.protobuf.Timestamp edited_at = 16;
+	// ステータス
+	DropStatus status = 17;
+}
+
+// Dropに添付されるメディア
+message DropMedia {
+	// 関連するDropのID
+	string drop_id = 1;
+	// メディアのURL
+	string media_url = 2;
+	// メディアタイプ
+	MediaType media_type = 3;
+	// サムネイルURL
+	string thumbnail_url = 4;
+	// 代替テキスト（アクセシビリティ用）
+	string alt_text = 5;
+}
+
+// Dropへのリアクション
+message DropReaction {
+	// 対象のDropID
+	string drop_id = 1;
+	// リアクションしたユーザーID
+	string user_id = 2;
+	// リアクションタイプ
+	ReactionType reaction_type = 3;
+	// リアクション日時
+	google.protobuf.Timestamp created_at = 4;
+}
+
+// Dropのハッシュタグ
+message DropHashtag {
+	// 関連するDropのID
+	string drop_id = 1;
+	// ハッシュタグ（#を含む）
+	string hashtag = 2;
+	// Drop内での位置（文字位置）
+	int32 position = 3;
+}
+
+// Dropのメンション
+message DropMention {
+	// 関連するDropのID
+	string drop_id = 1;
+	// メンションされたユーザーID
+	string user_id = 2;
+	// メンションされたユーザー名（@を含む）
+	string username = 3;
+	// Drop内での位置（文字位置）
+	int32 position = 4;
+}
+
+// 下書きステータス
+enum DraftStatus {
+	// 未指定
+	DRAFT_STATUS_UNSPECIFIED = 0;
+	// 下書き中
+	DRAFT_STATUS_DRAFT = 1;
+	// 自動保存済み
+	DRAFT_STATUS_AUTO_SAVED = 2;
+	// 投稿済み（下書きから投稿に変換済み）
+	DRAFT_STATUS_PUBLISHED = 3;
+}
+
+// Drop下書き
+message DropDraft {
+	// 下書きID
+	string id = 1;
+	// 作成者のユーザーID
+	string user_id = 2;
+	// 下書き内容
+	string content = 3;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 4;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 5;
+	// 下書きステータス
+	DraftStatus status = 6;
+	// 可視性（投稿時の設定）
+	DropVisibility visibility = 7;
+	// リプライ元のDropID（リプライの下書きの場合）
+	string reply_to_id = 8;
+	// 引用元のDropID（引用の下書きの場合）
+	string quote_drop_id = 9;
+	// メディア添付情報（下書きに保存されたメディア）
+	repeated DraftMedia media_attachments = 10;
+	// 自動保存フラグ
+	bool is_auto_saved = 11;
+	// 投稿予定日時（スケジュール投稿用）
+	google.protobuf.Timestamp scheduled_at = 12;
+	// 投稿済みDropID（投稿後に参照）
+	string published_drop_id = 13;
+}
+
+// 下書きに添付されるメディア
+message DraftMedia {
+	// メディアURL（一時保存先）
+	string media_url = 1;
+	// メディアタイプ
+	MediaType media_type = 2;
+	// サムネイルURL
+	string thumbnail_url = 3;
+	// 代替テキスト
+	string alt_text = 4;
+	// アップロード状態（processing, ready, failed）
+	string upload_status = 5;
+}
+
+// 投票オプション
+message PollOption {
+	// オプションID
+	string id = 1;
+	// オプションテキスト
+	string text = 2;
+	// 投票数
+	int32 vote_count = 3;
+	// 投票割合（パーセンテージ）
+	float vote_percentage = 4;
+}
+
+// 投票
+message Poll {
+	// 投票ID
+	string id = 1;
+	// 関連するDropID
+	string drop_id = 2;
+	// 質問文
+	string question = 3;
+	// 投票オプション一覧
+	repeated PollOption options = 4;
+	// 複数選択可能か
+	bool multiple_choice = 5;
+	// 投票期限
+	google.protobuf.Timestamp expires_at = 6;
+	// 総投票数
+	int32 total_votes = 7;
+	// 投票が終了しているか
+	bool is_closed = 8;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 9;
+}
+
+// ユーザーの投票
+message UserPollVote {
+	// 投票ID
+	string poll_id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 選択したオプションID一覧
+	repeated string option_ids = 3;
+	// 投票日時
+	google.protobuf.Timestamp voted_at = 4;
+}
+
+// コンテンツ警告タイプ
+enum ContentWarningType {
+	// 未指定
+	CONTENT_WARNING_TYPE_UNSPECIFIED = 0;
+	// ネタバレ
+	CONTENT_WARNING_TYPE_SPOILER = 1;
+	// センシティブコンテンツ
+	CONTENT_WARNING_TYPE_SENSITIVE = 2;
+	// 暴力的コンテンツ
+	CONTENT_WARNING_TYPE_VIOLENCE = 3;
+	// 成人向けコンテンツ
+	CONTENT_WARNING_TYPE_ADULT = 4;
+	// その他（カスタム警告）
+	CONTENT_WARNING_TYPE_CUSTOM = 5;
+}
+
+// コンテンツ警告
+message ContentWarning {
+	// 警告タイプ
+	ContentWarningType type = 1;
+	// 警告メッセージ（カスタム警告の場合）
+	string message = 2;
+	// 警告の重要度（1-5）
+	int32 severity = 3;
+}
+
+// 編集履歴
+message EditHistory {
+	// DropID
+	string drop_id = 1;
+	// 編集バージョン
+	int32 version = 2;
+	// 編集前の内容
+	string previous_content = 3;
+	// 編集後の内容
+	string new_content = 4;
+	// 編集日時
+	google.protobuf.Timestamp edited_at = 5;
+	// 編集理由（オプション）
+	string edit_reason = 6;
+}
+
+// Drop統計情報
+message DropStats {
+	// DropID
+	string drop_id = 1;
+	// 閲覧数
+	int64 view_count = 2;
+	// ユニーク閲覧者数
+	int64 unique_viewer_count = 3;
+	// エンゲージメント率
+	float engagement_rate = 4;
+	// リーチ数
+	int64 reach_count = 5;
+	// インプレッション数
+	int64 impression_count = 6;
+	// 最終更新日時
+	google.protobuf.Timestamp updated_at = 7;
+}

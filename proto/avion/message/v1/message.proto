@@ -1,0 +1,371 @@
+syntax = "proto3";
+
+package avion.message.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// メッセージステータス
+enum MessageStatus {
+  // 未指定
+  MESSAGE_STATUS_UNSPECIFIED = 0;
+  // 送信中
+  MESSAGE_STATUS_SENDING = 1;
+  // 送信済み
+  MESSAGE_STATUS_SENT = 2;
+  // 配信済み
+  MESSAGE_STATUS_DELIVERED = 3;
+  // 既読
+  MESSAGE_STATUS_READ = 4;
+  // 送信失敗
+  MESSAGE_STATUS_FAILED = 5;
+}
+
+// 会話タイプ
+enum ConversationType {
+  // 未指定
+  CONVERSATION_TYPE_UNSPECIFIED = 0;
+  // ダイレクトメッセージ（1対1）
+  CONVERSATION_TYPE_DIRECT = 1;
+  // グループメッセージ
+  CONVERSATION_TYPE_GROUP = 2;
+  // システムメッセージ
+  CONVERSATION_TYPE_SYSTEM = 3;
+}
+
+// 添付ファイルタイプ
+enum AttachmentType {
+  // 未指定
+  ATTACHMENT_TYPE_UNSPECIFIED = 0;
+  // 画像
+  ATTACHMENT_TYPE_IMAGE = 1;
+  // 動画
+  ATTACHMENT_TYPE_VIDEO = 2;
+  // 音声
+  ATTACHMENT_TYPE_AUDIO = 3;
+  // ファイル
+  ATTACHMENT_TYPE_FILE = 4;
+  // リンクプレビュー
+  ATTACHMENT_TYPE_LINK_PREVIEW = 5;
+}
+
+// 暗号化タイプ
+enum EncryptionType {
+  // 未指定
+  ENCRYPTION_TYPE_UNSPECIFIED = 0;
+  // 暗号化なし
+  ENCRYPTION_TYPE_NONE = 1;
+  // トランスポート層暗号化のみ
+  ENCRYPTION_TYPE_TRANSPORT = 2;
+  // End-to-End暗号化
+  ENCRYPTION_TYPE_E2E = 3;
+}
+
+// リアクションタイプ
+enum ReactionType {
+  // 未指定
+  REACTION_TYPE_UNSPECIFIED = 0;
+  // いいね
+  REACTION_TYPE_LIKE = 1;
+  // ハート
+  REACTION_TYPE_HEART = 2;
+  // 笑顔
+  REACTION_TYPE_LAUGH = 3;
+  // 驚き
+  REACTION_TYPE_SURPRISE = 4;
+  // 悲しい
+  REACTION_TYPE_SAD = 5;
+  // 怒り
+  REACTION_TYPE_ANGRY = 6;
+  // カスタム絵文字
+  REACTION_TYPE_CUSTOM = 99;
+}
+
+// メッセージ
+message Message {
+  // メッセージID
+  string id = 1;
+  // 会話ID
+  string conversation_id = 2;
+  // 送信者ID
+  string sender_id = 3;
+  // メッセージ本文
+  string content = 4;
+  // メッセージステータス
+  MessageStatus status = 5;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 6;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 7;
+  // 削除日時
+  google.protobuf.Timestamp deleted_at = 8;
+  // 編集済みフラグ
+  bool is_edited = 9;
+  // 編集日時
+  google.protobuf.Timestamp edited_at = 10;
+  // 返信先メッセージID
+  string reply_to_message_id = 11;
+  // 転送元メッセージID
+  string forwarded_from_message_id = 12;
+  // 添付ファイル
+  repeated MessageAttachment attachments = 13;
+  // メンション対象ユーザーID
+  repeated string mentioned_user_ids = 14;
+  // 暗号化タイプ
+  EncryptionType encryption_type = 15;
+  // 暗号化メタデータ（E2E暗号化時のキー情報等）
+  EncryptionMetadata encryption_metadata = 16;
+  // リアクション
+  repeated MessageReaction reactions = 17;
+  // システムメッセージフラグ
+  bool is_system_message = 18;
+  // システムメッセージタイプ（参加、退出、タイトル変更等）
+  string system_message_type = 19;
+  // メタデータ（拡張用）
+  map<string, string> metadata = 20;
+}
+
+// 会話
+message Conversation {
+  // 会話ID
+  string id = 1;
+  // 会話タイプ
+  ConversationType type = 2;
+  // 会話タイトル（グループの場合）
+  string title = 3;
+  // 会話の説明
+  string description = 4;
+  // アイコンURL
+  string icon_url = 5;
+  // 参加者IDリスト
+  repeated string participant_ids = 6;
+  // 参加者情報
+  repeated ConversationParticipant participants = 7;
+  // 作成者ID
+  string creator_id = 8;
+  // 最新メッセージ
+  Message last_message = 9;
+  // 最新メッセージ日時
+  google.protobuf.Timestamp last_message_at = 10;
+  // 未読メッセージ数（リクエストユーザー視点）
+  int32 unread_count = 11;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 12;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 13;
+  // アーカイブフラグ（リクエストユーザー視点）
+  bool is_archived = 14;
+  // ミュートフラグ（リクエストユーザー視点）
+  bool is_muted = 15;
+  // ピン留めフラグ（リクエストユーザー視点）
+  bool is_pinned = 16;
+  // 暗号化設定
+  EncryptionType encryption_type = 17;
+  // 会話設定
+  ConversationSettings settings = 18;
+  // メタデータ
+  map<string, string> metadata = 19;
+}
+
+// 会話参加者
+message ConversationParticipant {
+  // ユーザーID
+  string user_id = 1;
+  // ユーザー名
+  string username = 2;
+  // 表示名
+  string display_name = 3;
+  // アバターURL
+  string avatar_url = 4;
+  // ロール（admin, member等）
+  string role = 5;
+  // 参加日時
+  google.protobuf.Timestamp joined_at = 6;
+  // 最終既読メッセージID
+  string last_read_message_id = 7;
+  // 最終既読日時
+  google.protobuf.Timestamp last_read_at = 8;
+  // オンライン状態
+  bool is_online = 9;
+  // 最終アクティブ日時
+  google.protobuf.Timestamp last_active_at = 10;
+  // タイピング中フラグ
+  bool is_typing = 11;
+}
+
+// 会話設定
+message ConversationSettings {
+  // メンバー追加可能フラグ
+  bool allow_member_add = 1;
+  // メンバー削除可能フラグ
+  bool allow_member_remove = 2;
+  // メッセージ編集可能フラグ
+  bool allow_message_edit = 3;
+  // メッセージ削除可能フラグ
+  bool allow_message_delete = 4;
+  // リアクション可能フラグ
+  bool allow_reactions = 5;
+  // ファイル共有可能フラグ
+  bool allow_file_sharing = 6;
+  // 最大参加者数（グループの場合）
+  int32 max_participants = 7;
+  // メッセージ保持期間（日数、0は無期限）
+  int32 message_retention_days = 8;
+  // 自動削除タイマー（秒、0は無効）
+  int32 auto_delete_timer_seconds = 9;
+}
+
+// メッセージ添付ファイル
+message MessageAttachment {
+  // 添付ファイルID
+  string id = 1;
+  // メッセージID
+  string message_id = 2;
+  // ファイルタイプ
+  AttachmentType type = 3;
+  // ファイル名
+  string filename = 4;
+  // MIMEタイプ
+  string mime_type = 5;
+  // ファイルサイズ（バイト）
+  int64 size = 6;
+  // ファイルURL
+  string url = 7;
+  // サムネイルURL
+  string thumbnail_url = 8;
+  // 幅（画像・動画の場合）
+  int32 width = 9;
+  // 高さ（画像・動画の場合）
+  int32 height = 10;
+  // 再生時間（動画・音声の場合、秒）
+  int32 duration = 11;
+  // アップロード日時
+  google.protobuf.Timestamp uploaded_at = 12;
+  // メタデータ
+  map<string, string> metadata = 13;
+}
+
+// 既読レシート
+message ReadReceipt {
+  // メッセージID
+  string message_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // 既読日時
+  google.protobuf.Timestamp read_at = 3;
+  // デバイスID
+  string device_id = 4;
+}
+
+// タイピングインジケーター
+message TypingIndicator {
+  // 会話ID
+  string conversation_id = 1;
+  // ユーザーID
+  string user_id = 2;
+  // タイピング開始日時
+  google.protobuf.Timestamp started_at = 3;
+  // タイピング中フラグ
+  bool is_typing = 4;
+}
+
+// メッセージリアクション
+message MessageReaction {
+  // リアクションID
+  string id = 1;
+  // メッセージID
+  string message_id = 2;
+  // ユーザーID
+  string user_id = 3;
+  // リアクションタイプ
+  ReactionType type = 4;
+  // カスタム絵文字（REACTION_TYPE_CUSTOMの場合）
+  string custom_emoji = 5;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// 暗号化メタデータ
+message EncryptionMetadata {
+  // 暗号化アルゴリズム
+  string algorithm = 1;
+  // 公開鍵ID
+  string public_key_id = 2;
+  // セッションID（E2E暗号化セッション）
+  string session_id = 3;
+  // 暗号化されたセッションキー（受信者ごと）
+  map<string, string> encrypted_session_keys = 4;
+  // 初期化ベクトル
+  string initialization_vector = 5;
+  // メッセージ認証コード
+  string message_authentication_code = 6;
+}
+
+// メッセージ検索フィルター
+message MessageSearchFilter {
+  // 検索クエリ
+  string query = 1;
+  // 会話ID（特定の会話内検索）
+  string conversation_id = 2;
+  // 送信者ID
+  string sender_id = 3;
+  // 期間（開始）
+  google.protobuf.Timestamp start_time = 4;
+  // 期間（終了）
+  google.protobuf.Timestamp end_time = 5;
+  // 添付ファイルありフラグ
+  bool has_attachments = 6;
+  // メディアタイプフィルター
+  repeated AttachmentType attachment_types = 7;
+  // メンション対象ユーザーID
+  repeated string mentioned_user_ids = 8;
+}
+
+// メッセージ統計
+message MessageStatistics {
+  // 会話ID
+  string conversation_id = 1;
+  // 総メッセージ数
+  int64 total_messages = 2;
+  // 総添付ファイル数
+  int64 total_attachments = 3;
+  // 総ファイルサイズ（バイト）
+  int64 total_file_size = 4;
+  // アクティブ参加者数
+  int32 active_participants = 5;
+  // 最も活発な時間帯
+  int32 peak_hour = 6;
+  // 平均応答時間（秒）
+  int64 average_response_time = 7;
+}
+
+// プッシュ通知設定
+message MessageNotificationSettings {
+  // ユーザーID
+  string user_id = 1;
+  // すべてのメッセージ通知
+  bool notify_all_messages = 2;
+  // メンションのみ通知
+  bool notify_mentions_only = 3;
+  // ダイレクトメッセージ通知
+  bool notify_direct_messages = 4;
+  // グループメッセージ通知
+  bool notify_group_messages = 5;
+  // ミュート中の会話ID
+  repeated string muted_conversation_ids = 6;
+  // 通知スケジュール（勤務時間中のみ等）
+  NotificationSchedule schedule = 7;
+}
+
+// 通知スケジュール
+message NotificationSchedule {
+  // 有効フラグ
+  bool enabled = 1;
+  // 開始時刻（HH:MM形式）
+  string start_time = 2;
+  // 終了時刻（HH:MM形式）
+  string end_time = 3;
+  // 有効な曜日（0=日曜、6=土曜）
+  repeated int32 days_of_week = 4;
+  // タイムゾーン
+  string timezone = 5;
+}

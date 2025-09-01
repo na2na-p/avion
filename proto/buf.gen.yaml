@@ -1,0 +1,35 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/na2na-p/avion/proto
+plugins:
+  # Go code generation
+  - remote: buf.build/protocolbuffers/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+  
+  # Go gRPC generation
+  - remote: buf.build/grpc/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+  
+  # Connect-Go generation
+  - remote: buf.build/connectrpc/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+  
+  # TypeScript generation for avion-web
+  - remote: buf.build/connectrpc/es
+    out: ../services/avion-web/src/generated
+    opt:
+      - target=ts
+  
+  - remote: buf.build/bufbuild/es
+    out: ../services/avion-web/src/generated
+    opt:
+      - target=ts

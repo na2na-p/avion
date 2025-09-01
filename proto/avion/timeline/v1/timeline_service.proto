@@ -1,0 +1,406 @@
+syntax = "proto3";
+
+package avion.timeline.v1;
+
+import "avion/common/v1/pagination.proto";
+import "avion/timeline/v1/timeline.proto";
+import "google/protobuf/timestamp.proto";
+
+// タイムラインサービス
+service TimelineService {
+	// ホームタイムラインを取得
+	rpc GetHomeTimeline(GetHomeTimelineRequest) returns (GetHomeTimelineResponse);
+	
+	// ユーザータイムラインを取得
+	rpc GetUserTimeline(GetUserTimelineRequest) returns (GetUserTimelineResponse);
+	
+	// パブリックタイムラインを取得
+	rpc GetPublicTimeline(GetPublicTimelineRequest) returns (GetPublicTimelineResponse);
+	
+	// リストタイムラインを取得
+	rpc GetListTimeline(GetListTimelineRequest) returns (GetListTimelineResponse);
+	
+	// ハッシュタグタイムラインを取得
+	rpc GetHashtagTimeline(GetHashtagTimelineRequest) returns (GetHashtagTimelineResponse);
+	
+	// タイムラインに追加
+	rpc AddToTimeline(AddToTimelineRequest) returns (AddToTimelineResponse);
+	
+	// タイムラインから削除
+	rpc RemoveFromTimeline(RemoveFromTimelineRequest) returns (RemoveFromTimelineResponse);
+	
+	// 既読マーク
+	rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+	
+	// タイムライン統計情報を取得
+	rpc GetTimelineStatistics(GetTimelineStatisticsRequest) returns (GetTimelineStatisticsResponse);
+	
+	// タイムライン設定を取得
+	rpc GetTimelineSettings(GetTimelineSettingsRequest) returns (GetTimelineSettingsResponse);
+	
+	// タイムライン設定を更新
+	rpc UpdateTimelineSettings(UpdateTimelineSettingsRequest) returns (UpdateTimelineSettingsResponse);
+	
+	// バッチでタイムラインに追加（内部用）
+	rpc BatchAddToTimeline(BatchAddToTimelineRequest) returns (BatchAddToTimelineResponse);
+	
+	// タイムラインをクリア
+	rpc ClearTimeline(ClearTimelineRequest) returns (ClearTimelineResponse);
+	
+	// タイムラインを再構築（内部用）
+	rpc RebuildTimeline(RebuildTimelineRequest) returns (RebuildTimelineResponse);
+	
+	// リアルタイムタイムライン更新のストリーミング
+	rpc StreamTimelineUpdates(StreamTimelineUpdatesRequest) returns (stream StreamTimelineUpdatesResponse);
+	
+	// 複数タイムラインの同時ストリーミング
+	rpc StreamMultipleTimelines(StreamMultipleTimelinesRequest) returns (stream StreamMultipleTimelinesResponse);
+}
+
+// ホームタイムライン取得リクエスト
+message GetHomeTimelineRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// フィルター
+	TimelineFilter filter = 3;
+}
+
+// ホームタイムライン取得レスポンス
+message GetHomeTimelineResponse {
+	// タイムラインエントリー
+	repeated TimelineEntry entries = 1;
+	// ページネーション
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ユーザータイムライン取得リクエスト
+message GetUserTimelineRequest {
+	// 対象ユーザーID
+	string user_id = 1;
+	// 閲覧者のユーザーID（権限チェック用）
+	string viewer_user_id = 2;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 3;
+	// フィルター
+	TimelineFilter filter = 4;
+	// リプライを含める
+	bool include_replies = 5;
+	// リドロップを含める
+	bool include_redrops = 6;
+}
+
+// ユーザータイムライン取得レスポンス
+message GetUserTimelineResponse {
+	// タイムラインエントリー
+	repeated TimelineEntry entries = 1;
+	// ページネーション
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// パブリックタイムライン取得リクエスト
+message GetPublicTimelineRequest {
+	// 閲覧者のユーザーID（オプション）
+	string viewer_user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+	// フィルター
+	TimelineFilter filter = 3;
+}
+
+// パブリックタイムライン取得レスポンス
+message GetPublicTimelineResponse {
+	// タイムラインエントリー
+	repeated TimelineEntry entries = 1;
+	// ページネーション
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// リストタイムライン取得リクエスト
+message GetListTimelineRequest {
+	// リストID
+	string list_id = 1;
+	// 閲覧者のユーザーID
+	string viewer_user_id = 2;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 3;
+	// フィルター
+	TimelineFilter filter = 4;
+}
+
+// リストタイムライン取得レスポンス
+message GetListTimelineResponse {
+	// タイムラインエントリー
+	repeated TimelineEntry entries = 1;
+	// ページネーション
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ハッシュタグタイムライン取得リクエスト
+message GetHashtagTimelineRequest {
+	// ハッシュタグ（#を含む）
+	string hashtag = 1;
+	// 閲覧者のユーザーID（オプション）
+	string viewer_user_id = 2;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 3;
+	// フィルター
+	TimelineFilter filter = 4;
+}
+
+// ハッシュタグタイムライン取得レスポンス
+message GetHashtagTimelineResponse {
+	// タイムラインエントリー
+	repeated TimelineEntry entries = 1;
+	// ページネーション
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// タイムライン追加リクエスト
+message AddToTimelineRequest {
+	// DropのID
+	string drop_id = 1;
+	// 投稿者のユーザーID
+	string user_id = 2;
+	// 対象タイムラインタイプ
+	TimelineType timeline_type = 3;
+	// タイムライン所有者のユーザーID（ホームタイムラインの場合）
+	string owner_user_id = 4;
+	// エントリータイプ
+	TimelineEntryType entry_type = 5;
+	// リドロップしたユーザーID（リドロップの場合）
+	string redropped_by_user_id = 6;
+	// スコア（オプション、指定しない場合は現在時刻から計算）
+	double score = 7;
+	// ファンアウト戦略
+	FanoutStrategy fanout_strategy = 8;
+}
+
+// タイムライン追加レスポンス
+message AddToTimelineResponse {
+	// 作成されたタイムラインエントリー
+	TimelineEntry entry = 1;
+}
+
+// タイムライン削除リクエスト
+message RemoveFromTimelineRequest {
+	// DropのID
+	string drop_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// タイムライン所有者のユーザーID（ホームタイムラインの場合）
+	string owner_user_id = 3;
+}
+
+// タイムライン削除レスポンス
+message RemoveFromTimelineResponse {
+	// 処理の成功/失敗
+	bool success = 1;
+	// 処理結果の詳細メッセージ（オプション）
+	string message = 2;
+}
+
+// 既読マークリクエスト
+message MarkAsReadRequest {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// 既読にするDropのID（複数可）
+	repeated string drop_ids = 3;
+	// 指定日時以前のすべてを既読にする（drop_idsが空の場合）
+	google.protobuf.Timestamp mark_until = 4;
+}
+
+// 既読マークレスポンス
+message MarkAsReadResponse {
+	// 処理の成功/失敗
+	bool success = 1;
+	// 処理結果の詳細メッセージ（オプション）
+	string message = 2;
+}
+
+// タイムライン統計情報取得リクエスト
+message GetTimelineStatisticsRequest {
+	// ユーザーID（ホーム/ユーザータイムラインの場合）
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// リストID（リストタイムラインの場合）
+	string list_id = 3;
+	// ハッシュタグ（ハッシュタグタイムラインの場合）
+	string hashtag = 4;
+}
+
+// タイムライン統計情報取得レスポンス
+message GetTimelineStatisticsResponse {
+	// 統計情報
+	TimelineStatistics statistics = 1;
+}
+
+// タイムライン設定取得リクエスト
+message GetTimelineSettingsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+}
+
+// タイムライン設定取得レスポンス
+message GetTimelineSettingsResponse {
+	// タイムライン設定
+	TimelineSettings settings = 1;
+}
+
+// タイムライン設定更新リクエスト
+message UpdateTimelineSettingsRequest {
+	// 更新する設定
+	TimelineSettings settings = 1;
+}
+
+// タイムライン設定更新レスポンス
+message UpdateTimelineSettingsResponse {
+	// 更新後の設定
+	TimelineSettings settings = 1;
+}
+
+// バッチタイムライン追加リクエスト
+message BatchAddToTimelineRequest {
+	// 追加するエントリー
+	repeated AddToTimelineRequest entries = 1;
+}
+
+// バッチタイムライン追加レスポンス
+message BatchAddToTimelineResponse {
+	// 作成されたエントリー
+	repeated TimelineEntry entries = 1;
+	// 失敗したエントリーのインデックス
+	repeated int32 failed_indices = 2;
+}
+
+// タイムラインクリアリクエスト
+message ClearTimelineRequest {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// 指定日時以前のエントリーのみ削除（オプション）
+	google.protobuf.Timestamp before = 3;
+}
+
+// タイムラインクリアレスポンス
+message ClearTimelineResponse {
+	// 処理の成功/失敗
+	bool success = 1;
+	// 処理結果の詳細メッセージ（オプション）
+	string message = 2;
+}
+
+// タイムライン再構築リクエスト
+message RebuildTimelineRequest {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// ファンアウト戦略
+	FanoutStrategy fanout_strategy = 3;
+	// 再構築する期間の開始日時
+	google.protobuf.Timestamp since = 4;
+	// 再構築する期間の終了日時
+	google.protobuf.Timestamp until = 5;
+}
+
+// タイムライン再構築レスポンス
+message RebuildTimelineResponse {
+	// 再構築されたエントリー数
+	int32 rebuilt_entries = 1;
+	// 処理時間（ミリ秒）
+	int64 processing_time_ms = 2;
+}
+
+// タイムライン更新イベントタイプ
+enum TimelineUpdateEventType {
+	// 未指定
+	TIMELINE_UPDATE_EVENT_TYPE_UNSPECIFIED = 0;
+	// 新規エントリー追加
+	TIMELINE_UPDATE_EVENT_TYPE_ENTRY_ADDED = 1;
+	// エントリー削除
+	TIMELINE_UPDATE_EVENT_TYPE_ENTRY_REMOVED = 2;
+	// エントリー更新（リアクション追加等）
+	TIMELINE_UPDATE_EVENT_TYPE_ENTRY_UPDATED = 3;
+	// タイムライン全体のリフレッシュ
+	TIMELINE_UPDATE_EVENT_TYPE_TIMELINE_REFRESHED = 4;
+}
+
+// タイムライン更新ストリーミングリクエスト
+message StreamTimelineUpdatesRequest {
+	// ユーザーID
+	string user_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// リストID（リストタイムラインの場合）
+	string list_id = 3;
+	// ハッシュタグ（ハッシュタグタイムラインの場合）
+	string hashtag = 4;
+	// フィルター（オプション）
+	TimelineFilter filter = 5;
+	// 最初の取得件数（ストリーミング開始時に既存エントリーを送信）
+	int32 initial_fetch_count = 6;
+}
+
+// タイムライン更新ストリーミングレスポンス
+message StreamTimelineUpdatesResponse {
+	// イベントタイプ
+	TimelineUpdateEventType event_type = 1;
+	// タイムラインエントリー（追加/更新の場合）
+	TimelineEntry entry = 2;
+	// 削除されたDropのID（削除の場合）
+	string removed_drop_id = 3;
+	// イベント発生時刻
+	google.protobuf.Timestamp event_timestamp = 4;
+	// シーケンス番号（順序保証用）
+	int64 sequence_number = 5;
+}
+
+// 複数タイムラインストリーミングリクエスト
+message StreamMultipleTimelinesRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 購読するタイムライン
+	repeated TimelineSubscription subscriptions = 2;
+	// グローバルフィルター（すべてのタイムラインに適用）
+	TimelineFilter global_filter = 3;
+}
+
+// タイムライン購読設定
+message TimelineSubscription {
+	// タイムラインタイプ
+	TimelineType timeline_type = 1;
+	// リストID（リストタイムラインの場合）
+	string list_id = 2;
+	// ハッシュタグ（ハッシュタグタイムラインの場合）
+	string hashtag = 3;
+	// タイムライン固有のフィルター（オプション）
+	TimelineFilter filter = 4;
+	// 購読ID（レスポンスでの識別用）
+	string subscription_id = 5;
+}
+
+// 複数タイムラインストリーミングレスポンス
+message StreamMultipleTimelinesResponse {
+	// 購読ID（どのタイムラインのイベントか識別）
+	string subscription_id = 1;
+	// タイムラインタイプ
+	TimelineType timeline_type = 2;
+	// イベントタイプ
+	TimelineUpdateEventType event_type = 3;
+	// タイムラインエントリー（追加/更新の場合）
+	TimelineEntry entry = 4;
+	// 削除されたDropのID（削除の場合）
+	string removed_drop_id = 5;
+	// イベント発生時刻
+	google.protobuf.Timestamp event_timestamp = 6;
+	// シーケンス番号（順序保証用）
+	int64 sequence_number = 7;
+}

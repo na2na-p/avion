@@ -1,0 +1,512 @@
+syntax = "proto3";
+
+package avion.search.v1;
+
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+import "avion/user/v1/user.proto";
+import "avion/drop/v1/drop.proto";
+
+// 検索タイプ
+enum SearchType {
+	// 未指定
+	SEARCH_TYPE_UNSPECIFIED = 0;
+	// 全体検索
+	SEARCH_TYPE_ALL = 1;
+	// ユーザー検索
+	SEARCH_TYPE_USER = 2;
+	// Drop検索
+	SEARCH_TYPE_DROP = 3;
+	// ハッシュタグ検索
+	SEARCH_TYPE_HASHTAG = 4;
+	// メディア検索
+	SEARCH_TYPE_MEDIA = 5;
+}
+
+// ソート順
+enum SortOrder {
+	// 未指定
+	SORT_ORDER_UNSPECIFIED = 0;
+	// 関連度順（デフォルト）
+	SORT_ORDER_RELEVANCE = 1;
+	// 新しい順
+	SORT_ORDER_RECENT = 2;
+	// 古い順
+	SORT_ORDER_OLDEST = 3;
+	// 人気順（エンゲージメント）
+	SORT_ORDER_POPULAR = 4;
+	// ユーザー名順（A-Z）
+	SORT_ORDER_USERNAME_ASC = 5;
+	// ユーザー名順（Z-A）
+	SORT_ORDER_USERNAME_DESC = 6;
+}
+
+// 検索フィルター
+message SearchFilter {
+	// 検索対象のユーザーID（特定ユーザーの投稿のみ）
+	string user_id = 1;
+	// 開始日時
+	google.protobuf.Timestamp start_time = 2;
+	// 終了日時
+	google.protobuf.Timestamp end_time = 3;
+	// メディアタイプフィルター
+	repeated avion.drop.v1.MediaType media_types = 4;
+	// メディアを含む投稿のみ
+	bool has_media = 5;
+	// リプライを含む
+	bool include_replies = 6;
+	// リドロップを含む
+	bool include_redrops = 7;
+	// 認証済みユーザーのみ
+	bool verified_only = 8;
+	// 言語フィルター（ISO 639-1コード）
+	repeated string languages = 9;
+	// 最小いいね数
+	int32 min_likes = 10;
+	// 最小リドロップ数
+	int32 min_redrops = 11;
+	// 最小リプライ数
+	int32 min_replies = 12;
+}
+
+// 検索リクエスト
+message SearchRequest {
+	// 検索クエリ
+	string query = 1;
+	// 検索タイプ
+	SearchType search_type = 2;
+	// 検索フィルター
+	SearchFilter filter = 3;
+	// ソート順
+	SortOrder sort_order = 4;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 5;
+	// ハイライト表示を有効にする
+	bool enable_highlighting = 6;
+	// ファセット検索を有効にする
+	bool enable_facets = 7;
+	// 検索セッションID（検索履歴追跡用）
+	string session_id = 8;
+}
+
+// 検索レスポンス
+message SearchResponse {
+	// 検索結果
+	repeated SearchResult results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 検索にかかった時間（ミリ秒）
+	int64 search_time_ms = 3;
+	// ファセット情報
+	SearchFacets facets = 4;
+	// 検索クエリのサジェスト
+	repeated string suggestions = 5;
+	// 検索セッションID
+	string session_id = 6;
+}
+
+// 検索結果
+message SearchResult {
+	// 結果タイプによる分岐
+	oneof result {
+		// ユーザー検索結果
+		UserSearchResult user = 1;
+		// Drop検索結果
+		DropSearchResult drop = 2;
+		// ハッシュタグ検索結果
+		HashtagSearchResult hashtag = 3;
+	}
+	// 検索スコア（関連度）
+	float score = 4;
+	// ハイライト情報
+	map<string, string> highlights = 5;
+}
+
+// ユーザー検索結果
+message UserSearchResult {
+	// ユーザー情報
+	avion.user.v1.User user = 1;
+	// ユーザープロフィール
+	avion.user.v1.UserProfile profile = 2;
+	// フォロー状態（リクエストユーザーとの関係）
+	bool is_following = 3;
+	// フォロワー状態
+	bool is_followed = 4;
+	// ミュート状態
+	bool is_muted = 5;
+	// ブロック状態
+	bool is_blocked = 6;
+}
+
+// Drop検索結果
+message DropSearchResult {
+	// Drop情報
+	avion.drop.v1.Drop drop = 1;
+	// 投稿者情報
+	avion.user.v1.User author = 2;
+	// メディア情報
+	repeated avion.drop.v1.DropMedia media = 3;
+	// ハッシュタグ
+	repeated string hashtags = 4;
+	// メンション
+	repeated avion.drop.v1.DropMention mentions = 5;
+	// 現在のユーザーのリアクション状態
+	UserReactionState user_reaction = 6;
+}
+
+// ハッシュタグ検索結果
+message HashtagSearchResult {
+	// ハッシュタグ名（#を含む）
+	string hashtag = 1;
+	// 使用回数
+	int64 usage_count = 2;
+	// トレンドスコア
+	float trend_score = 3;
+	// 最初の使用日時
+	google.protobuf.Timestamp first_used_at = 4;
+	// 最後の使用日時
+	google.protobuf.Timestamp last_used_at = 5;
+	// 関連ハッシュタグ
+	repeated string related_hashtags = 6;
+	// 24時間の使用回数
+	int64 daily_usage_count = 7;
+	// 7日間の使用回数
+	int64 weekly_usage_count = 8;
+}
+
+// ユーザーのリアクション状態
+message UserReactionState {
+	// いいね済み
+	bool liked = 1;
+	// リドロップ済み
+	bool redropped = 2;
+	// ブックマーク済み
+	bool bookmarked = 3;
+	// リプライ済み
+	bool replied = 4;
+}
+
+// ファセット情報
+message SearchFacets {
+	// ユーザー関連ファセット
+	repeated FacetValue user_facets = 1;
+	// メディアタイプファセット
+	repeated FacetValue media_type_facets = 2;
+	// 言語ファセット
+	repeated FacetValue language_facets = 3;
+	// 日付範囲ファセット
+	repeated DateRangeFacet date_range_facets = 4;
+	// ハッシュタグファセット
+	repeated FacetValue hashtag_facets = 5;
+}
+
+// ファセット値
+message FacetValue {
+	// ファセット値
+	string value = 1;
+	// カウント
+	int64 count = 2;
+	// 表示ラベル
+	string label = 3;
+}
+
+// 日付範囲ファセット
+message DateRangeFacet {
+	// 範囲ラベル（例: "過去24時間", "過去1週間"）
+	string label = 1;
+	// 開始日時
+	google.protobuf.Timestamp start_time = 2;
+	// 終了日時
+	google.protobuf.Timestamp end_time = 3;
+	// カウント
+	int64 count = 4;
+}
+
+// オートコンプリートリクエスト
+message AutocompleteRequest {
+	// 入力中のクエリ
+	string query = 1;
+	// 検索タイプ
+	SearchType search_type = 2;
+	// 最大候補数
+	int32 max_suggestions = 3;
+	// ユーザーの言語設定
+	string language = 4;
+}
+
+// オートコンプリートレスポンス
+message AutocompleteResponse {
+	// サジェスト候補
+	repeated AutocompleteSuggestion suggestions = 1;
+}
+
+// オートコンプリート候補
+message AutocompleteSuggestion {
+	// サジェストテキスト
+	string text = 1;
+	// サジェストタイプ
+	SearchType type = 2;
+	// 人気度スコア
+	float popularity_score = 3;
+	// アイコンURL（ユーザーの場合）
+	string icon_url = 4;
+	// 説明文
+	string description = 5;
+}
+
+// トレンド検索リクエスト
+message GetTrendingRequest {
+	// 地域コード（ISO 3166-1 alpha-2）
+	string region_code = 1;
+	// 言語コード（ISO 639-1）
+	string language_code = 2;
+	// カテゴリー
+	string category = 3;
+	// 最大件数
+	int32 max_results = 4;
+	// 時間範囲
+	TrendTimeRange time_range = 5;
+}
+
+// トレンド時間範囲
+enum TrendTimeRange {
+	// 未指定
+	TREND_TIME_RANGE_UNSPECIFIED = 0;
+	// 過去1時間
+	TREND_TIME_RANGE_HOUR = 1;
+	// 過去24時間
+	TREND_TIME_RANGE_DAY = 2;
+	// 過去1週間
+	TREND_TIME_RANGE_WEEK = 3;
+	// 過去1ヶ月
+	TREND_TIME_RANGE_MONTH = 4;
+}
+
+// トレンド検索レスポンス
+message GetTrendingResponse {
+	// トレンドアイテム
+	repeated TrendingItem items = 1;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 2;
+	// 次回更新予定日時
+	google.protobuf.Timestamp next_update_at = 3;
+}
+
+// トレンドアイテム
+message TrendingItem {
+	// トレンドタイプによる分岐
+	oneof item {
+		// ハッシュタグトレンド
+		TrendingHashtag hashtag = 1;
+		// トピックトレンド
+		TrendingTopic topic = 2;
+		// ユーザートレンド
+		TrendingUser user = 3;
+	}
+	// ランキング順位
+	int32 rank = 4;
+	// 前回からの順位変動
+	int32 rank_change = 5;
+	// トレンドスコア
+	float trend_score = 6;
+}
+
+// トレンドハッシュタグ
+message TrendingHashtag {
+	// ハッシュタグ
+	string hashtag = 1;
+	// Drop数
+	int64 drop_count = 2;
+	// エンゲージメント数
+	int64 engagement_count = 3;
+	// 関連トピック
+	repeated string related_topics = 4;
+}
+
+// トレンドトピック
+message TrendingTopic {
+	// トピック名
+	string name = 1;
+	// 説明
+	string description = 2;
+	// カテゴリー
+	string category = 3;
+	// 関連ハッシュタグ
+	repeated string hashtags = 4;
+	// Drop数
+	int64 drop_count = 5;
+}
+
+// トレンドユーザー
+message TrendingUser {
+	// ユーザー情報
+	avion.user.v1.User user = 1;
+	// トレンド理由
+	string trending_reason = 2;
+	// 新規フォロワー数
+	int64 new_followers = 3;
+	// エンゲージメント増加率
+	float engagement_growth = 4;
+}
+
+// 検索履歴エントリー
+message SearchHistoryEntry {
+	// 履歴ID
+	string id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 検索クエリ
+	string query = 3;
+	// 検索タイプ
+	SearchType search_type = 4;
+	// 検索フィルター
+	SearchFilter filter = 5;
+	// 検索日時
+	google.protobuf.Timestamp searched_at = 6;
+	// 結果数
+	int32 result_count = 7;
+	// クリックされた結果ID
+	repeated string clicked_result_ids = 8;
+	// セッションID
+	string session_id = 9;
+}
+
+// 検索履歴リクエスト
+message GetSearchHistoryRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 最大件数
+	int32 limit = 2;
+	// オフセット
+	int32 offset = 3;
+	// 開始日時
+	google.protobuf.Timestamp start_time = 4;
+	// 終了日時
+	google.protobuf.Timestamp end_time = 5;
+}
+
+// 検索履歴レスポンス
+message GetSearchHistoryResponse {
+	// 検索履歴エントリー
+	repeated SearchHistoryEntry entries = 1;
+	// 総件数
+	int32 total_count = 2;
+}
+
+// 検索履歴削除リクエスト
+message DeleteSearchHistoryRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 削除対象の履歴ID（指定しない場合は全削除）
+	repeated string history_ids = 2;
+	// 期間指定での削除
+	google.protobuf.Timestamp before_time = 3;
+}
+
+// 検索履歴削除レスポンス
+message DeleteSearchHistoryResponse {
+	// 削除件数
+	int32 deleted_count = 1;
+}
+
+// 関連検索リクエスト
+message GetRelatedSearchesRequest {
+	// 基準となる検索クエリ
+	string query = 1;
+	// 検索タイプ
+	SearchType search_type = 2;
+	// 最大候補数
+	int32 max_suggestions = 3;
+}
+
+// 関連検索レスポンス
+message GetRelatedSearchesResponse {
+	// 関連検索クエリ
+	repeated RelatedSearchQuery queries = 1;
+}
+
+// 関連検索クエリ
+message RelatedSearchQuery {
+	// クエリテキスト
+	string query = 1;
+	// 関連度スコア
+	float relevance_score = 2;
+	// 検索ボリューム（相対値）
+	int32 search_volume = 3;
+}
+
+// 保存済み検索
+message SavedSearch {
+	// 保存済み検索ID
+	string id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 検索名（ユーザーが設定）
+	string name = 3;
+	// 検索クエリ
+	string query = 4;
+	// 検索タイプ
+	SearchType search_type = 5;
+	// 検索フィルター
+	SearchFilter filter = 6;
+	// 通知を有効にする
+	bool enable_notifications = 7;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 8;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 9;
+	// 最後の実行日時
+	google.protobuf.Timestamp last_executed_at = 10;
+}
+
+// 保存済み検索作成リクエスト
+message CreateSavedSearchRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 検索名
+	string name = 2;
+	// 検索クエリ
+	string query = 3;
+	// 検索タイプ
+	SearchType search_type = 4;
+	// 検索フィルター
+	SearchFilter filter = 5;
+	// 通知を有効にする
+	bool enable_notifications = 6;
+}
+
+// 保存済み検索作成レスポンス
+message CreateSavedSearchResponse {
+	// 作成された保存済み検索
+	SavedSearch saved_search = 1;
+}
+
+// 保存済み検索一覧取得リクエスト
+message ListSavedSearchesRequest {
+	// ユーザーID
+	string user_id = 1;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 2;
+}
+
+// 保存済み検索一覧取得レスポンス
+message ListSavedSearchesResponse {
+	// 保存済み検索リスト
+	repeated SavedSearch saved_searches = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 保存済み検索削除リクエスト
+message DeleteSavedSearchRequest {
+	// 保存済み検索ID
+	string id = 1;
+	// ユーザーID（権限確認用）
+	string user_id = 2;
+}
+
+// 保存済み検索削除レスポンス
+message DeleteSavedSearchResponse {
+	// 削除成功フラグ
+	bool success = 1;
+}

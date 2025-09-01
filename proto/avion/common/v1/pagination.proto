@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+// ページネーションリクエスト（カーソルベース）
+// Google API Design Guideに準拠
+// https://cloud.google.com/apis/design/design_patterns#list_pagination
+message PaginationRequest {
+	// ページサイズ（取得件数）
+	// 0の場合はサービス側のデフォルト値を使用
+	// 最大値はサービスごとに定義される
+	int32 page_size = 1;
+	
+	// ページトークン（次ページ取得用）
+	// 前回のレスポンスのnext_page_tokenを指定
+	// 空の場合は最初のページを取得
+	string page_token = 2;
+	
+	// ソート順序（オプション）
+	// サービスによって使用可能な値が異なる
+	// 例: "created_at desc", "name asc"
+	string order_by = 3;
+}
+
+// ページネーションレスポンス（カーソルベース）
+message PaginationResponse {
+	// 次ページトークン
+	// 空の場合は次ページが存在しない
+	string next_page_token = 1;
+	
+	// 総件数（オプション）
+	// パフォーマンス上の理由で提供されない場合がある
+	// -1の場合は総件数が不明
+	int32 total_count = 2;
+	
+	// 前ページトークン（オプション）
+	// 双方向ページネーションをサポートする場合に使用
+	string prev_page_token = 3;
+}
+
+// オフセットベースのページネーションリクエスト
+// レガシーAPIや特定のユースケース用
+message OffsetPaginationRequest {
+	// 1ページあたりの件数
+	int32 limit = 1;
+	
+	// スキップする件数
+	int32 offset = 2;
+	
+	// ソート順序（オプション）
+	string order_by = 3;
+}
+
+// オフセットベースのページネーションレスポンス
+message OffsetPaginationResponse {
+	// 総件数
+	int32 total_count = 1;
+	
+	// 現在のオフセット
+	int32 offset = 2;
+	
+	// 取得件数
+	int32 limit = 3;
+	
+	// 次ページが存在するか
+	bool has_next = 4;
+	
+	// 前ページが存在するか
+	bool has_prev = 5;
+}
+
+// カーソルベースのページネーション情報
+// タイムラインなどのリアルタイムフィード用
+message CursorPaginationRequest {
+	// 取得件数
+	int32 limit = 1;
+	
+	// カーソル（特定の位置を示す識別子）
+	oneof cursor {
+		// より新しいアイテムを取得する場合のカーソル
+		string after = 2;
+		// より古いアイテムを取得する場合のカーソル
+		string before = 3;
+	}
+	
+	// ソート順序（オプション）
+	string order_by = 4;
+}
+
+// カーソルベースのページネーションレスポンス
+message CursorPaginationResponse {
+	// 次のカーソル（より新しいアイテム用）
+	string next_cursor = 1;
+	
+	// 前のカーソル（より古いアイテム用）
+	string prev_cursor = 2;
+	
+	// 次のページが存在するか
+	bool has_next = 3;
+	
+	// 前のページが存在するか
+	bool has_prev = 4;
+	
+	// 総件数（オプション、-1の場合は不明）
+	int32 total_count = 5;
+}

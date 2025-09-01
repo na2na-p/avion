@@ -1,0 +1,399 @@
+syntax = "proto3";
+
+package avion.moderation.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// モデレーションステータス
+enum ModerationStatus {
+	// 未指定
+	MODERATION_STATUS_UNSPECIFIED = 0;
+	// 審査待ち
+	MODERATION_STATUS_PENDING = 1;
+	// 承認済み
+	MODERATION_STATUS_APPROVED = 2;
+	// 拒否
+	MODERATION_STATUS_REJECTED = 3;
+	// 再審査中
+	MODERATION_STATUS_UNDER_REVIEW = 4;
+	// エスカレーション済み
+	MODERATION_STATUS_ESCALATED = 5;
+}
+
+// コンテンツタイプ
+enum ContentType {
+	// 未指定
+	CONTENT_TYPE_UNSPECIFIED = 0;
+	// Drop（投稿）
+	CONTENT_TYPE_DROP = 1;
+	// メディア（画像・動画）
+	CONTENT_TYPE_MEDIA = 2;
+	// ユーザープロフィール
+	CONTENT_TYPE_USER_PROFILE = 3;
+	// コメント
+	CONTENT_TYPE_COMMENT = 4;
+	// メッセージ
+	CONTENT_TYPE_MESSAGE = 5;
+}
+
+// 違反カテゴリ
+enum ViolationCategory {
+	// 未指定
+	VIOLATION_CATEGORY_UNSPECIFIED = 0;
+	// スパム
+	VIOLATION_CATEGORY_SPAM = 1;
+	// ハラスメント・いじめ
+	VIOLATION_CATEGORY_HARASSMENT = 2;
+	// ヘイトスピーチ
+	VIOLATION_CATEGORY_HATE_SPEECH = 3;
+	// 暴力的コンテンツ
+	VIOLATION_CATEGORY_VIOLENCE = 4;
+	// 性的コンテンツ
+	VIOLATION_CATEGORY_SEXUAL_CONTENT = 5;
+	// 誤情報・偽情報
+	VIOLATION_CATEGORY_MISINFORMATION = 6;
+	// 著作権侵害
+	VIOLATION_CATEGORY_COPYRIGHT = 7;
+	// プライバシー侵害
+	VIOLATION_CATEGORY_PRIVACY = 8;
+	// 自傷行為・自殺
+	VIOLATION_CATEGORY_SELF_HARM = 9;
+	// 違法行為
+	VIOLATION_CATEGORY_ILLEGAL = 10;
+	// その他
+	VIOLATION_CATEGORY_OTHER = 11;
+}
+
+// モデレーションアクションタイプ
+enum ModerationActionType {
+	// 未指定
+	MODERATION_ACTION_TYPE_UNSPECIFIED = 0;
+	// 警告
+	MODERATION_ACTION_TYPE_WARNING = 1;
+	// コンテンツ削除
+	MODERATION_ACTION_TYPE_CONTENT_REMOVAL = 2;
+	// 一時停止
+	MODERATION_ACTION_TYPE_TEMPORARY_SUSPENSION = 3;
+	// 永久停止
+	MODERATION_ACTION_TYPE_PERMANENT_SUSPENSION = 4;
+	// シャドウバン
+	MODERATION_ACTION_TYPE_SHADOW_BAN = 5;
+	// アカウント凍結
+	MODERATION_ACTION_TYPE_ACCOUNT_FREEZE = 6;
+	// 制限付きアクセス
+	MODERATION_ACTION_TYPE_RESTRICTED_ACCESS = 7;
+}
+
+// アピールステータス
+enum AppealStatus {
+	// 未指定
+	APPEAL_STATUS_UNSPECIFIED = 0;
+	// 審査待ち
+	APPEAL_STATUS_PENDING = 1;
+	// 審査中
+	APPEAL_STATUS_UNDER_REVIEW = 2;
+	// 承認（処分取り消し）
+	APPEAL_STATUS_APPROVED = 3;
+	// 拒否（処分維持）
+	APPEAL_STATUS_REJECTED = 4;
+	// 部分的承認
+	APPEAL_STATUS_PARTIALLY_APPROVED = 5;
+}
+
+// フィルタータイプ
+enum FilterType {
+	// 未指定
+	FILTER_TYPE_UNSPECIFIED = 0;
+	// キーワードフィルタ
+	FILTER_TYPE_KEYWORD = 1;
+	// 正規表現フィルタ
+	FILTER_TYPE_REGEX = 2;
+	// URLフィルタ
+	FILTER_TYPE_URL = 3;
+	// 画像フィルタ
+	FILTER_TYPE_IMAGE = 4;
+	// 動画フィルタ
+	FILTER_TYPE_VIDEO = 5;
+}
+
+// フィルタアクション
+enum FilterAction {
+	// 未指定
+	FILTER_ACTION_UNSPECIFIED = 0;
+	// ブロック
+	FILTER_ACTION_BLOCK = 1;
+	// 審査キューに送る
+	FILTER_ACTION_FLAG_FOR_REVIEW = 2;
+	// 警告を表示
+	FILTER_ACTION_WARN = 3;
+	// シャドウバン
+	FILTER_ACTION_SHADOW_BAN = 4;
+}
+
+// 優先度
+enum Priority {
+	// 未指定
+	PRIORITY_UNSPECIFIED = 0;
+	// 低
+	PRIORITY_LOW = 1;
+	// 中
+	PRIORITY_MEDIUM = 2;
+	// 高
+	PRIORITY_HIGH = 3;
+	// 緊急
+	PRIORITY_CRITICAL = 4;
+}
+
+// モデレーション対象コンテンツ
+message ModerationContent {
+	// コンテンツID
+	string id = 1;
+	// コンテンツタイプ
+	ContentType type = 2;
+	// コンテンツの実体ID（drop_id、media_id等）
+	string entity_id = 3;
+	// コンテンツ所有者のユーザーID
+	string owner_user_id = 4;
+	// コンテンツ本文（テキストの場合）
+	string content_text = 5;
+	// メディアURL（メディアの場合）
+	repeated string media_urls = 6;
+	// メタデータ
+	map<string, string> metadata = 7;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 8;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 9;
+}
+
+// ユーザー報告
+message UserReport {
+	// 報告ID
+	string id = 1;
+	// 報告者のユーザーID
+	string reporter_user_id = 2;
+	// 報告対象のコンテンツ
+	ModerationContent content = 3;
+	// 違反カテゴリ
+	ViolationCategory category = 4;
+	// 報告理由（詳細）
+	string reason = 5;
+	// 追加の証拠URL
+	repeated string evidence_urls = 6;
+	// 報告日時
+	google.protobuf.Timestamp reported_at = 7;
+	// ステータス
+	ModerationStatus status = 8;
+	// 優先度
+	Priority priority = 9;
+	// 処理担当者ID
+	string assigned_to = 10;
+	// 処理日時
+	google.protobuf.Timestamp processed_at = 11;
+	// 処理結果のメモ
+	string resolution_note = 12;
+}
+
+// モデレーションアクション
+message ModerationAction {
+	// アクションID
+	string id = 1;
+	// アクションタイプ
+	ModerationActionType type = 2;
+	// 対象ユーザーID
+	string target_user_id = 3;
+	// 対象コンテンツID（該当する場合）
+	string target_content_id = 4;
+	// アクションの理由
+	string reason = 5;
+	// 違反カテゴリ
+	ViolationCategory violation_category = 6;
+	// 処分期間（一時停止の場合）
+	google.protobuf.Timestamp suspension_until = 7;
+	// 実行者ID（モデレーター/システム）
+	string executed_by = 8;
+	// 実行日時
+	google.protobuf.Timestamp executed_at = 9;
+	// 追加のメタデータ
+	map<string, string> metadata = 10;
+	// 関連する報告ID
+	repeated string report_ids = 11;
+}
+
+// アピール（異議申し立て）
+message Appeal {
+	// アピールID
+	string id = 1;
+	// 申し立て者のユーザーID
+	string appellant_user_id = 2;
+	// 対象となるモデレーションアクション
+	ModerationAction action = 3;
+	// 申し立て理由
+	string reason = 4;
+	// 追加の証拠や説明
+	string additional_info = 5;
+	// 証拠URL
+	repeated string evidence_urls = 6;
+	// 申し立て日時
+	google.protobuf.Timestamp appealed_at = 7;
+	// ステータス
+	AppealStatus status = 8;
+	// 審査担当者ID
+	string reviewer_id = 9;
+	// 審査日時
+	google.protobuf.Timestamp reviewed_at = 10;
+	// 審査結果の理由
+	string review_reason = 11;
+	// 最終更新日時
+	google.protobuf.Timestamp updated_at = 12;
+}
+
+// モデレーションログ
+message ModerationLog {
+	// ログID
+	string id = 1;
+	// イベントタイプ
+	string event_type = 2;
+	// 実行者ID
+	string actor_id = 3;
+	// 対象ユーザーID
+	string target_user_id = 4;
+	// 対象コンテンツID
+	string target_content_id = 5;
+	// アクションタイプ
+	ModerationActionType action_type = 6;
+	// 詳細な説明
+	string description = 7;
+	// 変更前の値
+	map<string, string> before_values = 8;
+	// 変更後の値
+	map<string, string> after_values = 9;
+	// IPアドレス
+	string ip_address = 10;
+	// ユーザーエージェント
+	string user_agent = 11;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 12;
+	// メタデータ
+	map<string, string> metadata = 13;
+}
+
+// フィルタールール
+message FilterRule {
+	// ルールID
+	string id = 1;
+	// ルール名
+	string name = 2;
+	// 説明
+	string description = 3;
+	// フィルタータイプ
+	FilterType type = 4;
+	// パターン（キーワード、正規表現等）
+	string pattern = 5;
+	// 適用対象のコンテンツタイプ
+	repeated ContentType target_content_types = 6;
+	// フィルタアクション
+	FilterAction action = 7;
+	// 優先度
+	int32 priority = 8;
+	// 有効/無効
+	bool enabled = 9;
+	// 作成者ID
+	string created_by = 10;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 11;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 12;
+	// 有効期限
+	google.protobuf.Timestamp expires_at = 13;
+	// メタデータ
+	map<string, string> metadata = 14;
+}
+
+// フィルタリング結果
+message FilterResult {
+	// マッチしたルール
+	repeated FilterRule matched_rules = 1;
+	// 最終的なアクション
+	FilterAction final_action = 2;
+	// スコア（0-100）
+	int32 confidence_score = 3;
+	// 詳細な理由
+	string reason = 4;
+	// 処理時間（ミリ秒）
+	int32 processing_time_ms = 5;
+}
+
+// モデレーション統計
+message ModerationStats {
+	// 期間の開始
+	google.protobuf.Timestamp period_start = 1;
+	// 期間の終了
+	google.protobuf.Timestamp period_end = 2;
+	// 報告総数
+	int64 total_reports = 3;
+	// 処理済み報告数
+	int64 processed_reports = 4;
+	// 保留中の報告数
+	int64 pending_reports = 5;
+	// カテゴリ別の報告数
+	map<string, int64> reports_by_category = 6;
+	// アクションタイプ別の処理数
+	map<string, int64> actions_by_type = 7;
+	// アピール総数
+	int64 total_appeals = 8;
+	// 承認されたアピール数
+	int64 approved_appeals = 9;
+	// 平均処理時間（秒）
+	int64 average_processing_time = 10;
+	// モデレーター別の処理数
+	map<string, int64> actions_by_moderator = 11;
+}
+
+// モデレーター情報
+message Moderator {
+	// モデレーターID
+	string id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// 表示名
+	string display_name = 3;
+	// 権限レベル
+	string permission_level = 4;
+	// 担当カテゴリ
+	repeated ViolationCategory assigned_categories = 5;
+	// アクティブ状態
+	bool is_active = 6;
+	// 最終ログイン日時
+	google.protobuf.Timestamp last_login_at = 7;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 8;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 9;
+}
+
+// バッチモデレーション結果
+message BatchModerationResult {
+	// 処理されたコンテンツ数
+	int32 total_processed = 1;
+	// 成功数
+	int32 success_count = 2;
+	// 失敗数
+	int32 failure_count = 3;
+	// 個別の結果
+	repeated ModerationResult results = 4;
+}
+
+// モデレーション結果
+message ModerationResult {
+	// コンテンツID
+	string content_id = 1;
+	// 成功/失敗
+	bool success = 2;
+	// ステータス
+	ModerationStatus status = 3;
+	// エラーメッセージ（失敗時）
+	string error_message = 4;
+	// 適用されたアクション
+	ModerationAction applied_action = 5;
+}

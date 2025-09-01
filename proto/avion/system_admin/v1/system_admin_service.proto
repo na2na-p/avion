@@ -1,0 +1,891 @@
+syntax = "proto3";
+
+package avion.system_admin.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+import "avion/system_admin/v1/system_admin.proto";
+
+option go_package = "github.com/na2na-p/avion/proto/avion/system_admin/v1;system_adminv1";
+
+// SystemAdminService はシステム管理機能を提供する
+service SystemAdminService {
+  // GetSystemHealth はシステムサービスのヘルス状態を取得する
+  rpc GetSystemHealth(GetSystemHealthRequest) returns (GetSystemHealthResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/health"
+    };
+  }
+  
+  // StreamSystemHealth はリアルタイムのヘルス更新をストリーミングする
+  rpc StreamSystemHealth(StreamSystemHealthRequest) returns (stream StreamSystemHealthResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/health/stream"
+    };
+  }
+  
+  // GetSystemConfig はシステム設定を取得する
+  rpc GetSystemConfig(GetSystemConfigRequest) returns (GetSystemConfigResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/config/{key}"
+    };
+  }
+  
+  // ListSystemConfigs はすべてのシステム設定をリストする
+  rpc ListSystemConfigs(ListSystemConfigsRequest) returns (ListSystemConfigsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/configs"
+    };
+  }
+  
+  // UpdateSystemConfig はシステム設定を更新する
+  rpc UpdateSystemConfig(UpdateSystemConfigRequest) returns (UpdateSystemConfigResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/config/{config.key}"
+      body: "config"
+    };
+  }
+  
+  // CreateAuditLog は監査ログエントリを作成する
+  rpc CreateAuditLog(CreateAuditLogRequest) returns (CreateAuditLogResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/audit-logs"
+      body: "audit_log"
+    };
+  }
+  
+  // SearchAuditLogs は監査ログを検索する
+  rpc SearchAuditLogs(SearchAuditLogsRequest) returns (SearchAuditLogsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/audit-logs/search"
+    };
+  }
+  
+  // CreateBackup はシステムバックアップを作成する
+  rpc CreateBackup(CreateBackupRequest) returns (CreateBackupResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/backups"
+      body: "*"
+    };
+  }
+  
+  // ListBackups は利用可能なバックアップをリストする
+  rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/backups"
+    };
+  }
+  
+  // RestoreBackup はバックアップから復元する
+  rpc RestoreBackup(RestoreBackupRequest) returns (RestoreBackupResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/backups/{backup_id}/restore"
+      body: "*"
+    };
+  }
+  
+  // VerifyBackup はバックアップの整合性を検証する
+  rpc VerifyBackup(VerifyBackupRequest) returns (VerifyBackupResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/backups/{backup_id}/verify"
+    };
+  }
+  
+  // CreateMaintenanceWindow はメンテナンスウィンドウを作成する
+  rpc CreateMaintenanceWindow(CreateMaintenanceWindowRequest) returns (CreateMaintenanceWindowResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/maintenance"
+      body: "maintenance"
+    };
+  }
+  
+  // UpdateMaintenanceWindow はメンテナンスウィンドウを更新する
+  rpc UpdateMaintenanceWindow(UpdateMaintenanceWindowRequest) returns (UpdateMaintenanceWindowResponse) {
+    option (google.api.http) = {
+      put: "/v1/admin/maintenance/{maintenance.id}"
+      body: "maintenance"
+    };
+  }
+  
+  // EndMaintenance は現在のメンテナンスを終了する
+  rpc EndMaintenance(EndMaintenanceRequest) returns (EndMaintenanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/maintenance/{maintenance_id}/end"
+    };
+  }
+  
+  // GetSystemStats はシステム統計を取得する
+  rpc GetSystemStats(GetSystemStatsRequest) returns (GetSystemStatsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/stats"
+    };
+  }
+  
+  // GenerateReport はシステムレポートを生成する
+  rpc GenerateReport(GenerateReportRequest) returns (GenerateReportResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/reports"
+      body: "*"
+    };
+  }
+  
+  // ListAlerts はシステムアラートをリストする
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/alerts"
+    };
+  }
+  
+  // AcknowledgeAlert はアラートを確認する
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/alerts/{alert_id}/acknowledge"
+      body: "*"
+    };
+  }
+  
+  // ResolveAlert はアラートを解決する
+  rpc ResolveAlert(ResolveAlertRequest) returns (ResolveAlertResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/alerts/{alert_id}/resolve"
+      body: "*"
+    };
+  }
+  
+  // StreamAlerts はリアルタイムアラートをストリーミングする
+  rpc StreamAlerts(StreamAlertsRequest) returns (stream StreamAlertsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/alerts/stream"
+    };
+  }
+  
+  // ExecuteAdminAction は管理アクションを実行する
+  rpc ExecuteAdminAction(ExecuteAdminActionRequest) returns (ExecuteAdminActionResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/actions"
+      body: "action"
+    };
+  }
+  
+  // ReverseAdminAction は管理アクションを取り消す
+  rpc ReverseAdminAction(ReverseAdminActionRequest) returns (ReverseAdminActionResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/actions/{action_id}/reverse"
+      body: "*"
+    };
+  }
+  
+  // ListAdminActions は管理アクションをリストする
+  rpc ListAdminActions(ListAdminActionsRequest) returns (ListAdminActionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/actions"
+    };
+  }
+  
+  // ControlService はサービスのライフサイクルを制御する
+  rpc ControlService(ControlServiceRequest) returns (ControlServiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/services/{service_id}/control"
+      body: "*"
+    };
+  }
+  
+  // ListServices はすべてのサービスをリストする
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/services"
+    };
+  }
+  
+  // ScaleService はサービスをスケールする
+  rpc ScaleService(ScaleServiceRequest) returns (ScaleServiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/services/{service_id}/scale"
+      body: "*"
+    };
+  }
+  
+  // ClearCache はシステムキャッシュをクリアする
+  rpc ClearCache(ClearCacheRequest) returns (ClearCacheResponse) {
+    option (google.api.http) = {
+      post: "/v1/admin/cache/clear"
+      body: "*"
+    };
+  }
+  
+  // GetCacheInfo はキャッシュ情報を取得する
+  rpc GetCacheInfo(GetCacheInfoRequest) returns (GetCacheInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/admin/cache/info"
+    };
+  }
+}
+
+// GetSystemHealthRequest はシステムヘルスを取得するリクエストを表す
+message GetSystemHealthRequest {
+  // ヘルス情報を取得するサービスID（オプション、空の場合はすべてを返す）
+  string service_id = 1;
+  
+  // 詳細なメトリクスを含める
+  bool include_details = 2;
+}
+
+// GetSystemHealthResponse はシステムヘルスを含むレスポンスを表す
+message GetSystemHealthResponse {
+  // サービスのヘルス状態
+  repeated SystemHealth services = 1;
+  
+  // システム全体のステータス
+  HealthStatus overall_status = 2;
+  
+  // ヘルスチェックのタイムスタンプ
+  google.protobuf.Timestamp checked_at = 3;
+}
+
+// StreamSystemHealthRequest はシステムヘルスをストリーミングするリクエストを表す
+message StreamSystemHealthRequest {
+  // 監視するサービスID（すべての場合は空）
+  repeated string service_ids = 1;
+  
+  // 更新間隔（秒）
+  int32 interval_seconds = 2;
+  
+  // 詳細なメトリクスを含める
+  bool include_details = 3;
+}
+
+// StreamSystemHealthResponse はストリーミングされたヘルス更新を表す
+message StreamSystemHealthResponse {
+  // 更新されたヘルス状態
+  SystemHealth health = 1;
+  
+  // 更新タイムスタンプ
+  google.protobuf.Timestamp updated_at = 2;
+}
+
+// GetSystemConfigRequest はシステム設定を取得するリクエストを表す
+message GetSystemConfigRequest {
+  // 設定キー
+  string key = 1;
+}
+
+// GetSystemConfigResponse はシステム設定を含むレスポンスを表す
+message GetSystemConfigResponse {
+  // システム設定
+  SystemConfig config = 1;
+}
+
+// ListSystemConfigsRequest はシステム設定をリストするリクエストを表す
+message ListSystemConfigsRequest {
+  // 設定タイプでフィルタ
+  ConfigType type = 1;
+  
+  // フィーチャーフラグのみでフィルタ
+  bool feature_flags_only = 2;
+  
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 3;
+}
+
+// ListSystemConfigsResponse はシステム設定を含むレスポンスを表す
+message ListSystemConfigsResponse {
+  // システム設定
+  repeated SystemConfig configs = 1;
+  
+  // ページネーションレスポンス
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// UpdateSystemConfigRequest はシステム設定を更新するリクエストを表す
+message UpdateSystemConfigRequest {
+  // 更新するシステム設定
+  SystemConfig config = 1;
+  
+  // 更新マスク
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+// UpdateSystemConfigResponse は設定更新後のレスポンスを表す
+message UpdateSystemConfigResponse {
+  // 更新された設定
+  SystemConfig config = 1;
+  
+  // 再起動が必要かどうか
+  bool restart_required = 2;
+}
+
+// CreateAuditLogRequest は監査ログを作成するリクエストを表す
+message CreateAuditLogRequest {
+  // 監査ログエントリ
+  AuditLog audit_log = 1;
+}
+
+// CreateAuditLogResponse は監査ログ作成後のレスポンスを表す
+message CreateAuditLogResponse {
+  // 作成された監査ログ
+  AuditLog audit_log = 1;
+}
+
+// SearchAuditLogsRequest は監査ログを検索するリクエストを表す
+message SearchAuditLogsRequest {
+  // アクションでフィルタ
+  string action = 1;
+  
+  // アクターIDでフィルタ
+  string actor_id = 2;
+  
+  // リソースタイプでフィルタ
+  string resource_type = 3;
+  
+  // リソースIDでフィルタ
+  string resource_id = 4;
+  
+  // サービス名でフィルタ
+  string service_name = 5;
+  
+  // 結果でフィルタ
+  ActionResult result = 6;
+  
+  // 開始時刻フィルタ
+  google.protobuf.Timestamp start_time = 7;
+  
+  // 終了時刻フィルタ
+  google.protobuf.Timestamp end_time = 8;
+  
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 9;
+}
+
+// SearchAuditLogsResponse は監査ログを含むレスポンスを表す
+message SearchAuditLogsResponse {
+  // 監査ログエントリ
+  repeated AuditLog audit_logs = 1;
+  
+  // ページネーションレスポンス
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// CreateBackupRequest はバックアップを作成するリクエストを表す
+message CreateBackupRequest {
+  // バックアップ名
+  string name = 1;
+  
+  // バックアップの説明
+  string description = 2;
+  
+  // バックアップタイプ
+  BackupType type = 3;
+  
+  // 含めるサービス（すべての場合は空）
+  repeated string services = 4;
+  
+  // バックアップを暗号化するかどうか
+  bool encrypt = 5;
+  
+  // 圧縮タイプ
+  string compression_type = 6;
+  
+  // 保持期間（日数）
+  int32 retention_days = 7;
+}
+
+// CreateBackupResponse はバックアップ作成後のレスポンスを表す
+message CreateBackupResponse {
+  // 作成されたバックアップ情報
+  BackupInfo backup = 1;
+  
+  // トラッキング用のバックアップジョブID
+  string job_id = 2;
+}
+
+// ListBackupsRequest はバックアップをリストするリクエストを表す
+message ListBackupsRequest {
+  // バックアップタイプでフィルタ
+  BackupType type = 1;
+  
+  // ステータスでフィルタ
+  BackupStatus status = 2;
+  
+  // 期限切れのバックアップを含める
+  bool include_expired = 3;
+  
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 4;
+}
+
+// ListBackupsResponse はバックアップを含むレスポンスを表す
+message ListBackupsResponse {
+  // バックアップ情報
+  repeated BackupInfo backups = 1;
+  
+  // ページネーションレスポンス
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// RestoreBackupRequest はバックアップから復元するリクエストを表す
+message RestoreBackupRequest {
+  // 復元元のバックアップID
+  string backup_id = 1;
+  
+  // 復元するサービス（すべての場合は空）
+  repeated string services = 2;
+  
+  // 復元前に検証するかどうか
+  bool verify_first = 3;
+  
+  // 復元オプション
+  map<string, string> options = 4;
+}
+
+// RestoreBackupResponse は復元後のレスポンスを表す
+message RestoreBackupResponse {
+  // トラッキング用の復元ジョブID
+  string job_id = 1;
+  
+  // 推定完了時間
+  google.protobuf.Timestamp estimated_completion = 2;
+  
+  // 復元ステータス
+  string status = 3;
+}
+
+// VerifyBackupRequest はバックアップを検証するリクエストを表す
+message VerifyBackupRequest {
+  // 検証するバックアップID
+  string backup_id = 1;
+  
+  // 検証の深度
+  VerificationDepth depth = 2;
+}
+
+// VerificationDepth は検証の深度を表す
+enum VerificationDepth {
+  VERIFICATION_DEPTH_UNSPECIFIED = 0;
+  VERIFICATION_DEPTH_BASIC = 1;
+  VERIFICATION_DEPTH_CHECKSUM = 2;
+  VERIFICATION_DEPTH_FULL = 3;
+}
+
+// VerifyBackupResponse は検証後のレスポンスを表す
+message VerifyBackupResponse {
+  // 検証ステータス
+  VerificationStatus status = 1;
+  
+  // 検証の詳細
+  map<string, string> details = 2;
+  
+  // 検証タイムスタンプ
+  google.protobuf.Timestamp verified_at = 3;
+}
+
+// CreateMaintenanceWindowRequest はメンテナンスを作成するリクエストを表す
+message CreateMaintenanceWindowRequest {
+  // メンテナンスウィンドウの詳細
+  MaintenanceWindow maintenance = 1;
+  
+  // 通知を送信するかどうか
+  bool send_notifications = 2;
+}
+
+// CreateMaintenanceWindowResponse はメンテナンス作成後のレスポンスを表す
+message CreateMaintenanceWindowResponse {
+  // 作成されたメンテナンスウィンドウ
+  MaintenanceWindow maintenance = 1;
+  
+  // 通知ステータス
+  bool notifications_sent = 2;
+}
+
+// UpdateMaintenanceWindowRequest はメンテナンスを更新するリクエストを表す
+message UpdateMaintenanceWindowRequest {
+  // 更新するメンテナンスウィンドウ
+  MaintenanceWindow maintenance = 1;
+  
+  // 更新マスク
+  google.protobuf.FieldMask update_mask = 2;
+  
+  // 更新通知を送信するかどうか
+  bool send_notifications = 3;
+}
+
+// UpdateMaintenanceWindowResponse はメンテナンス更新後のレスポンスを表す
+message UpdateMaintenanceWindowResponse {
+  // 更新されたメンテナンスウィンドウ
+  MaintenanceWindow maintenance = 1;
+  
+  // 通知ステータス
+  bool notifications_sent = 2;
+}
+
+// EndMaintenanceRequest はメンテナンスを終了するリクエストを表す
+message EndMaintenanceRequest {
+  // メンテナンスウィンドウID
+  string maintenance_id = 1;
+  
+  // 完了メモ
+  string notes = 2;
+}
+
+// EndMaintenanceResponse はメンテナンス終了後のレスポンスを表す
+message EndMaintenanceResponse {
+  // 更新されたメンテナンスウィンドウ
+  MaintenanceWindow maintenance = 1;
+  
+  // 復元されたサービス
+  repeated string restored_services = 2;
+}
+
+// GetSystemStatsRequest はシステム統計を取得するリクエストを表す
+message GetSystemStatsRequest {
+  // 統計期間
+  StatsPeriod period = 1;
+  
+  // カスタム開始時間（CUSTOM期間用）
+  google.protobuf.Timestamp start_time = 2;
+  
+  // カスタム終了時間（CUSTOM期間用）
+  google.protobuf.Timestamp end_time = 3;
+  
+  // 詳細な内訳を含める
+  bool include_details = 4;
+}
+
+// GetSystemStatsResponse はシステム統計を含むレスポンスを表す
+message GetSystemStatsResponse {
+  // システム統計
+  SystemStats stats = 1;
+  
+  // 比較用の前期間の統計
+  SystemStats previous_period = 2;
+}
+
+// GenerateReportRequest はレポートを生成するリクエストを表す
+message GenerateReportRequest {
+  // レポートタイプ
+  ReportType type = 1;
+  
+  // レポート期間
+  StatsPeriod period = 2;
+  
+  // レポートの開始時間
+  google.protobuf.Timestamp start_time = 3;
+  
+  // レポートの終了時間
+  google.protobuf.Timestamp end_time = 4;
+  
+  // 出力フォーマット
+  ReportFormat format = 5;
+  
+  // 含めるセクション
+  repeated string sections = 6;
+}
+
+// ReportType はレポートのタイプを表す
+enum ReportType {
+  REPORT_TYPE_UNSPECIFIED = 0;
+  REPORT_TYPE_SYSTEM_HEALTH = 1;
+  REPORT_TYPE_USAGE = 2;
+  REPORT_TYPE_PERFORMANCE = 3;
+  REPORT_TYPE_SECURITY = 4;
+  REPORT_TYPE_COMPLIANCE = 5;
+  REPORT_TYPE_EXECUTIVE = 6;
+}
+
+// ReportFormat はレポートフォーマットを表す
+enum ReportFormat {
+  REPORT_FORMAT_UNSPECIFIED = 0;
+  REPORT_FORMAT_JSON = 1;
+  REPORT_FORMAT_PDF = 2;
+  REPORT_FORMAT_CSV = 3;
+  REPORT_FORMAT_HTML = 4;
+}
+
+// GenerateReportResponse はレポート生成後のレスポンスを表す
+message GenerateReportResponse {
+  // レポートID
+  string report_id = 1;
+  
+  // ダウンロード用のレポートURL
+  string download_url = 2;
+  
+  // レポート生成タイムスタンプ
+  google.protobuf.Timestamp generated_at = 3;
+  
+  // レポートサイズ（バイト）
+  int64 size_bytes = 4;
+}
+
+// ListAlertsRequest はアラートをリストするリクエストを表す
+message ListAlertsRequest {
+  // 重要度でフィルタ
+  AlertSeverity severity = 1;
+  
+  // タイプでフィルタ
+  AlertType type = 2;
+  
+  // ステータスでフィルタ
+  AlertStatus status = 3;
+  
+  // サービス名でフィルタ
+  string service_name = 4;
+  
+  // 開始時刻フィルタ
+  google.protobuf.Timestamp start_time = 5;
+  
+  // 終了時刻フィルタ
+  google.protobuf.Timestamp end_time = 6;
+  
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 7;
+}
+
+// ListAlertsResponse はアラートを含むレスポンスを表す
+message ListAlertsResponse {
+  // アラートリスト
+  repeated Alert alerts = 1;
+  
+  // ページネーションレスポンス
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// AcknowledgeAlertRequest はアラートを確認するリクエストを表す
+message AcknowledgeAlertRequest {
+  // 確認するアラートID
+  string alert_id = 1;
+  
+  // 確認メモ
+  string notes = 2;
+}
+
+// AcknowledgeAlertResponse はアラート確認後のレスポンスを表す
+message AcknowledgeAlertResponse {
+  // 更新されたアラート
+  Alert alert = 1;
+}
+
+// ResolveAlertRequest はアラートを解決するリクエストを表す
+message ResolveAlertRequest {
+  // 解決するアラートID
+  string alert_id = 1;
+  
+  // 解決内容
+  string resolution = 2;
+  
+  // 実施したアクション
+  repeated string actions_taken = 3;
+}
+
+// ResolveAlertResponse はアラート解決後のレスポンスを表す
+message ResolveAlertResponse {
+  // 更新されたアラート
+  Alert alert = 1;
+}
+
+// StreamAlertsRequest はアラートをストリーミングするリクエストを表す
+message StreamAlertsRequest {
+  // 重要度でフィルタ（すべての場合は空）
+  repeated AlertSeverity severities = 1;
+  
+  // タイプでフィルタ（すべての場合は空）
+  repeated AlertType types = 2;
+  
+  // サービスでフィルタ（すべての場合は空）
+  repeated string service_names = 3;
+}
+
+// StreamAlertsResponse はストリーミングされたアラートを表す
+message StreamAlertsResponse {
+  // アラート
+  Alert alert = 1;
+  
+  // イベントタイプ（created、updated、resolved）
+  string event_type = 2;
+}
+
+// ExecuteAdminActionRequest は管理アクションを実行するリクエストを表す
+message ExecuteAdminActionRequest {
+  // 実行する管理アクション
+  AdminAction action = 1;
+  
+  // ドライランモードで実行するかどうか
+  bool dry_run = 2;
+}
+
+// ExecuteAdminActionResponse はアクション実行後のレスポンスを表す
+message ExecuteAdminActionResponse {
+  // 結果を含む実行されたアクション
+  AdminAction action = 1;
+  
+  // アクションが成功したかどうか
+  bool success = 2;
+  
+  // 影響を受けたリソース
+  repeated string affected_resources = 3;
+}
+
+// ReverseAdminActionRequest は管理アクションを取り消すリクエストを表す
+message ReverseAdminActionRequest {
+  // 取り消すアクションID
+  string action_id = 1;
+  
+  // 取り消しの理由
+  string reason = 2;
+}
+
+// ReverseAdminActionResponse はアクション取り消し後のレスポンスを表す
+message ReverseAdminActionResponse {
+  // 更新されたアクション
+  AdminAction action = 1;
+  
+  // 取り消しが成功したかどうか
+  bool success = 2;
+}
+
+// ListAdminActionsRequest は管理アクションをリストするリクエストを表す
+message ListAdminActionsRequest {
+  // アクションタイプでフィルタ
+  AdminActionType type = 1;
+  
+  // 実行者でフィルタ
+  string performed_by = 2;
+  
+  // ターゲットタイプでフィルタ
+  string target_type = 3;
+  
+  // ステータスでフィルタ
+  AdminActionStatus status = 4;
+  
+  // 開始時刻フィルタ
+  google.protobuf.Timestamp start_time = 5;
+  
+  // 終了時刻フィルタ
+  google.protobuf.Timestamp end_time = 6;
+  
+  // ページネーション
+  avion.common.v1.PaginationRequest pagination = 7;
+}
+
+// ListAdminActionsResponse は管理アクションを含むレスポンスを表す
+message ListAdminActionsResponse {
+  // 管理アクション
+  repeated AdminAction actions = 1;
+  
+  // ページネーションレスポンス
+  avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// ControlServiceRequest はサービスを制御するリクエストを表す
+message ControlServiceRequest {
+  // サービスID
+  string service_id = 1;
+  
+  // 制御アクション
+  ServiceControlAction action = 2;
+  
+  // アクションを強制する
+  bool force = 3;
+}
+
+// ServiceControlAction はサービス制御アクションを表す
+enum ServiceControlAction {
+  SERVICE_CONTROL_ACTION_UNSPECIFIED = 0;
+  SERVICE_CONTROL_ACTION_START = 1;
+  SERVICE_CONTROL_ACTION_STOP = 2;
+  SERVICE_CONTROL_ACTION_RESTART = 3;
+  SERVICE_CONTROL_ACTION_RELOAD = 4;
+}
+
+// ControlServiceResponse はサービス制御後のレスポンスを表す
+message ControlServiceResponse {
+  // 更新されたサービス制御情報
+  ServiceControl service = 1;
+  
+  // アクション結果
+  bool success = 2;
+  
+  // 結果メッセージ
+  string message = 3;
+}
+
+// ListServicesRequest はサービスをリストするリクエストを表す
+message ListServicesRequest {
+  // ステータスでフィルタ
+  ServiceStatus status = 1;
+  
+  // 停止したサービスを含める
+  bool include_stopped = 2;
+}
+
+// ListServicesResponse はサービスを含むレスポンスを表す
+message ListServicesResponse {
+  // サービスリスト
+  repeated ServiceControl services = 1;
+}
+
+// ScaleServiceRequest はサービスをスケールするリクエストを表す
+message ScaleServiceRequest {
+  // サービスID
+  string service_id = 1;
+  
+  // 希望するレプリカ数
+  int32 replicas = 2;
+  
+  // スケーリング完了を待つかどうか
+  bool wait = 3;
+}
+
+// ScaleServiceResponse はサービススケール後のレスポンスを表す
+message ScaleServiceResponse {
+  // 更新されたサービス制御情報
+  ServiceControl service = 1;
+  
+  // スケーリングステータス
+  string status = 2;
+}
+
+// ClearCacheRequest はキャッシュをクリアするリクエストを表す
+message ClearCacheRequest {
+  // クリアするキャッシュ名（すべての場合は空）
+  repeated string cache_names = 1;
+  
+  // 一致させるキャッシュパターン
+  string pattern = 2;
+  
+  // すべてのキャッシュをクリアするかどうか
+  bool clear_all = 3;
+}
+
+// ClearCacheResponse はキャッシュクリア後のレスポンスを表す
+message ClearCacheResponse {
+  // クリアされたエントリ数
+  int64 entries_cleared = 1;
+  
+  // クリアされたキャッシュ
+  repeated string cleared_caches = 2;
+  
+  // クリア操作のタイムスタンプ
+  google.protobuf.Timestamp cleared_at = 3;
+}
+
+// GetCacheInfoRequest はキャッシュ情報を取得するリクエストを表す
+message GetCacheInfoRequest {
+  // 情報を取得するキャッシュ名（すべての場合は空）
+  repeated string cache_names = 1;
+  
+  // 詳細な統計を含める
+  bool include_stats = 2;
+}
+
+// GetCacheInfoResponse はキャッシュ情報を含むレスポンスを表す
+message GetCacheInfoResponse {
+  // キャッシュ情報
+  repeated CacheInfo caches = 1;
+  
+  // 合計キャッシュサイズ（バイト）
+  int64 total_size_bytes = 2;
+  
+  // 合計エントリ数
+  int64 total_entries = 3;
+}

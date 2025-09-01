@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package avion.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// 日付範囲を表すメッセージ
+message DateRange {
+	// 開始時刻
+	google.protobuf.Timestamp start_time = 1;
+	// 終了時刻
+	google.protobuf.Timestamp end_time = 2;
+}

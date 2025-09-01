@@ -1,0 +1,599 @@
+syntax = "proto3";
+
+package avion.search.v1;
+
+import "avion/search/v1/search.proto";
+import "google/protobuf/timestamp.proto";
+import "avion/common/v1/pagination.proto";
+import "avion/user/v1/user.proto";
+import "avion/drop/v1/drop.proto";
+
+// 検索サービス
+service SearchService {
+	// 汎用検索
+	// ユーザー、Drop、ハッシュタグを横断的に検索
+	rpc Search(SearchRequest) returns (SearchResponse);
+
+	// オートコンプリート
+	// 検索クエリ入力中のサジェスト表示
+	rpc Autocomplete(AutocompleteRequest) returns (AutocompleteResponse);
+
+	// トレンド取得
+	// 現在のトレンドハッシュタグ、トピック、ユーザーを取得
+	rpc GetTrending(GetTrendingRequest) returns (GetTrendingResponse);
+
+	// 関連検索取得
+	// 指定したクエリに関連する検索候補を取得
+	rpc GetRelatedSearches(GetRelatedSearchesRequest) returns (GetRelatedSearchesResponse);
+
+	// 検索履歴取得
+	// ユーザーの検索履歴を取得
+	rpc GetSearchHistory(GetSearchHistoryRequest) returns (GetSearchHistoryResponse);
+
+	// 検索履歴削除
+	// ユーザーの検索履歴を削除
+	rpc DeleteSearchHistory(DeleteSearchHistoryRequest) returns (DeleteSearchHistoryResponse);
+
+	// 保存済み検索作成
+	// 検索条件を保存して後で再利用可能にする
+	rpc CreateSavedSearch(CreateSavedSearchRequest) returns (CreateSavedSearchResponse);
+
+	// 保存済み検索一覧取得
+	// ユーザーの保存済み検索を一覧取得
+	rpc ListSavedSearches(ListSavedSearchesRequest) returns (ListSavedSearchesResponse);
+
+	// 保存済み検索削除
+	// 保存済み検索を削除
+	rpc DeleteSavedSearch(DeleteSavedSearchRequest) returns (DeleteSavedSearchResponse);
+}
+
+// ユーザー検索サービス
+service UserSearchService {
+	// ユーザー検索
+	// ユーザー名、表示名、自己紹介文から検索
+	rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+
+	// 類似ユーザー検索
+	// 指定ユーザーに類似したユーザーを検索
+	rpc SearchSimilarUsers(SearchSimilarUsersRequest) returns (SearchSimilarUsersResponse);
+
+	// ユーザー推薦
+	// ユーザーの興味・関心に基づいて推薦
+	rpc GetUserRecommendations(GetUserRecommendationsRequest) returns (GetUserRecommendationsResponse);
+}
+
+// Drop検索サービス
+service DropSearchService {
+	// Drop検索
+	// Drop内容から全文検索
+	rpc SearchDrops(SearchDropsRequest) returns (SearchDropsResponse);
+
+	// メディア検索
+	// メディアを含むDropを検索
+	rpc SearchMediaDrops(SearchMediaDropsRequest) returns (SearchMediaDropsResponse);
+
+	// 類似Drop検索
+	// 指定Dropに類似した内容のDropを検索
+	rpc SearchSimilarDrops(SearchSimilarDropsRequest) returns (SearchSimilarDropsResponse);
+}
+
+// ハッシュタグ検索サービス
+service HashtagSearchService {
+	// ハッシュタグ検索
+	// ハッシュタグを検索
+	rpc SearchHashtags(SearchHashtagsRequest) returns (SearchHashtagsResponse);
+
+	// ハッシュタグ付きDrop検索
+	// 特定のハッシュタグを含むDropを検索
+	rpc SearchDropsByHashtag(SearchDropsByHashtagRequest) returns (SearchDropsByHashtagResponse);
+
+	// 関連ハッシュタグ取得
+	// 指定ハッシュタグに関連するハッシュタグを取得
+	rpc GetRelatedHashtags(GetRelatedHashtagsRequest) returns (GetRelatedHashtagsResponse);
+
+	// ハッシュタグ統計取得
+	// ハッシュタグの使用統計を取得
+	rpc GetHashtagStats(GetHashtagStatsRequest) returns (GetHashtagStatsResponse);
+}
+
+// インデックス管理サービス（管理者用）
+service SearchIndexService {
+	// インデックス更新
+	// 指定されたコンテンツのインデックスを更新
+	rpc UpdateIndex(UpdateIndexRequest) returns (UpdateIndexResponse);
+
+	// インデックス削除
+	// 指定されたコンテンツのインデックスを削除
+	rpc DeleteFromIndex(DeleteFromIndexRequest) returns (DeleteFromIndexResponse);
+
+	// インデックス再構築
+	// 全体または部分的なインデックスの再構築
+	rpc RebuildIndex(RebuildIndexRequest) returns (RebuildIndexResponse);
+
+	// インデックス統計取得
+	// インデックスの統計情報を取得
+	rpc GetIndexStats(GetIndexStatsRequest) returns (GetIndexStatsResponse);
+
+	// インデックス最適化
+	// インデックスの最適化を実行
+	rpc OptimizeIndex(OptimizeIndexRequest) returns (OptimizeIndexResponse);
+}
+
+// ユーザー検索リクエスト
+message SearchUsersRequest {
+	// 検索クエリ
+	string query = 1;
+	// 検索フィールド
+	repeated UserSearchField fields = 2;
+	// フィルター
+	UserSearchFilter filter = 3;
+	// ソート順
+	SortOrder sort_order = 4;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 5;
+}
+
+// ユーザー検索フィールド
+enum UserSearchField {
+	// 未指定
+	USER_SEARCH_FIELD_UNSPECIFIED = 0;
+	// ユーザー名
+	USER_SEARCH_FIELD_USERNAME = 1;
+	// 表示名
+	USER_SEARCH_FIELD_DISPLAY_NAME = 2;
+	// 自己紹介
+	USER_SEARCH_FIELD_BIO = 3;
+	// 場所
+	USER_SEARCH_FIELD_LOCATION = 4;
+}
+
+// ユーザー検索フィルター
+message UserSearchFilter {
+	// 認証済みユーザーのみ
+	bool verified_only = 1;
+	// 最小フォロワー数
+	int64 min_followers = 2;
+	// 最大フォロワー数
+	int64 max_followers = 3;
+	// 最小フォロー数
+	int64 min_following = 4;
+	// 最大フォロー数
+	int64 max_following = 5;
+	// アクティブユーザーのみ（最近の投稿あり）
+	bool active_only = 6;
+	// 言語
+	repeated string languages = 7;
+	// 除外ユーザーID
+	repeated string exclude_user_ids = 8;
+}
+
+// ユーザー検索レスポンス
+message SearchUsersResponse {
+	// 検索結果
+	repeated UserSearchResult results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 検索時間（ミリ秒）
+	int64 search_time_ms = 3;
+}
+
+// 類似ユーザー検索リクエスト
+message SearchSimilarUsersRequest {
+	// 基準ユーザーID
+	string user_id = 1;
+	// 最大結果数
+	int32 max_results = 2;
+	// 類似度の閾値（0.0-1.0）
+	float similarity_threshold = 3;
+}
+
+// 類似ユーザー検索レスポンス
+message SearchSimilarUsersResponse {
+	// 類似ユーザー
+	repeated SimilarUser users = 1;
+}
+
+// 類似ユーザー
+message SimilarUser {
+	// ユーザー情報
+	avion.user.v1.User user = 1;
+	// 類似度スコア
+	float similarity_score = 2;
+	// 共通の興味・関心
+	repeated string common_interests = 3;
+	// 共通のフォロー数
+	int32 common_follows = 4;
+}
+
+// ユーザー推薦リクエスト
+message GetUserRecommendationsRequest {
+	// ユーザーID
+	string user_id = 1;
+	// 最大推薦数
+	int32 max_recommendations = 2;
+	// 推薦タイプ
+	UserRecommendationType type = 3;
+}
+
+// ユーザー推薦タイプ
+enum UserRecommendationType {
+	// 未指定
+	USER_RECOMMENDATION_TYPE_UNSPECIFIED = 0;
+	// 興味ベース
+	USER_RECOMMENDATION_TYPE_INTEREST_BASED = 1;
+	// フォローベース
+	USER_RECOMMENDATION_TYPE_FOLLOW_BASED = 2;
+	// インタラクションベース
+	USER_RECOMMENDATION_TYPE_INTERACTION_BASED = 3;
+	// 新規ユーザー
+	USER_RECOMMENDATION_TYPE_NEW_USERS = 4;
+}
+
+// ユーザー推薦レスポンス
+message GetUserRecommendationsResponse {
+	// 推薦ユーザー
+	repeated RecommendedUser recommendations = 1;
+}
+
+// 推薦ユーザー
+message RecommendedUser {
+	// ユーザー情報
+	avion.user.v1.User user = 1;
+	// 推薦理由
+	string reason = 2;
+	// 推薦スコア
+	float score = 3;
+	// 共通の興味
+	repeated string common_interests = 4;
+}
+
+// Drop検索リクエスト
+message SearchDropsRequest {
+	// 検索クエリ
+	string query = 1;
+	// 検索フィルター
+	SearchFilter filter = 2;
+	// ソート順
+	SortOrder sort_order = 3;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 4;
+	// ハイライト有効化
+	bool enable_highlighting = 5;
+}
+
+// Drop検索レスポンス
+message SearchDropsResponse {
+	// 検索結果
+	repeated DropSearchResult results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// 検索時間（ミリ秒）
+	int64 search_time_ms = 3;
+}
+
+// メディアDrop検索リクエスト
+message SearchMediaDropsRequest {
+	// メディアタイプ
+	repeated avion.drop.v1.MediaType media_types = 1;
+	// テキストクエリ（オプション）
+	string query = 2;
+	// フィルター
+	SearchFilter filter = 3;
+	// ソート順
+	SortOrder sort_order = 4;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 5;
+}
+
+// メディアDrop検索レスポンス
+message SearchMediaDropsResponse {
+	// 検索結果
+	repeated DropSearchResult results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+}
+
+// 類似Drop検索リクエスト
+message SearchSimilarDropsRequest {
+	// 基準DropID
+	string drop_id = 1;
+	// 最大結果数
+	int32 max_results = 2;
+	// 類似度の閾値
+	float similarity_threshold = 3;
+	// 同一ユーザーのDropを除外
+	bool exclude_same_user = 4;
+}
+
+// 類似Drop検索レスポンス
+message SearchSimilarDropsResponse {
+	// 類似Drop
+	repeated SimilarDrop drops = 1;
+}
+
+// 類似Drop
+message SimilarDrop {
+	// Drop情報
+	avion.drop.v1.Drop drop = 1;
+	// 類似度スコア
+	float similarity_score = 2;
+	// 共通キーワード
+	repeated string common_keywords = 3;
+	// 共通ハッシュタグ
+	repeated string common_hashtags = 4;
+}
+
+// ハッシュタグ検索リクエスト
+message SearchHashtagsRequest {
+	// 検索クエリ
+	string query = 1;
+	// 最大結果数
+	int32 max_results = 2;
+	// トレンドのみ
+	bool trending_only = 3;
+	// 時間範囲
+	TrendTimeRange time_range = 4;
+}
+
+// ハッシュタグ検索レスポンス
+message SearchHashtagsResponse {
+	// ハッシュタグ結果
+	repeated HashtagSearchResult results = 1;
+}
+
+// ハッシュタグ付きDrop検索リクエスト
+message SearchDropsByHashtagRequest {
+	// ハッシュタグ（#を含む）
+	string hashtag = 1;
+	// フィルター
+	SearchFilter filter = 2;
+	// ソート順
+	SortOrder sort_order = 3;
+	// ページネーション
+	avion.common.v1.PaginationRequest pagination = 4;
+}
+
+// ハッシュタグ付きDrop検索レスポンス
+message SearchDropsByHashtagResponse {
+	// Drop検索結果
+	repeated DropSearchResult results = 1;
+	// ページネーション情報
+	avion.common.v1.PaginationResponse pagination = 2;
+	// ハッシュタグ統計
+	HashtagStats stats = 3;
+}
+
+// 関連ハッシュタグ取得リクエスト
+message GetRelatedHashtagsRequest {
+	// 基準ハッシュタグ
+	string hashtag = 1;
+	// 最大結果数
+	int32 max_results = 2;
+}
+
+// 関連ハッシュタグ取得レスポンス
+message GetRelatedHashtagsResponse {
+	// 関連ハッシュタグ
+	repeated RelatedHashtag hashtags = 1;
+}
+
+// 関連ハッシュタグ
+message RelatedHashtag {
+	// ハッシュタグ
+	string hashtag = 1;
+	// 関連度スコア
+	float relevance_score = 2;
+	// 共起回数
+	int64 co_occurrence_count = 3;
+}
+
+// ハッシュタグ統計取得リクエスト
+message GetHashtagStatsRequest {
+	// ハッシュタグ
+	string hashtag = 1;
+	// 時間範囲
+	TrendTimeRange time_range = 2;
+}
+
+// ハッシュタグ統計取得レスポンス
+message GetHashtagStatsResponse {
+	// ハッシュタグ統計
+	HashtagStats stats = 1;
+}
+
+// ハッシュタグ統計
+message HashtagStats {
+	// ハッシュタグ
+	string hashtag = 1;
+	// 総使用回数
+	int64 total_usage = 2;
+	// ユニークユーザー数
+	int64 unique_users = 3;
+	// 時系列データ
+	repeated HashtagTimeSeriesData time_series = 4;
+	// トップユーザー
+	repeated avion.user.v1.User top_users = 5;
+	// 人気Drop
+	repeated avion.drop.v1.Drop popular_drops = 6;
+}
+
+// ハッシュタグ時系列データ
+message HashtagTimeSeriesData {
+	// タイムスタンプ
+	google.protobuf.Timestamp timestamp = 1;
+	// 使用回数
+	int64 usage_count = 2;
+	// ユニークユーザー数
+	int64 unique_users = 3;
+}
+
+// インデックス更新リクエスト
+message UpdateIndexRequest {
+	// インデックスタイプ
+	IndexType index_type = 1;
+	// 更新対象
+	oneof target {
+		// ユーザー
+		avion.user.v1.User user = 2;
+		// Drop
+		avion.drop.v1.Drop drop = 3;
+		// ハッシュタグ
+		string hashtag = 4;
+	}
+	// 即座に更新（非同期でない）
+	bool immediate = 5;
+}
+
+// インデックスタイプ
+enum IndexType {
+	// 未指定
+	INDEX_TYPE_UNSPECIFIED = 0;
+	// ユーザーインデックス
+	INDEX_TYPE_USER = 1;
+	// Dropインデックス
+	INDEX_TYPE_DROP = 2;
+	// ハッシュタグインデックス
+	INDEX_TYPE_HASHTAG = 3;
+	// メディアインデックス
+	INDEX_TYPE_MEDIA = 4;
+}
+
+// インデックス更新レスポンス
+message UpdateIndexResponse {
+	// 更新成功
+	bool success = 1;
+	// 更新されたドキュメント数
+	int32 updated_documents = 2;
+}
+
+// インデックス削除リクエスト
+message DeleteFromIndexRequest {
+	// インデックスタイプ
+	IndexType index_type = 1;
+	// 削除対象ID
+	repeated string ids = 2;
+}
+
+// インデックス削除レスポンス
+message DeleteFromIndexResponse {
+	// 削除成功
+	bool success = 1;
+	// 削除されたドキュメント数
+	int32 deleted_documents = 2;
+}
+
+// インデックス再構築リクエスト
+message RebuildIndexRequest {
+	// インデックスタイプ
+	IndexType index_type = 1;
+	// 並列処理数
+	int32 parallelism = 2;
+	// バッチサイズ
+	int32 batch_size = 3;
+	// ドライラン（実際には実行しない）
+	bool dry_run = 4;
+}
+
+// インデックス再構築レスポンス
+message RebuildIndexResponse {
+	// ジョブID
+	string job_id = 1;
+	// ステータス
+	RebuildStatus status = 2;
+	// 処理済みドキュメント数
+	int64 processed_documents = 3;
+	// 総ドキュメント数
+	int64 total_documents = 4;
+	// エラー数
+	int32 error_count = 5;
+	// 開始時刻
+	google.protobuf.Timestamp started_at = 6;
+	// 完了予定時刻
+	google.protobuf.Timestamp estimated_completion = 7;
+}
+
+// 再構築ステータス
+enum RebuildStatus {
+	// 未指定
+	REBUILD_STATUS_UNSPECIFIED = 0;
+	// 準備中
+	REBUILD_STATUS_PREPARING = 1;
+	// 実行中
+	REBUILD_STATUS_RUNNING = 2;
+	// 完了
+	REBUILD_STATUS_COMPLETED = 3;
+	// エラー
+	REBUILD_STATUS_ERROR = 4;
+	// キャンセル済み
+	REBUILD_STATUS_CANCELLED = 5;
+}
+
+// インデックス統計取得リクエスト
+message GetIndexStatsRequest {
+	// インデックスタイプ（未指定の場合は全体）
+	IndexType index_type = 1;
+}
+
+// インデックス統計取得レスポンス
+message GetIndexStatsResponse {
+	// インデックス統計
+	repeated IndexStats stats = 1;
+	// 全体のディスク使用量（バイト）
+	int64 total_disk_usage = 2;
+	// 最終更新日時
+	google.protobuf.Timestamp last_updated = 3;
+}
+
+// インデックス統計
+message IndexStats {
+	// インデックスタイプ
+	IndexType index_type = 1;
+	// ドキュメント数
+	int64 document_count = 2;
+	// インデックスサイズ（バイト）
+	int64 index_size = 3;
+	// 平均クエリ時間（ミリ秒）
+	float avg_query_time_ms = 4;
+	// 1日のクエリ数
+	int64 daily_query_count = 5;
+	// 最終更新日時
+	google.protobuf.Timestamp last_modified = 6;
+	// ヘルスステータス
+	IndexHealth health_status = 7;
+}
+
+// インデックスヘルス
+enum IndexHealth {
+	// 未指定
+	INDEX_HEALTH_UNSPECIFIED = 0;
+	// 健全
+	INDEX_HEALTH_HEALTHY = 1;
+	// 警告
+	INDEX_HEALTH_WARNING = 2;
+	// エラー
+	INDEX_HEALTH_ERROR = 3;
+	// メンテナンス中
+	INDEX_HEALTH_MAINTENANCE = 4;
+}
+
+// インデックス最適化リクエスト
+message OptimizeIndexRequest {
+	// インデックスタイプ
+	IndexType index_type = 1;
+	// 強制最適化
+	bool force = 2;
+	// 最大セグメント数
+	int32 max_segments = 3;
+}
+
+// インデックス最適化レスポンス
+message OptimizeIndexResponse {
+	// 最適化成功
+	bool success = 1;
+	// 最適化前のサイズ
+	int64 size_before = 2;
+	// 最適化後のサイズ
+	int64 size_after = 3;
+	// 処理時間（ミリ秒）
+	int64 duration_ms = 4;
+}

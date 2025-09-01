@@ -1,0 +1,251 @@
+syntax = "proto3";
+
+package avion.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message User {
+  // ユーザーID
+  string id = 1;
+  // メールアドレス
+  string email = 2;
+  // ユーザー名
+  string username = 3;
+  // 作成日時
+  google.protobuf.Timestamp created_at = 4;
+  // 更新日時
+  google.protobuf.Timestamp updated_at = 5;
+  // メールアドレス確認済みフラグ
+  bool email_verified = 6;
+  // アカウント有効フラグ
+  bool is_active = 7;
+  // アカウントロックフラグ
+  bool is_locked = 8;
+  // ロール一覧（認可用）
+  repeated string roles = 9;
+  // 権限一覧（認可用）
+  repeated string permissions = 10;
+  // 割り当てられたポリシーID一覧
+  repeated string policy_ids = 11;
+  // グループID一覧
+  repeated string group_ids = 12;
+  // 最終ログイン日時
+  google.protobuf.Timestamp last_login_at = 13;
+  // 2要素認証有効フラグ
+  bool mfa_enabled = 14;
+  // プロフィール画像URL
+  string avatar_url = 15;
+  // 表示名
+  string display_name = 16;
+  // メタデータ（追加属性用）
+  map<string, string> metadata = 17;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  User user = 3;
+}
+
+// ユーザー作成リクエスト
+message CreateUserRequest {
+  // メールアドレス
+  string email = 1;
+  // ユーザー名
+  string username = 2;
+  // パスワード
+  string password = 3;
+  // 表示名（オプション）
+  string display_name = 4;
+  // プロフィール画像URL（オプション）
+  string avatar_url = 5;
+  // 利用規約への同意
+  bool terms_accepted = 6;
+  // プライバシーポリシーへの同意
+  bool privacy_accepted = 7;
+  // メールマガジン購読（オプション）
+  bool newsletter_subscription = 8;
+  // 招待コード（オプション）
+  string invitation_code = 9;
+  // リファラー（オプション）
+  string referrer = 10;
+}
+
+// ユーザー作成レスポンス
+message CreateUserResponse {
+  // 登録成功フラグ
+  bool success = 1;
+  // ユーザー情報
+  User user = 2;
+  // メール確認が必要かどうか
+  bool email_verification_required = 3;
+  // メール確認トークン（デバッグ用、本番では含まない）
+  string verification_token = 4;
+  // エラーメッセージ（失敗時）
+  string error_message = 5;
+}
+
+// メールアドレス確認リクエスト
+message VerifyEmailRequest {
+  // 確認トークン
+  string token = 1;
+  // ユーザーID（オプション）
+  string user_id = 2;
+}
+
+// メールアドレス確認レスポンス
+message VerifyEmailResponse {
+  // 確認成功フラグ
+  bool success = 1;
+  // ユーザー情報
+  User user = 2;
+  // アクセストークン（確認成功時に自動ログイン）
+  string access_token = 3;
+  // リフレッシュトークン
+  string refresh_token = 4;
+  // エラーメッセージ（失敗時）
+  string error_message = 5;
+}
+
+// メール確認再送信リクエスト
+message ResendVerificationEmailRequest {
+  // メールアドレス
+  string email = 1;
+  // ユーザーID（オプション）
+  string user_id = 2;
+}
+
+// メール確認再送信レスポンス
+message ResendVerificationEmailResponse {
+  // 送信成功フラグ
+  bool success = 1;
+  // 次回送信可能時刻
+  google.protobuf.Timestamp next_resend_at = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// パスワードリセットリクエスト
+message RequestPasswordResetRequest {
+  // メールアドレス
+  string email = 1;
+}
+
+// パスワードリセットレスポンス
+message RequestPasswordResetResponse {
+  // リクエスト成功フラグ
+  bool success = 1;
+  // リセットトークン（デバッグ用、本番では含まない）
+  string reset_token = 2;
+  // トークンの有効期限
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// パスワードリセット実行リクエスト
+message ResetPasswordRequest {
+  // リセットトークン
+  string token = 1;
+  // 新しいパスワード
+  string new_password = 2;
+  // パスワード確認
+  string confirm_password = 3;
+}
+
+// パスワードリセット実行レスポンス
+message ResetPasswordResponse {
+  // リセット成功フラグ
+  bool success = 1;
+  // エラーメッセージ（失敗時）
+  string error_message = 2;
+}
+
+// パスワード変更リクエスト
+message ChangePasswordRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 現在のパスワード
+  string current_password = 2;
+  // 新しいパスワード
+  string new_password = 3;
+  // パスワード確認
+  string confirm_password = 4;
+  // 全セッションをログアウト
+  bool logout_all_sessions = 5;
+}
+
+// パスワード変更レスポンス
+message ChangePasswordResponse {
+  // 変更成功フラグ
+  bool success = 1;
+  // 新しいアクセストークン（セッション更新時）
+  string access_token = 2;
+  // 新しいリフレッシュトークン
+  string refresh_token = 3;
+  // エラーメッセージ（失敗時）
+  string error_message = 4;
+}
+
+// メールアドレス変更リクエスト
+message ChangeEmailRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 新しいメールアドレス
+  string new_email = 2;
+  // 確認用パスワード
+  string password = 3;
+}
+
+// メールアドレス変更レスポンス
+message ChangeEmailResponse {
+  // 変更リクエスト成功フラグ
+  bool success = 1;
+  // 確認トークン（デバッグ用）
+  string verification_token = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// アカウント削除リクエスト
+message DeleteAccountRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 確認用パスワード
+  string password = 2;
+  // 削除理由（オプション）
+  string reason = 3;
+  // フィードバック（オプション）
+  string feedback = 4;
+}
+
+// アカウント削除レスポンス
+message DeleteAccountResponse {
+  // 削除成功フラグ
+  bool success = 1;
+  // 削除予定日（猶予期間がある場合）
+  google.protobuf.Timestamp scheduled_deletion_at = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}
+
+// アカウント削除キャンセルリクエスト
+message CancelAccountDeletionRequest {
+  // ユーザーID
+  string user_id = 1;
+  // 確認用パスワード
+  string password = 2;
+}
+
+// アカウント削除キャンセルレスポンス
+message CancelAccountDeletionResponse {
+  // キャンセル成功フラグ
+  bool success = 1;
+  // ユーザー情報
+  User user = 2;
+  // エラーメッセージ（失敗時）
+  string error_message = 3;
+}

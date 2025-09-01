@@ -1,0 +1,332 @@
+syntax = "proto3";
+
+package avion.notification.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// 通知タイプ
+enum NotificationType {
+	// 未指定
+	NOTIFICATION_TYPE_UNSPECIFIED = 0;
+	// いいね
+	NOTIFICATION_TYPE_LIKE = 1;
+	// リドロップ
+	NOTIFICATION_TYPE_REDROP = 2;
+	// フォロー
+	NOTIFICATION_TYPE_FOLLOW = 3;
+	// メンション
+	NOTIFICATION_TYPE_MENTION = 4;
+	// 返信
+	NOTIFICATION_TYPE_REPLY = 5;
+	// 引用
+	NOTIFICATION_TYPE_QUOTE = 6;
+	// システム通知
+	NOTIFICATION_TYPE_SYSTEM = 7;
+}
+
+// 通知配信ステータス
+enum NotificationDeliveryStatus {
+	// 未指定
+	NOTIFICATION_DELIVERY_STATUS_UNSPECIFIED = 0;
+	// 配信待ち
+	NOTIFICATION_DELIVERY_STATUS_PENDING = 1;
+	// 送信済み
+	NOTIFICATION_DELIVERY_STATUS_SENT = 2;
+	// 配信済み
+	NOTIFICATION_DELIVERY_STATUS_DELIVERED = 3;
+	// 配信失敗
+	NOTIFICATION_DELIVERY_STATUS_FAILED = 4;
+}
+
+// 通知チャンネル
+enum NotificationChannel {
+	// 未指定
+	NOTIFICATION_CHANNEL_UNSPECIFIED = 0;
+	// メール
+	NOTIFICATION_CHANNEL_EMAIL = 1;
+	// プッシュ通知
+	NOTIFICATION_CHANNEL_PUSH = 2;
+	// アプリ内通知
+	NOTIFICATION_CHANNEL_IN_APP = 3;
+	// Server-Sent Events
+	NOTIFICATION_CHANNEL_SSE = 4;
+}
+
+// 通知
+message Notification {
+	// 通知ID
+	string id = 1;
+	// 受信ユーザーID
+	string user_id = 2;
+	// 通知タイプ
+	NotificationType type = 3;
+	// タイトル
+	string title = 4;
+	// 本文
+	string body = 5;
+	// 追加データ（JSON文字列形式）
+	string data = 6;
+	// 既読フラグ
+	bool is_read = 7;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 8;
+	// 既読日時
+	google.protobuf.Timestamp read_at = 9;
+	// アクションURL（クリック時の遷移先）
+	string action_url = 10;
+	// 送信者ID（フォロー、いいね等の場合）
+	string sender_id = 11;
+	// 関連エンティティID（Drop ID等）
+	string entity_id = 12;
+}
+
+// 通知設定
+message NotificationPreference {
+	// ユーザーID
+	string user_id = 1;
+	// メール通知有効フラグ
+	bool email_enabled = 2;
+	// プッシュ通知有効フラグ
+	bool push_enabled = 3;
+	// アプリ内通知有効フラグ
+	bool in_app_enabled = 4;
+	// 有効な通知タイプリスト
+	repeated NotificationType notification_types = 5;
+}
+
+// 通知配信情報
+message NotificationDelivery {
+	// 通知ID
+	string notification_id = 1;
+	// 配信チャンネル
+	NotificationChannel channel = 2;
+	// 配信ステータス
+	NotificationDeliveryStatus status = 3;
+	// 配信試行回数
+	int32 attempt_count = 4;
+	// 最終配信試行日時
+	google.protobuf.Timestamp last_attempted_at = 5;
+	// 配信完了日時
+	google.protobuf.Timestamp delivered_at = 6;
+	// エラーメッセージ（配信失敗時）
+	string error_message = 7;
+}
+
+// プッシュ通知デバイス情報
+message PushDevice {
+	// デバイスID
+	string id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// デバイストークン（FCM/APNs）
+	string token = 3;
+	// プラットフォーム（ios, android, web）
+	string platform = 4;
+	// デバイス名
+	string device_name = 5;
+	// 登録日時
+	google.protobuf.Timestamp registered_at = 6;
+	// 最終使用日時
+	google.protobuf.Timestamp last_used_at = 7;
+	// 有効フラグ
+	bool is_active = 8;
+}
+
+// 通知テンプレート（システム通知用）
+message NotificationTemplate {
+	// テンプレートID
+	string id = 1;
+	// テンプレート名
+	string name = 2;
+	// 通知タイプ
+	NotificationType type = 3;
+	// タイトルテンプレート
+	string title_template = 4;
+	// 本文テンプレート
+	string body_template = 5;
+	// デフォルトアクションURLパターン
+	string action_url_pattern = 6;
+	// 作成日時
+	google.protobuf.Timestamp created_at = 7;
+	// 更新日時
+	google.protobuf.Timestamp updated_at = 8;
+}
+
+// 未読通知カウント
+message UnreadCount {
+	// ユーザーID
+	string user_id = 1;
+	// 総未読数
+	int32 total = 2;
+	// タイプ別未読数
+	map<string, int32> by_type = 3;
+}
+
+// WebSocket接続状態
+enum WebSocketConnectionStatus {
+	// 未指定
+	WEB_SOCKET_CONNECTION_STATUS_UNSPECIFIED = 0;
+	// 接続中
+	WEB_SOCKET_CONNECTION_STATUS_CONNECTING = 1;
+	// 接続済み
+	WEB_SOCKET_CONNECTION_STATUS_CONNECTED = 2;
+	// 切断中
+	WEB_SOCKET_CONNECTION_STATUS_DISCONNECTING = 3;
+	// 切断済み
+	WEB_SOCKET_CONNECTION_STATUS_DISCONNECTED = 4;
+	// 再接続中
+	WEB_SOCKET_CONNECTION_STATUS_RECONNECTING = 5;
+}
+
+// WebSocketメッセージタイプ
+enum WebSocketMessageType {
+	// 未指定
+	WEB_SOCKET_MESSAGE_TYPE_UNSPECIFIED = 0;
+	// ハートビート（ping）
+	WEB_SOCKET_MESSAGE_TYPE_HEARTBEAT = 1;
+	// ハートビート応答（pong）
+	WEB_SOCKET_MESSAGE_TYPE_HEARTBEAT_ACK = 2;
+	// 通知メッセージ
+	WEB_SOCKET_MESSAGE_TYPE_NOTIFICATION = 3;
+	// 未読数更新
+	WEB_SOCKET_MESSAGE_TYPE_UNREAD_UPDATE = 4;
+	// 接続確立
+	WEB_SOCKET_MESSAGE_TYPE_CONNECTION_ESTABLISHED = 5;
+	// エラー
+	WEB_SOCKET_MESSAGE_TYPE_ERROR = 6;
+	// 購読設定
+	WEB_SOCKET_MESSAGE_TYPE_SUBSCRIBE = 7;
+	// 購読解除
+	WEB_SOCKET_MESSAGE_TYPE_UNSUBSCRIBE = 8;
+}
+
+// WebSocketメッセージ
+message WebSocketMessage {
+	// メッセージID（一意識別子）
+	string message_id = 1;
+	// メッセージタイプ
+	WebSocketMessageType type = 2;
+	// タイムスタンプ
+	google.protobuf.Timestamp timestamp = 3;
+	// ペイロード（メッセージタイプに応じた内容）
+	oneof payload {
+		// ハートビート
+		HeartbeatPayload heartbeat = 4;
+		// 通知
+		NotificationPayload notification = 5;
+		// 未読数更新
+		UnreadUpdatePayload unread_update = 6;
+		// 接続確立
+		ConnectionEstablishedPayload connection_established = 7;
+		// エラー
+		ErrorPayload error = 8;
+		// 購読設定
+		SubscriptionPayload subscription = 9;
+	}
+}
+
+// ハートビートペイロード
+message HeartbeatPayload {
+	// シーケンス番号
+	int64 sequence = 1;
+	// クライアントタイムスタンプ
+	google.protobuf.Timestamp client_timestamp = 2;
+}
+
+// 通知ペイロード
+message NotificationPayload {
+	// 通知本体
+	Notification notification = 1;
+	// イベントタイプ（new, update, delete）
+	string event_type = 2;
+	// 関連エンティティ情報
+	map<string, string> context = 3;
+}
+
+// 未読数更新ペイロード
+message UnreadUpdatePayload {
+	// 未読数情報
+	UnreadCount unread_count = 1;
+	// 更新理由（new_notification, mark_as_read, etc）
+	string reason = 2;
+}
+
+// 接続確立ペイロード
+message ConnectionEstablishedPayload {
+	// セッションID
+	string session_id = 1;
+	// サーバータイムスタンプ
+	google.protobuf.Timestamp server_timestamp = 2;
+	// ハートビート間隔（秒）
+	int32 heartbeat_interval_seconds = 3;
+	// 再接続設定
+	ReconnectConfig reconnect_config = 4;
+}
+
+// エラーペイロード
+message ErrorPayload {
+	// エラーコード
+	string error_code = 1;
+	// エラーメッセージ
+	string error_message = 2;
+	// リトライ可能フラグ
+	bool retryable = 3;
+	// 推奨リトライ間隔（秒）
+	int32 retry_after_seconds = 4;
+}
+
+// 購読設定ペイロード
+message SubscriptionPayload {
+	// 購読する通知タイプ
+	repeated NotificationType notification_types = 1;
+	// 購読するチャンネル（特定のトピックやルーム）
+	repeated string channels = 2;
+	// フィルター条件
+	map<string, string> filters = 3;
+}
+
+// 再接続設定
+message ReconnectConfig {
+	// 自動再接続有効フラグ
+	bool auto_reconnect = 1;
+	// 最大再接続試行回数
+	int32 max_reconnect_attempts = 2;
+	// 初期再接続間隔（ミリ秒）
+	int32 initial_reconnect_interval_ms = 3;
+	// 最大再接続間隔（ミリ秒）
+	int32 max_reconnect_interval_ms = 4;
+	// バックオフ係数
+	float backoff_multiplier = 5;
+}
+
+// WebSocket接続情報
+message WebSocketConnection {
+	// 接続ID
+	string connection_id = 1;
+	// ユーザーID
+	string user_id = 2;
+	// セッションID
+	string session_id = 3;
+	// 接続状態
+	WebSocketConnectionStatus status = 4;
+	// 接続開始時刻
+	google.protobuf.Timestamp connected_at = 5;
+	// 最終アクティビティ時刻
+	google.protobuf.Timestamp last_activity_at = 6;
+	// クライアント情報
+	ClientInfo client_info = 7;
+}
+
+// クライアント情報
+message ClientInfo {
+	// ユーザーエージェント
+	string user_agent = 1;
+	// IPアドレス
+	string ip_address = 2;
+	// プラットフォーム（web, ios, android）
+	string platform = 3;
+	// アプリバージョン
+	string app_version = 4;
+	// デバイスID
+	string device_id = 5;
+}
