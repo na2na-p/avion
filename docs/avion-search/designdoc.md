@@ -99,6 +99,8 @@
 - **複雑な検索構文 (初期):** AND/OR/NOT等の高度な検索演算子は初期段階では実装しない。
 - **検索結果のパーソナライズ (初期):** ユーザーの嗜好に基づくランキング調整は行わない。
 
+> **サービス間責務境界（決定済み）**: テキスト解析（ハッシュタグ・メンション抽出・正規化）ロジックはGo共有パッケージ（`pkg/textanalysis`）として切り出す。本サービスの `HashtagExtractor` / `MentionExtractor` と `avion-drop` の `extractHashtags()` / `extractMentions()` は共に共有パッケージの呼び出しに置き換える。トレンドハッシュタグ集計は本サービスの `GetTrendingHashtagsQueryUseCase` が正。`avion-drop` の `GetTrendingHashtagsQueryHandler` は廃止。
+
 ## 5.5. セキュリティ実装ガイドライン
 
 avion-searchサービスでは、以下のセキュリティガイドラインに従って実装を行います：

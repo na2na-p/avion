@@ -172,6 +172,8 @@ func LoadConfig() (*Config, error) {
 - **ユーザー認証:** `avion-auth` が担当
 - **コンテンツ作成:** `avion-drop` が担当
 - **メディア処理:** `avion-media` が担当
+
+> **サービス間責務境界（決定済み）**: 本サービスの `admin_audit_logs` と `avion-moderation` の `moderation_audit_log`（ハッシュチェーン保護付き）はそれぞれのサービスで保持を維持する。本サービスが統合検索APIを提供し、両系統のログを横断検索・エクスポート可能にする。`avion-moderation` のハッシュチェーン保護はそのまま維持する。
 - **直接的な通知配信:** `avion-notification` が担当
 - **検索インデックス管理:** `avion-search` が担当
 

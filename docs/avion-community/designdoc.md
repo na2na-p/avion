@@ -280,6 +280,8 @@ func ValidateConfig(config *Config) error {
 - **投稿ピン留めの実体管理:** `avion-drop` が担当（コミュニティはピン留め指示のみ）
 - **プラットフォーム全体のモデレーションポリシー:** `avion-moderation` が担当
 - **グローバルスパム検出:** `avion-moderation` が担当
+
+> **サービス間責務境界（決定済み）**: (1) モデレーション階層構造: 本サービスの `AutoModerationRule` はコミュニティローカルのルール（コミュニティオーナーが設定するキーワードフィルタ等）のみを管理する。`avion-moderation` のプラットフォーム全体ポリシーが常に優先される。コミュニティ内コンテンツフィルタリングは `avion-moderation` が非同期イベント検査で実行する。(2) コミュニティ内投稿はDropと同一モデル。本サービスはDropとTopic/Communityの関連付けのみ管理する。Topic別タイムラインは `avion-timeline` に委譲する。
 - **イベントリマインダーの実送信:** `avion-notification` が担当
 
 ## 7. Architecture (どうやって作る？)
