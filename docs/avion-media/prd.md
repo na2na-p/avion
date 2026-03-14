@@ -98,8 +98,8 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **責務**: メディアファイルのライフサイクル全体を管理し、アップロードから配信までの整合性を保証する
 - **集約ルート**: Media
 - **不変条件**:
-  - MediaIDは一意性を保持し、UUID v4形式である
-  - ファイルサイズは設定された上限（画像:10MB、動画・音声:40MB）を超えない
+  - MediaIDは一意性を保持し、UUID v7形式である
+  - ファイルサイズは設定された上限（画像:20MB、動画・音声:40MB）を超えない
   - MediaTypeとファイル拡張子の整合性が保たれている
   - アップロード完了後はStorageKeyが必ず設定されている
   - NSFWフラグが設定された場合、サムネイルにもフラグが継承される
@@ -171,7 +171,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **所属**: Media Aggregate
 **責務**: 特定サイズのサムネイル画像の管理とメタデータ保持
 - **属性**:
-  - ThumbnailID (UUID v4 - サムネイル固有識別子)
+  - ThumbnailID (UUID v7 - サムネイル固有識別子)
   - Size (ThumbnailSize - small/medium/large)
   - Dimension (Dimension - 幅x高さピクセル)
   - StorageKey (StorageKey - オブジェクトストレージ内パス)
@@ -186,7 +186,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **所属**: Media Aggregate  
 **責務**: 動画・音声ファイルの変換済みバリアント管理
 - **属性**:
-  - VariantID (UUID v4 - バリアント識別子)
+  - VariantID (UUID v7 - バリアント識別子)
   - Format (MediaFormat - 変換後フォーマット)
   - Quality (QualityLevel - 品質設定)
   - Bitrate (Bitrate - ビットレート)
@@ -201,13 +201,13 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **所属**: UserDrive Aggregate
 **責務**: ユーザーのメディア整理用フォルダ階層管理
 - **属性**:
-  - FolderID (UUID v4 - フォルダ識別子)
+  - FolderID (UUID v7 - フォルダ識別子)
   - Name (FolderName - フォルダ名、最大100文字)
   - ParentFolderID (FolderID - 親フォルダID、nullはルート)
   - CreatedAt (timestamp - 作成日時)
   - MediaCount (integer - 含まれるメディア数)
 - **ビジネスルール**:
-  - フォルダ階層は10階層まで
+  - フォルダ階層は5階層まで
   - 同一親フォルダ内で名前の重複は不可
   - 削除時は子フォルダとメディアの移動が必要
 
@@ -215,7 +215,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **所属**: MediaAlbum Aggregate
 **責務**: アルバム内のメディア配置と順序管理
 - **属性**:
-  - AlbumMediaID (UUID v4 - 配置識別子)
+  - AlbumMediaID (UUID v7 - 配置識別子)
   - MediaID (MediaID - 参照するメディア)
   - Position (integer - アルバム内表示順序)
   - AddedAt (timestamp - アルバム追加日時)
@@ -242,12 +242,12 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 ### Value Objects (値オブジェクト)
 
 **識別子関連**
-- **MediaID**: UUID v4形式、メディアファイル固有識別子
-- **TaskID**: Snowflake ID形式、処理タスク識別子（時系列順序付き）
-- **ThumbnailID**: UUID v4形式、サムネイル固有識別子
+- **MediaID**: UUID v7形式、メディアファイル固有識別子（時系列順序付き）
+- **TaskID**: UUID v7形式、処理タスク識別子（時系列順序付き）
+- **ThumbnailID**: UUID v7形式、サムネイル固有識別子
 - **CacheKey**: SHA-256ハッシュ、リモートURL由来のキャッシュキー
-- **BatchID**: UUID v4形式、バッチアップロード識別子
-- **AlbumID**: UUID v4形式、アルバム固有識別子
+- **BatchID**: UUID v7形式、バッチアップロード識別子
+- **AlbumID**: UUID v7形式、アルバム固有識別子
 
 **メディア属性**
 - **MediaType**: 列挙型（IMAGE, VIDEO, AUDIO, DOCUMENT）
@@ -278,7 +278,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
   - URLエンコーディング済み
   - バージョニング対応（将来拡張）
 - **PresignedURL**: 一時的なアクセス用署名付きURL
-  - 有効期限: 15分（アップロード用）、5分（ダウンロード用）
+  - 有効期限: 1時間（アップロード用）、1時間（ダウンロード用）
   - HTTPメソッド制限
   - IPアドレス制限（オプション）
 - **CDNUrl**: CDN経由の配信URL
@@ -300,7 +300,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 **アクセス制御**
 - **MediaVisibility**: PUBLIC, PRIVATE, LIMITED（フォロワーのみ）
 - **AccessPermission**: READ, WRITE, DELETE権限の組み合わせ
-- **ShareToken**: 一時共有用トークン（UUID v4、有効期限付き）
+- **ShareToken**: 一時共有用トークン（UUID v7、有効期限付き）
 
 ### Domain Services
 
@@ -384,6 +384,14 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 4.  MediaProcessingTask Aggregateを生成（TaskType='deletion'）
 5.  非同期ワーカーがMedia Aggregateの削除可否をドメインロジックで判定
 6.  遅延実行後、StorageKey Value Objectを使ってS3から削除
+
+#### CDNキャッシュ無効化戦略
+
+メディア削除時のCDN purge戦略は以下の通り:
+
+*   **論理削除時**: CDNキャッシュはTTL切れまで配信継続（最大24時間）。オリジンからは404を返すため、TTL切れ後は自動的に配信停止。
+*   **物理削除時（7日後）**: S3からファイルを削除。CDNは自動的に404を返す。
+*   **緊急削除（法的要件）**: CDN purge APIを即時実行し、キャッシュを強制無効化する。
 
 ### リモートメディアのキャッシュ
 
@@ -535,7 +543,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
     - 動画形式: MP4, M4V, MOV, WebM
     - 音声形式: MP3, OGG, WAV, FLAC, OPUS, AAC, M4A, 3GP
 *   **サイズ制限:** 
-    - 画像: デフォルト10MB（管理者設定可能）
+    - 画像: デフォルト20MB（管理者設定可能）
     - 動画: デフォルト40MB（管理者設定可能）
     - 音声: デフォルト40MB（管理者設定可能）
     - GIF: 静止画像と同じ制限を適用
@@ -544,9 +552,11 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
     - アップロードされた画像や動画から、複数サイズ（small, medium, large）のサムネイルを自動生成
     - アニメーションGIFから静止画サムネイルを生成
 *   **メディア処理:**
+    - 画像処理ライブラリ: libvips (Go バインディング: `github.com/h2non/bimg`)
+    - SVG→PNG変換: libvipsのSVG対応を使用
     - 動画: 最大ビットレート1300kbps、最大フレームレート120fpsに変換（将来実装）
     - 音声: MP3 V2 VBR（約192kbps）に変換
-    - SVG絵文字: PNGに変換
+    - SVG絵文字: PNGに変換（libvips経由）
 *   **コンテンツ管理:**
     - NSFW（センシティブ）フラグの設定・管理
     - 説明文（ALTテキスト）の追加・編集（最大1,500文字）
@@ -616,7 +626,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 *   **アクセス制御**: 多層防御によるリソース保護
   - JWT ベース認証（HS256、15分有効期限）
   - リソース レベル認可（所有者・フォロワー制御）
-  - 署名付きURL（5-15分有効期限、IP制限オプション）
+  - 署名付きURL（1時間有効期限、IP制限オプション）
   - レート制限（ユーザー/IP/API キー単位）
 *   **データ保護**: 保存時・転送時の暗号化
   - 転送時: TLS 1.3 必須
@@ -656,13 +666,46 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
   - CDN（CloudFlare/CloudFront）
   - AI サービス（画像認識API）
   - 監視システム（Prometheus/Grafana）
-*   **テスト要件**: 自動テスト カバレッジ85%以上
+*   **テスト要件**: 自動テスト カバレッジ90%以上
   - 単体テスト: ドメイン ロジック 95%カバレッジ
   - 統合テスト: API エンドポイント全件
   - パフォーマンス テスト: 想定負荷の150%での動作確認
   - セキュリティ テスト: OWASP Top 10 対応
   
   テスト実装については[共通テスト戦略](../common/testing-strategy.md)を参照。
+
+## Release Plan
+
+### Phase 1: MVP (v0.1.0)
+- 画像アップロード（Presigned URL方式）
+- サムネイル自動生成（small/medium/large）
+- S3互換ストレージへの保存
+- CDN経由のメディア配信
+- 基本的なファイルバリデーション（形式、サイズ）
+- NSFWフラグ管理
+- ALTテキスト管理（最大1,500文字）
+
+### Phase 2: Enhanced Media (v0.2.0)
+- 動画サムネイル生成
+- 音声ファイルのMP3変換
+- アニメーションGIF静止画変換
+- バッチアップロード（最大10ファイル）
+- メディア使用状況追跡
+- ユーザードライブ機能（フォルダ管理）
+
+### Phase 3: Federation & Advanced (v0.3.0)
+- リモートメディアキャッシュ（ActivityPub連携）
+- SVGカスタム絵文字のPNG変換
+- メディアコレクション（アルバム機能）
+- ロールベースストレージ容量管理
+- 管理者向けサイズ制限設定API
+
+### Phase 4: Accessibility & Optimization (v0.4.0)
+- AI ALTテキスト自動生成（外部API連携）
+- 音声説明ファイルの添付
+- 高コントラストモード対応
+- メディア処理エラー詳細通知
+- パフォーマンス最適化
 
 ## 決まっていないこと
 

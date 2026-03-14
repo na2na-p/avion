@@ -54,7 +54,7 @@ ai_moderation_settings:
       - csam  # 児童虐待コンテンツ
       - terrorism  # テロ関連
     user_override_allowed: true  # ユーザーが個別設定可能か
-    
+
   # ユーザーレベル設定（個人が設定）
   user_level:
     ai_analysis_consent:
@@ -76,12 +76,12 @@ privacy_features:
     - メタデータのみでの初期分析
     - 必要最小限のコンテンツアクセス
     - 分析後の即座のデータ削除
-    
+
   transparent_ai:
     - AI使用の明示的な通知
     - 分析理由の開示
     - オプトアウト手段の提供
-    
+
   local_first:
     - オンプレミスAIの優先利用
     - 外部API使用時の匿名化
@@ -96,13 +96,13 @@ ai_decision_flow:
       then: skip_ai_entirely
     - if: server.ai_enabled == true
       then: proceed_to_user_check
-      
+
   user_check:
     - if: user.ai_consent == false
       then: use_community_moderation
     - if: user.ai_consent == true
       then: proceed_with_ai_analysis
-      
+
   content_type_check:
     - if: content_type in server.ai_scope
       then: apply_ai_moderation
@@ -115,7 +115,7 @@ ai_decision_flow:
 
 #### 通報管理
 *   ユーザー、投稿（Drop）、メディアに対する通報受付
-*   通報理由の分類（スパム、ハラスメント、暴力、違法コンテンツ等）
+*   通報理由の分類（スパム、ハラスメント、暴力、違法コンテンツ、偽情報、プライバシー侵害、著作権侵害等）
 *   通報の重複検知と集約
 *   通報者への進捗通知
 *   虚偽通報の検知と対策
@@ -209,7 +209,7 @@ configuration:
   fallback: hide_content
   review_schedule: weekly_batch
   respect_opt_out: true  # 必須
-  
+
   workflow:
     - ユーザー同意確認 → AI利用可否判定
     - AI判定（確信度95%以上）→ 自動実行（同意ユーザーのみ）
@@ -226,7 +226,7 @@ configuration:
     high: delayed_auto  # 24時間後に自動実行
     medium: community_vote
     low: ignore_or_warn
-    
+
   community_involvement: enabled
   vote_threshold: 10
 ```
@@ -251,7 +251,7 @@ trust_levels:
       - report_content
     requirements:
       - email_verified
-      
+
   level_1:
     name: "アクティブユーザー"
     permissions:
@@ -261,7 +261,7 @@ trust_levels:
       - account_age: 30d
       - posts_count: 10
       - reports_accuracy: > 50%
-      
+
   level_2:
     name: "信頼ユーザー"
     permissions:
@@ -273,7 +273,7 @@ trust_levels:
       - account_age: 90d
       - reports_accuracy: > 80%
       - helpful_votes: > 50
-      
+
   level_3:
     name: "コアユーザー"
     permissions:
@@ -287,58 +287,71 @@ trust_levels:
 ```
 
 ### Reputation Calculation
-```python
-def calculate_reputation(user):
-    base_score = 50
-    
-    # Positive factors
-    score = base_score
-    score += user.accurate_reports * 2
-    score += user.helpful_votes * 1
-    score += user.resolved_cases * 3
-    
-    # Negative factors
-    score -= user.false_reports * 5
-    score -= user.violations * 10
-    score -= user.overturned_decisions * 3
-    
-    # Time decay
-    score *= (1 - 0.1 * user.inactive_months)
-    
-    return max(0, min(100, score))
+```go
+func calculateReputation(user User) int {
+    baseScore := 50
+
+    // Positive factors
+    score := baseScore
+    score += user.AccurateReports * 2
+    score += user.HelpfulVotes * 1
+    score += user.ResolvedCases * 3
+
+    // Negative factors
+    score -= user.FalseReports * 5
+    score -= user.Violations * 10
+    score -= user.OverturnedDecisions * 3
+
+    // Time decay
+    decayFactor := 1.0 - 0.1*float64(user.InactiveMonths)
+    score = int(float64(score) * decayFactor)
+
+    if score < 0 {
+        return 0
+    }
+    if score > 100 {
+        return 100
+    }
+    return score
+}
 ```
 
 ## Smart Queueing System
 
 ### Priority Calculation
-```python
-def calculate_priority(case):
-    priority = 0
-    
-    # Report factors
-    priority += case.report_count * 2
-    priority += sum(reporter.trust_score for reporter in case.reporters)
-    
-    # Content factors
-    priority += case.content.view_count * 0.001
-    priority += case.content.share_count * 0.01
-    priority += case.content.viral_score * 3
-    
-    # AI factors (only if AI was used)
-    if case.ai_analysis_performed:
-        priority += (100 - case.ai_confidence) * 0.5
-    else:
-        # AI未使用の場合は優先度を上げる
+```go
+func calculatePriority(c Case) int {
+    priority := 0
+
+    // Report factors
+    priority += c.ReportCount * 2
+    for _, reporter := range c.Reporters {
+        priority += reporter.TrustScore
+    }
+
+    // Content factors
+    priority += int(float64(c.Content.ViewCount) * 0.001)
+    priority += int(float64(c.Content.ShareCount) * 0.01)
+    priority += c.Content.ViralScore * 3
+
+    // AI factors (only if AI was used)
+    if c.AIAnalysisPerformed {
+        priority += int(float64(100-c.AIConfidence) * 0.5)
+    } else {
+        // AI未使用の場合は優先度を上げる
         priority += 50
-    
-    # Time factors
-    priority += case.hours_since_report * 2
-    
-    # Consent factors
-    if not case.user_ai_consent:
-        priority += 20  # AI非同意ユーザーは優先対応
-    
+    }
+
+    // Time factors
+    priority += c.HoursSinceReport * 2
+
+    // Consent factors
+    if !c.UserAIConsent {
+        priority += 20 // AI非同意ユーザーは優先対応
+    }
+
     return priority
+}
 ```
 
 ### Auto-escalation Rules
@@ -346,13 +359,13 @@ def calculate_priority(case):
 escalation_rules:
   - condition: "unreviewed_for_1h AND priority > 80"
     action: "escalate_to_community"
-    
+
   - condition: "unreviewed_for_3h AND severity >= medium"
     action: "hide_content_temporarily"
-    
+
   - condition: "unreviewed_for_24h"
     action: "apply_safe_default_action"
-    
+
   - condition: "appeal_submitted AND original_reviewer_inactive"
     action: "reassign_to_available_reviewer"
 ```
@@ -372,7 +385,7 @@ templates:
     user_notification: true
     appeal_allowed: true
     message_template: "spam_detection_notice"
-    
+
   harassment:
     detection:
       - targeted_negative_sentiment > 0.7
@@ -382,7 +395,7 @@ templates:
     user_action: warning
     escalate_on_repeat: true
     cooldown_period: 30d
-    
+
   misinformation:
     detection:
       - fact_check_failed
@@ -392,7 +405,7 @@ templates:
     require_evidence: true
     community_vote_weight: 2.0
     expert_review_required: true
-    
+
   hate_speech:
     detection:
       - hate_keywords
@@ -412,14 +425,14 @@ templates:
 **責務**: ユーザーからの通報と処理プロセス全体を管理する中核集約
 - **集約ルート**: Report
 - **不変条件**:
-  - ReportIDは一意（Snowflake ID形式、タイムスタンプ情報含有）
+  - ReportIDは一意（UUID v7形式、タイムスタンプ情報含有）
   - 同一通報者による同一対象への重複通報は24時間以内で制限（1件のみ）
   - ステータス遷移は定義されたフローのみ許可（pending→assigned→reviewing→resolved/dismissed/escalated）
   - 完了済み通報（resolved/dismissed）の状態変更は不可
   - 優先度は0-100の範囲で自動計算、手動調整は上級モデレーターのみ可能
   - ReporterUserIDとTargetIDは作成後変更不可（データ整合性保証）
   - TargetTypeは列挙値（user, drop, media, instance）のいずれか
-  - ReportReasonは定義された分類（spam, harassment, violence, illegal, copyright, other）
+  - ReportReasonは定義された分類（spam, harassment, violence, illegal, misinformation, privacy, copyright, other）
   - 証拠添付は最大3件、1件あたり10MB以内
   - 処理期限は優先度に応じて自動設定（高優先度：1時間、中優先度：24時間、低優先度：7日）
 - **ドメインロジック**:
@@ -441,7 +454,7 @@ templates:
 **責務**: 複数関連通報の統合管理と一貫した判定を保証
 - **集約ルート**: ModerationCase
 - **不変条件**:
-  - CaseIDは一意（同一対象・時期の関連通報を統合）
+  - CaseIDは一意（UUID v7形式、同一対象・時期の関連通報を統合）
   - 構成要素Reportは全て同一TargetIDまたは同一TargetUserID
   - ケース優先度は構成要素Reportの最高優先度以上
   - 主担当モデレーターは1名、副担当は最大2名
@@ -467,7 +480,7 @@ templates:
 **責務**: モデレーション決定への異議申し立てプロセス管理
 - **集約ルート**: Appeal
 - **不変条件**:
-  - AppealIDは一意（UUID v4形式）
+  - AppealIDは一意（UUID v7形式）
   - 対象となるModerationActionは実在し有効である
   - 1つのModerationActionに対する異議申し立ては生涯1回のみ
   - 申し立て期限は原決定から7日以内（システム時刻基準）
@@ -493,7 +506,7 @@ templates:
 **責務**: 自動コンテンツフィルタリングルールとその実行結果管理
 - **集約ルート**: ContentFilter
 - **不変条件**:
-  - FilterIDは一意（フィルター種別プレフィックス+連番）
+  - FilterIDは一意（UUID v7形式、フィルター種別プレフィックス付き）
   - 有効なフィルターには必ず検出パターンまたは分類条件が定義されている
   - 優先度は同種フィルター内で一意（実行順序保証）
   - システムフィルター（system_maintained: true）は管理者以外削除不可
@@ -545,7 +558,7 @@ templates:
 **所属**: Report Aggregate
 **責務**: 通報に関連する証拠データの管理と検証
 - **属性**:
-  - EvidenceID（UUID v4形式識別子）
+  - EvidenceID（UUID v7形式識別子）
   - EvidenceType（screenshot, url, text_excerpt, media_file, external_reference）
   - EvidenceData（データ本体または参照URL）
   - FileHash（SHA-256ハッシュ値・改ざん検知用）
@@ -588,7 +601,7 @@ templates:
 **所属**: Appeal Aggregate
 **責務**: 異議申し立てにおける追加根拠資料管理
 - **属性**:
-  - EvidenceID（UUID v4形式識別子）
+  - EvidenceID（UUID v7形式識別子）
   - Description（証拠説明・最大2000文字）
   - SupportingData（裏付けデータ・URL・ファイル参照）
   - DataType（document, screenshot, log_file, expert_opinion, witness_statement）
@@ -608,7 +621,7 @@ templates:
   - ConditionID（フィルター内連番）
   - ConditionType（keyword_exact, keyword_partial, regex_pattern, ml_classifier, domain_check, content_length）
   - Pattern（マッチングパターンまたはMLモデルID）
-  - Threshold（闾値・0.0-1.0）
+  - Threshold（閾値・0.0-1.0）
   - Weight（重み・最終スコアの貢献度）
   - CaseSensitive（大文字・小文字区別フラグ）
   - LanguageSpecific（特定言語対象フラグ）
@@ -622,7 +635,7 @@ templates:
 **所属**: InstancePolicy Aggregate
 **責務**: フェデレーション先インシデント記録と影響分析
 - **属性**:
-  - IncidentID（Snowflake形式識別子）
+  - IncidentID（UUID v7形式識別子）
   - IncidentType（spam_flood, harassment_campaign, policy_violation, technical_abuse, misinformation_spread）
   - Severity（low=1, medium=2, high=3, critical=4）
   - OccurredAt（発生日時・UTCミリ秒精度）
@@ -640,11 +653,11 @@ templates:
 ### Value Objects (値オブジェクト)
 
 **識別子関連**
-- **ReportID**: Snowflake形式ID（タイムスタンプ+マシンID+連番、64bit整数）
-- **CaseID**: UUID v4形式（統合ケース管理用）
-- **ActionID**: Snowflake形式ID（実行順序保証）
-- **FilterID**: プレフィックス付き連番（例：KWF-001, REX-042, ML-128）
-- **AppealID**: UUID v4形式（匿名性保護）
+- **ReportID**: UUID v7形式（タイムスタンプ+ランダム、時系列ソート可能）
+- **CaseID**: UUID v7形式（統合ケース管理用）
+- **ActionID**: UUID v7形式（実行順序保証）
+- **FilterID**: UUID v7形式（プレフィックス付き、例：KWF-xxx, REX-xxx, ML-xxx）
+- **AppealID**: UUID v7形式（匿名性保護）
 - **ModeratorID**: システム内部ID（外部露出禁止）
 
 **通報関連**
@@ -802,7 +815,7 @@ templates:
 13. Report Aggregate の validate() メソッドで全体の妥当性を確認
 14. ReportRepository 経由でデータベースに永続化（トランザクション内）
 15. ModerationQueueService で優先度に基づいてキューに配置
-16. ReportEventPublisher で `report_created` イベントを Redis Stream に発行
+16. ReportEventPublisher で `report_created` イベントを NATS JetStream に発行
 17. SubmitReportResponse DTO を生成して返却（ReportID、処理予定時間を含む）
 
 (UIモック: 通報フォーム)
@@ -874,7 +887,7 @@ templates:
 
 ### APIエンドポイント要求
 
-*   **通報API**: gRPCベースの高速通報受付（100ms以内のレスポンス保証）
+*   **通報API**: ConnectRPCベースの高速通報受付（100ms以内のレスポンス保証）
 *   **モデレーションAPI**: 管理者向けREST API（認証・認可・監査ログ完備）
 *   **統計API**: リアルタイム統計とダッシュボード用GraphQL API（AI利用率含む）
 *   **Webhook API**: 外部システム連携用のイベント通知機能
@@ -885,7 +898,7 @@ templates:
 
 *   **通報データ**: JSON形式、最大10MB/件、圧縮保存、暗号化必須
 *   **証拠データ**: S3互換ストレージ、署名付きURL、自動期限切れ（90日）
-*   **監査ログ**: 改ざん防止ハッシュチェーン、10年間保持、法的開示対応
+*   **監査ログ**: 改ざん防止ハッシュチェーン、7年間保持、法的開示対応
 *   **統計データ**: リアルタイムメトリクス、時系列DB（InfluxDB）、集約済みKPI
 *   **機械学習データ**: 学習用データセット管理、プライバシー保護処理、定期更新
 *   **設定データ**: Redis分散キャッシュ、即座反映、バージョン管理
@@ -903,7 +916,7 @@ templates:
 
 ### 可用性
 
-*   **可用性目標**: 99.95%（年間ダウンタイム4.38時間以内）
+*   **可用性目標**: 99.9%（年間ダウンタイム8.76時間以内）
 *   **Kubernetes構成**: 最小3レプリカ、複数AZ分散配置
 *   **graceful shutdown**: 30秒以内の安全停止、進行中処理の保護
 *   **ヘルスチェック**: liveness/readinessプローブの適切な実装
@@ -942,14 +955,44 @@ templates:
 
 *   **ステートレス設計**: 完全ステートレス、セッション情報のRedis外部化
 *   **可観測性**: OpenTelemetry準拠、メトリクス・トレース・ログの統合
-*   **API設計**: gRPC内部通信、GraphQL管理画面、REST外部連携
+*   **API設計**: ConnectRPC内部通信、GraphQL管理画面、REST外部連携
 *   **外部連携**: AWS Rekognition、Google Cloud AI、カスタムML API（同意必須）
-*   **イベント駆動**: Kafka/Redis Streams、At-least-once配信保証
+*   **イベント駆動**: NATS JetStream、At-least-once配信保証
 *   **キャッシュ戦略**: Redis Cluster、多層キャッシュ、TTL自動管理
 *   **設定管理**: 環境別設定、動的設定更新、設定バリデーション
 *   **デプロイメント**: GitOps、カナリアリリース、自動ロールバック機能
 *   **テスト戦略**: TDD必須、90%以上のカバレッジ目標
     - テスト実装については[共通テスト戦略](../common/testing-strategy.md)を参照
+
+## Release Plan
+
+### Phase 1: Core Foundation (MVP)
+- 通報受付・管理の基本CRUD API
+- 基本的なキーワードフィルタリング（NGワード）
+- モデレーションアクション実行（警告、削除、一時停止）
+- 監査ログの基本記録
+- ConnectRPC API実装
+
+### Phase 2: Automation & Intelligence
+- ML分類器によるコンテンツ自動分析（オプトイン）
+- 優先度自動計算エンジン
+- バッチ処理（優先度再計算、期限切れ処理）
+- 正規表現フィルターおよびドメインブロック
+- 異議申し立てプロセス実装
+
+### Phase 3: Community & Scale
+- コミュニティモデレーション（信頼レベル、投票）
+- インスタンスポリシー管理（フェデレーション対応）
+- モデレーターダッシュボード・統計API
+- スマートキューイング・エスカレーション自動化
+- パフォーマンス最適化（キャッシュ、読み取りレプリカ）
+
+### Phase 4: Compliance & Advanced
+- GDPR/DSA準拠のコンプライアンスレポート自動生成
+- 高度なML分析（画像・動画、多言語対応）
+- フェデレーション協調モデレーション
+- A/Bテストによる閾値最適化
+- 外部レビューサービス連携
 
 ## Success Metrics
 
@@ -959,17 +1002,17 @@ kpis:
     - auto_resolution_rate: > 85%  # AIオプトインユーザーのみ
     - average_resolution_time: < 1h
     - moderator_productivity: 10x improvement
-    
+
   accuracy:
     - false_positive_rate: < 2%
     - appeal_success_rate: < 5%
     - user_satisfaction: > 90%
-    
+
   privacy:
     - ai_opt_in_rate: tracking only  # 強制目標なし
     - consent_change_frequency: < 1/month/user
     - privacy_violation_incidents: 0
-    
+
   scale:
     - handled_reports_per_day: > 10,000
     - cost_per_moderation: < $0.01

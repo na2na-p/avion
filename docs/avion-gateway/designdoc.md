@@ -1,12 +1,12 @@
 # Design Doc: avion-gateway
 
 **Author:** Cline
-**Last Updated:** 2025/08/02
+**Last Updated:** 2026/03/14
 
 ## 1. Summary (これは何？)
 
-- **一言で:** Avionマイクロサービスアーキテクチャにおける純粋なAPIゲートウェイとして、すべての外部リクエストを受け付け、認証・認可・レート制限を行い、適切なバックエンドサービスへルーティングを提供するサービスを実装します。
-- **目的:** 横断的関心事の一元管理、バックエンドサービスへの効率的なルーティング、およびセキュリティ境界の確立を提供します。BFF機能（GraphQL、SSE）はavion-webに配置されます。
+- **一言で:** AvionマイクロサービスアーキテクチャにおけるAPIゲートウェイとして、すべての外部リクエストを受け付け、認証・認可・レート制限・GraphQL集約を行い、適切なバックエンドサービスへルーティングを提供するサービスを実装します。
+- **目的:** 横断的関心事の一元管理、GraphQLによるデータ集約、バックエンドサービスへの効率的なルーティング、およびセキュリティ境界の確立を提供します。
 
 ## 2. テスト戦略
 
@@ -148,10 +148,14 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 このサービスでは、[共通Goバックエンド技術スタックガイドライン](../common/architecture/go-backend-framework.md)に従った実装を行います。
 
 ### 主要技術
+- **言語:** Go 1.25.1
 - **HTTPルーティング:** Chi v5
 - **RPC:** ConnectRPC
 - **GraphQL:** gqlgen（GraphQLゲートウェイとして）
 - **ミドルウェア:** 標準net/httpベースの共通ミドルウェア
+- **キャッシュ:** Redis 8+
+- **メッセージング:** NATS JetStream
+- **サービスディスカバリ:** Kubernetes Service
 
 詳細な実装パターンおよびライブラリの使用方法については、[ガイドライン](../common/architecture/go-backend-framework.md)を参照してください。
 
@@ -171,16 +175,30 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 - すべての外部リクエストの受付とルーティング（REST、gRPC-Web）。
 - JWT検証（公開鍵によるローカル検証、Redisキャッシュ活用）。
 - Bot認証（APIキー検証）。
-- 認可チェック（`avion-auth` との連携）。
 - レートリミット実装。
+
+#### 認証・認可の責務分離（決定事項）
+
+| 責務 | 担当 | 内容 |
+|:--|:--|:--|
+| **認証（Authentication）** | **avion-gateway** | JWT署名検証 + トークン有効期限チェック。認証のみを担当する |
+| **認可（Authorization）** | **各バックエンドサービス** | ビジネスロジックに基づく認可判定。認可の最終決定点は各サービスにある |
+
+- **Gatewayは認可判定を行わない。** JWTからuser_id・rolesを抽出し、gRPCメタデータ（`x-user-id`、`x-user-roles`）に付与して下流サービスに渡す
+- 各バックエンドサービスは、受け取ったuser_id・rolesとビジネスロジックに基づいて認可判定を実行する
+- 例:
+  - 「この投稿を編集できるか？」 → **avion-drop** が投稿の所有者判定に基づき認可
+  - 「このコミュニティに投稿できるか？」 → **avion-community** がメンバーシップとロールに基づき認可
+  - 「このユーザーをブロックできるか？」 → **avion-user** がブロック対象の妥当性を判定し認可
 - 構造化ログとメトリクスの収集。
 - OpenTelemetryトレースコンテキストの生成と伝播。
 - サーキットブレーカーによる障害サービスの隔離。
-- avion-webのBFFへのプロキシ機能。
-
+- GraphQLエンドポイントの提供（gqlgenによるスキーマ定義、DataLoaderによるバッチング）。
+- SSE（Server-Sent Events）によるリアルタイムイベント配信。
+- 複数バックエンドサービスからのデータ集約。
 
 #### 技術要件
-- Go言語で実装し、Kubernetes上でのステートレス運用。
+- Go 1.25.1で実装し、Kubernetes上でのステートレス運用。
 - 高可用性を実現する複数レプリカ構成。
 - 水平スケーリングによる負荷分散。
 
@@ -189,11 +207,8 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 - **ビジネスロジック:** アプリケーション固有のロジック実装（各マイクロサービスで実装）。
 - **データ永続化:** キャッシュを除くデータの保存。
 - **フロントエンドアセット配信:** 静的ファイルのホスティング（CDN経由で配信）。
-- **GraphQL処理:** GraphQLエンドポイント実装（avion-webのBFFで実装）。
-- **SSE処理:** Server-Sent Events実装（avion-webのBFFで実装）。
-- **データ集約:** 複数サービスからのデータ集約（avion-webのBFFで実装）。
 
-## セキュリティ実装ガイドライン
+## 5.1. セキュリティ実装ガイドライン
 
 このサービスは以下のセキュリティガイドラインに準拠する必要があります：
 
@@ -296,14 +311,15 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 ### 6.2. 主要コンポーネント
 
 - **主要コンポーネント:**
-    - `avion-gateway (Go, Kubernetes Deployment)`: 本サービス。HTTPサーバー、gRPCクライアント、Redisクライアント。
-    - `avion-web (Next.js)`: BFF機能を含むWebアプリケーション（GraphQL、SSE、データ集約）。
+    - `avion-gateway (Go, Kubernetes Deployment)`: 本サービス。HTTPサーバー、GraphQLエンドポイント、gRPCクライアント、Redisクライアント。
+    - `avion-web (React SPA)`: Pure client-side SPAフロントエンド。
     - `avion-auth (Go)`: 認証・認可サービス。
     - `avion-drop (Go)`: 投稿管理。
     - `avion-timeline (Go)`: タイムライン生成。
     - `avion-notification (Go)`: 通知管理。
     - `avion-activitypub (Go)`: ActivityPub処理。
-    - `Redis`: 認証キャッシュ、レート制限、イベント通知。
+    - `Redis 8+`: 認証キャッシュ、レート制限。
+    - `NATS JetStream`: サービス間イベント配信。
     - `Observability Stack`: メトリクス、トレース、ログ収集。
 - **構成図:** (アーキテクチャ概要図を参照)
     - [Avion アーキテクチャ概要](../common/architecture.md)
@@ -313,7 +329,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
     - ステートレス設計による高可用性。
     - サーキットブレーカーによる障害の隔離。
 
-## データベースマイグレーション
+## 6.3. データベースマイグレーション
 
 このサービスでは、[共通マイグレーション戦略](../common/database-migration-strategy.md)に従って、Gooseを使用したマイグレーション管理を行います。
 
@@ -340,13 +356,15 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 - **フロー 1: REST APIリクエスト（認証付き）**
     1. Client → Gateway: REST API Request (JWT付き)
-    2. Gateway: JWT検証（Redisキャッシュチェック → ローカル検証）
-    3. Gateway: レート制限チェック
-    4. Gateway: ルーティング解決（RouteResolver）
-    5. Gateway: サーキットブレーカー確認
-    6. Gateway → BackendService: gRPC/HTTP Call
-    7. BackendService → Gateway: Response
-    8. Gateway → Client: HTTP Response
+    2. Gateway: JWT検証（Redisキャッシュチェック → ローカル検証）※認証のみ
+    3. Gateway: JWTからuser_id・rolesを抽出し、gRPCメタデータに付与
+    4. Gateway: レート制限チェック
+    5. Gateway: ルーティング解決（RouteResolver）
+    6. Gateway: サーキットブレーカー確認
+    7. Gateway → BackendService: gRPC/HTTP Call（user_id・rolesをメタデータで伝播）
+    8. BackendService: ビジネスロジックに基づく認可判定（認可の最終決定点）
+    9. BackendService → Gateway: Response
+    10. Gateway → Client: HTTP Response
 
 - **フロー 2: Bot認証とAPI利用**
     1. Bot → Gateway: `POST /oauth/token` (client_credentials)
@@ -489,7 +507,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
   - ProcessingMetrics (Value Object): 処理メトリクス
   - ResponseContext (Value Object): レスポンスコンテキスト
 - **不変条件:**
-  - RequestIDはUUID v4形式で一意
+  - RequestIDはUUID v7形式で一意
   - TraceID/SpanIDはOpenTelemetry準拠
   - タイムスタンプはUTCミリ秒精度
   - User-Agentは1024文字以下
@@ -565,7 +583,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 ###### RequestID
 - **責務:** リクエストの一意識別子を表現
-- **属性:** UUID v4形式
+- **属性:** UUID v7形式
 - **不変性:** 完全に不変
 - **バリデーション:** 正しいUUID形式
 
@@ -852,10 +870,11 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
     - **設定管理の複雑性:** ルーティングルール、レート制限ポリシー、サーキットブレーカー設定など、多数の設定項目の管理。
     - **サービス間認証:** 内部サービス間通信のmTLS実装（将来的）。
 
-- HTTPルーターライブラリ選定（`gin`を推奨）。
-- サービスディスカバリの実装（Kubernetes Service利用）。
-- レート制限アルゴリズム（Sliding Window推奨）。
-- サーキットブレーカーライブラリ（`sony/gobreaker`推奨）。
+- **HTTPルーター:** Chi v5を採用（決定済み）。
+- **サービスディスカバリ:** Kubernetes Serviceを使用（決定済み）。
+- **レート制限アルゴリズム:** Sliding Window推奨。
+- **サーキットブレーカーライブラリ:** `sony/gobreaker`推奨。
+- **イベント配信:** NATS JetStreamを採用（決定済み）。
 - 内部通信のセキュリティ強化（mTLS）。
 
 ## 12. エラーハンドリング戦略
@@ -975,27 +994,33 @@ func (uc *ProcessAPIRequestCommandUseCase) Execute(ctx context.Context, req *Pro
 
 ```go
 // handler/middleware/error_handler.go
-func ErrorHandlerMiddleware() gin.HandlerFunc {
-    return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-        if err, ok := recovered.(error); ok {
-            handleError(c, err)
-        } else {
-            c.JSON(500, gin.H{
-                "error": "Internal server error",
-                "code":  "INTERNAL_ERROR",
-            })
-        }
-        c.Abort()
+func ErrorHandlerMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer func() {
+            if recovered := recover(); recovered != nil {
+                if err, ok := recovered.(error); ok {
+                    handleError(w, r, err)
+                } else {
+                    w.Header().Set("Content-Type", "application/json")
+                    w.WriteHeader(http.StatusInternalServerError)
+                    json.NewEncoder(w).Encode(map[string]string{
+                        "error": "Internal server error",
+                        "code":  "INTERNAL_ERROR",
+                    })
+                }
+            }
+        }()
+        next.ServeHTTP(w, r)
     })
 }
 
-func handleError(c *gin.Context, err error) {
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
     var (
         statusCode int
         errorCode  string
         message    string
     )
-    
+
     switch e := err.(type) {
     case *AuthenticationError:
         statusCode = 401
@@ -1009,7 +1034,7 @@ func handleError(c *gin.Context, err error) {
         statusCode = 429
         errorCode = "RATE_LIMIT_EXCEEDED"
         message = "Too many requests"
-        c.Header("Retry-After", e.ResetTime.Format(time.RFC3339))
+        w.Header().Set("Retry-After", e.ResetTime.Format(time.RFC3339))
     case *NotFoundError:
         statusCode = 404
         errorCode = "NOT_FOUND"
@@ -1018,7 +1043,7 @@ func handleError(c *gin.Context, err error) {
         statusCode = 503
         errorCode = "SERVICE_UNAVAILABLE"
         message = "Service temporarily unavailable"
-        c.Header("Retry-After", e.RetryAfter.String())
+        w.Header().Set("Retry-After", e.RetryAfter.String())
     case *ValidationError:
         statusCode = 400
         errorCode = "BAD_REQUEST"
@@ -1028,19 +1053,21 @@ func handleError(c *gin.Context, err error) {
         errorCode = "INTERNAL_ERROR"
         message = "Internal server error"
     }
-    
+
     // 構造化ログに記録
-    slog.ErrorContext(c.Request.Context(), "Request failed",
+    slog.ErrorContext(r.Context(), "Request failed",
         "error", err.Error(),
         "status_code", statusCode,
         "error_code", errorCode,
-        "path", c.Request.URL.Path,
-        "method", c.Request.Method,
-        "user_id", c.GetString("user_id"),
-        "trace_id", trace.SpanFromContext(c.Request.Context()).SpanContext().TraceID(),
+        "path", r.URL.Path,
+        "method", r.Method,
+        "user_id", r.Context().Value("user_id"),
+        "trace_id", trace.SpanFromContext(r.Context()).SpanContext().TraceID(),
     )
-    
-    c.JSON(statusCode, gin.H{
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(statusCode)
+    json.NewEncoder(w).Encode(map[string]string{
         "error": message,
         "code":  errorCode,
     })
@@ -1641,39 +1668,24 @@ func CalculateQueryComplexity(query string, variables map[string]interface{}) (i
 
 #### Service Discovery Mechanisms
 
+Kubernetes Serviceを使用したサービスディスカバリを採用します。
+
 ```go
-// サービス発見設定
+// サービス発見設定（Kubernetes Service DNS）
 type ServiceDiscoveryConfig struct {
-    ConsulAddress      string `env:"CONSUL_ADDRESS" default:"consul:8500"`
-    ServiceRegistry    string `env:"SERVICE_REGISTRY" default:"consul"`
+    Namespace          string        `env:"K8S_NAMESPACE" default:"avion"`
+    ClusterDomain      string        `env:"K8S_CLUSTER_DOMAIN" default:"cluster.local"`
     HealthCheckInterval time.Duration `env:"HEALTH_CHECK_INTERVAL" default:"30s"`
-    DeregisterTimeout  time.Duration `env:"DEREGISTER_TIMEOUT" default:"10m"`
 }
 
-// サービス登録
-func (gw *Gateway) registerService() error {
-    consulClient, err := consul.NewClient(&consul.Config{
-        Address: gw.config.ServiceDiscovery.ConsulAddress,
-    })
-    if err != nil {
-        return fmt.Errorf("failed to create consul client: %w", err)
-    }
-
-    registration := &consul.AgentServiceRegistration{
-        ID:      fmt.Sprintf("avion-gateway-%s", gw.instanceID),
-        Name:    "avion-gateway",
-        Port:    gw.config.Server.Port,
-        Address: gw.config.Server.Host,
-        Tags:    []string{"gateway", "graphql", "api"},
-        Check: &consul.AgentServiceCheck{
-            HTTP:                           fmt.Sprintf("http://%s:%d/health", gw.config.Server.Host, gw.config.Server.Port),
-            Interval:                       gw.config.ServiceDiscovery.HealthCheckInterval.String(),
-            Timeout:                        "10s",
-            DeregisterCriticalServiceAfter: gw.config.ServiceDiscovery.DeregisterTimeout.String(),
-        },
-    }
-
-    return consulClient.Agent().ServiceRegister(registration)
+// Kubernetes Service DNS を使用したサービス解決
+func (gw *Gateway) resolveServiceEndpoint(serviceName string) string {
+    // Kubernetes Service DNS: <service-name>.<namespace>.svc.<cluster-domain>
+    return fmt.Sprintf("%s.%s.svc.%s",
+        serviceName,
+        gw.config.ServiceDiscovery.Namespace,
+        gw.config.ServiceDiscovery.ClusterDomain,
+    )
 }
 ```
 
@@ -1690,16 +1702,13 @@ type LoadBalancingConfig struct {
 
 // gRPC負荷分散設定
 func (gw *Gateway) setupGRPCLoadBalancing() error {
-    // Consul resolver for service discovery
-    resolver.Register(consulresolver.NewBuilder())
+    // Kubernetes DNS resolver for service discovery
+    services := []string{"avion-auth", "avion-user", "avion-drop", "avion-timeline", "avion-search"}
 
-    // 各サービスの接続設定
-    serviceConfigs := map[string]*grpc.ClientConn{
-        "avion-auth":     gw.createServiceConnection("consul:///avion-auth"),
-        "avion-user":     gw.createServiceConnection("consul:///avion-user"),
-        "avion-drop":     gw.createServiceConnection("consul:///avion-drop"),
-        "avion-timeline": gw.createServiceConnection("consul:///avion-timeline"),
-        "avion-search":   gw.createServiceConnection("consul:///avion-search"),
+    serviceConfigs := make(map[string]*grpc.ClientConn)
+    for _, svc := range services {
+        target := fmt.Sprintf("dns:///%s", gw.resolveServiceEndpoint(svc))
+        serviceConfigs[svc] = gw.createServiceConnection(target)
     }
 
     gw.serviceConnections = serviceConfigs
@@ -1729,8 +1738,8 @@ func (gw *Gateway) createServiceConnection(target string) *grpc.ClientConn {
         }),
     )
     if err != nil {
-        gw.logger.Error("Failed to create gRPC connection", 
-            zap.String("target", target), zap.Error(err))
+        slog.Error("Failed to create gRPC connection",
+            "target", target, "error", err)
         return nil
     }
     return conn
@@ -1743,7 +1752,7 @@ func (gw *Gateway) createServiceConnection(target string) *grpc.ClientConn {
 // ヘルスチェック実装
 type HealthChecker struct {
     services map[string]healthpb.HealthClient
-    logger   *zap.Logger
+    logger   *slog.Logger
 }
 
 func (hc *HealthChecker) CheckServiceHealth(ctx context.Context, serviceName string) error {
@@ -1978,7 +1987,7 @@ func (dsi *DropServiceIntegration) CreateDrop(ctx context.Context, req *droppb.C
         UserID:    drop.UserId,
         CreatedAt: drop.CreatedAt.AsTime(),
     }
-    dsi.eventBus.Publish(ctx, "drop.created", event)
+    dsi.eventBus.Publish(ctx, "avion.drop.drop.created", event)
 
     // キャッシュ更新
     dsi.cache.Delete(fmt.Sprintf("user_drops:%s", drop.UserId))
@@ -2014,7 +2023,7 @@ func (dsi *DropServiceIntegration) GetDrop(ctx context.Context, dropID string) (
 ```go
 // エラーハンドリングとフォールバック戦略
 type ServiceErrorHandler struct {
-    logger       *zap.Logger
+    logger       *slog.Logger
     metrics      *prometheus.CounterVec
     fallbackCache cache.Cache
 }
@@ -2026,17 +2035,17 @@ func (seh *ServiceErrorHandler) HandleServiceError(serviceName string, operation
     // エラータイプ別処理
     switch {
     case isTimeoutError(err):
-        seh.logger.Warn("Service timeout", 
-            zap.String("service", serviceName),
-            zap.String("operation", operation),
-            zap.Error(err))
+        seh.logger.Warn("Service timeout",
+            "service", serviceName,
+            "operation", operation,
+            "error", err)
         return NewServiceUnavailableError(serviceName, "Request timeout")
 
     case isUnavailableError(err):
         seh.logger.Error("Service unavailable",
-            zap.String("service", serviceName),
-            zap.String("operation", operation),
-            zap.Error(err))
+            "service", serviceName,
+            "operation", operation,
+            "error", err)
         return NewServiceUnavailableError(serviceName, "Service temporarily unavailable")
 
     case isAuthenticationError(err):
@@ -2047,9 +2056,9 @@ func (seh *ServiceErrorHandler) HandleServiceError(serviceName string, operation
 
     default:
         seh.logger.Error("Unexpected service error",
-            zap.String("service", serviceName),
-            zap.String("operation", operation),
-            zap.Error(err))
+            "service", serviceName,
+            "operation", operation,
+            "error", err)
         return NewInternalServerError("Internal service error")
     }
 }
@@ -2063,7 +2072,7 @@ func (seh *ServiceErrorHandler) GetFallbackResponse(serviceName string, operatio
 
 ### 16.3 Event-Driven Integration Patterns
 
-#### Redis Pub/Sub Event Schemas
+#### NATS JetStream Event Schemas
 
 ```go
 // イベントスキーマ定義
@@ -2086,20 +2095,20 @@ type EventMetadata struct {
 
 // イベントタイプ定義
 const (
-    EventTypeDropCreated     = "drop.created"
-    EventTypeDropUpdated     = "drop.updated"
-    EventTypeDropDeleted     = "drop.deleted"
-    EventTypeReactionAdded   = "reaction.added"
-    EventTypeReactionRemoved = "reaction.removed"
-    EventTypeUserFollowed    = "user.followed"
-    EventTypeUserUnfollowed  = "user.unfollowed"
-    EventTypeNotificationCreated = "notification.created"
+    EventTypeDropCreated     = "avion.drop.drop.created"
+    EventTypeDropUpdated     = "avion.drop.drop.updated"
+    EventTypeDropDeleted     = "avion.drop.drop.deleted"
+    EventTypeReactionAdded   = "avion.drop.reaction.created"
+    EventTypeReactionRemoved = "avion.drop.reaction.deleted"
+    EventTypeUserFollowed    = "avion.user.follow.created"
+    EventTypeUserUnfollowed  = "avion.user.follow.deleted"
+    EventTypeNotificationCreated = "avion.notification.notification.created"
 )
 
-// イベント発行
+// NATS JetStreamによるイベント発行
 func (gw *Gateway) publishEvent(ctx context.Context, eventType string, data interface{}) error {
     traceID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
-    
+
     event := EventSchema{
         EventType: eventType,
         Version:   "1.0",
@@ -2119,7 +2128,14 @@ func (gw *Gateway) publishEvent(ctx context.Context, eventType string, data inte
         return fmt.Errorf("failed to marshal event: %w", err)
     }
 
-    return gw.redisClient.Publish(ctx, eventType, eventJSON).Err()
+    // NATS JetStreamのsubjectにイベントタイプをマッピング
+    subject := eventType // eventType already contains the full NATS subject (e.g., "avion.drop.drop.created")
+    _, err = gw.jetStream.Publish(ctx, subject, eventJSON)
+    if err != nil {
+        return fmt.Errorf("failed to publish event to NATS JetStream: %w", err)
+    }
+
+    return nil
 }
 ```
 
@@ -2336,24 +2352,26 @@ type CircuitBreakerConfig struct {
     }
 }
 
-// サーキットブレーカー初期化
+// サーキットブレーカー初期化（sony/gobreaker使用）
 func (gw *Gateway) initializeCircuitBreakers() {
-    gw.circuitBreakers = map[string]*hystrix.Circuit{
-        "auth": hystrix.NewCircuit(hystrix.CommandConfig{
-            Name:                   "auth-service",
-            Timeout:                int(gw.config.CircuitBreaker.AuthService.Timeout.Milliseconds()),
-            MaxConcurrentRequests:  gw.config.CircuitBreaker.AuthService.MaxConcurrentReqs,
-            RequestVolumeThreshold: gw.config.CircuitBreaker.AuthService.FailureThreshold,
-            SleepWindow:           int(gw.config.CircuitBreaker.AuthService.RecoveryTimeout.Milliseconds()),
-            ErrorPercentThreshold:  50,
+    gw.circuitBreakers = map[string]*gobreaker.CircuitBreaker{
+        "auth": gobreaker.NewCircuitBreaker(gobreaker.Settings{
+            Name:        "auth-service",
+            MaxRequests: uint32(gw.config.CircuitBreaker.AuthService.MaxConcurrentReqs),
+            Interval:    gw.config.CircuitBreaker.AuthService.RecoveryTimeout,
+            Timeout:     gw.config.CircuitBreaker.AuthService.Timeout,
+            ReadyToTrip: func(counts gobreaker.Counts) bool {
+                return counts.ConsecutiveFailures >= uint32(gw.config.CircuitBreaker.AuthService.FailureThreshold)
+            },
         }),
-        "user": hystrix.NewCircuit(hystrix.CommandConfig{
-            Name:                   "user-service",
-            Timeout:                int(gw.config.CircuitBreaker.UserService.Timeout.Milliseconds()),
-            MaxConcurrentRequests:  gw.config.CircuitBreaker.UserService.MaxConcurrentReqs,
-            RequestVolumeThreshold: gw.config.CircuitBreaker.UserService.FailureThreshold,
-            SleepWindow:           int(gw.config.CircuitBreaker.UserService.RecoveryTimeout.Milliseconds()),
-            ErrorPercentThreshold:  50,
+        "user": gobreaker.NewCircuitBreaker(gobreaker.Settings{
+            Name:        "user-service",
+            MaxRequests: uint32(gw.config.CircuitBreaker.UserService.MaxConcurrentReqs),
+            Interval:    gw.config.CircuitBreaker.UserService.RecoveryTimeout,
+            Timeout:     gw.config.CircuitBreaker.UserService.Timeout,
+            ReadyToTrip: func(counts gobreaker.Counts) bool {
+                return counts.ConsecutiveFailures >= uint32(gw.config.CircuitBreaker.UserService.FailureThreshold)
+            },
         }),
         // 他のサービスも同様に設定
     }
@@ -2439,7 +2457,7 @@ func isRetryableError(err error) bool {
 type FallbackResponseManager struct {
     cache           cache.Cache
     defaultResponses map[string]interface{}
-    logger          *zap.Logger
+    logger          *slog.Logger
 }
 
 // サービス別フォールバック応答
@@ -2542,7 +2560,7 @@ func (jv *JWTValidator) ValidateToken(ctx context.Context, tokenString string) (
 
 func (jv *JWTValidator) parseAndValidateLocally(tokenString string) (*Claims, error) {
     token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+        if token.Method != jwt.SigningMethodRS256 {
             return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
         }
         return jv.jwtSecret, nil
@@ -2929,16 +2947,16 @@ func FilterEventForUser(event *SSEEvent, userID UserID, preferences UserPreferen
 ```go
 // SSEイベントタイプ
 const (
-    EventTypeTimelineUpdate    = "timeline.update"
-    EventTypeDropCreated       = "drop.created"
-    EventTypeDropDeleted       = "drop.deleted"
-    EventTypeReactionAdded     = "reaction.added"
-    EventTypeReactionRemoved   = "reaction.removed"
-    EventTypeNotification      = "notification.new"
-    EventTypeFollowReceived    = "follow.received"
-    EventTypeFollowAccepted    = "follow.accepted"
-    EventTypeMentioned         = "mention.received"
-    EventTypeSystemAnnouncement = "system.announcement"
+    EventTypeTimelineUpdate    = "avion.timeline.timeline.updated"
+    EventTypeDropCreated       = "avion.drop.drop.created"
+    EventTypeDropDeleted       = "avion.drop.drop.deleted"
+    EventTypeReactionAdded     = "avion.drop.reaction.created"
+    EventTypeReactionRemoved   = "avion.drop.reaction.deleted"
+    EventTypeNotification      = "avion.notification.notification.created"
+    EventTypeFollowReceived    = "avion.user.follow.created"
+    EventTypeFollowAccepted    = "avion.user.follow.accepted"
+    EventTypeMentioned         = "avion.drop.mention.created"
+    EventTypeSystemAnnouncement = "avion.system.announcement.created"
 )
 
 // SSEイベント構造
@@ -2980,7 +2998,7 @@ func (e *SSEEvent) Format() []byte {
 
 avion-gatewayサービスは、システム全体のエントリーポイントとして、高度な可用性と性能が要求されます。そのため、特化したテスト戦略を必要とします。
 
-### 17.1. GraphQL Resolver Testing with DataLoader
+### 18.1. GraphQL Resolver Testing with DataLoader
 
 GraphQLリゾルバーとDataLoaderの効率的なバッチング処理をテストします。
 
@@ -2992,11 +3010,10 @@ import (
     "context"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+
+    "github.com/google/go-cmp/cmp"
     "go.uber.org/mock/gomock"
-    
+
     "avion-gateway/internal/graphql"
     "avion-gateway/tests/mocks"
     "avion-gateway/tests/testhelpers"
@@ -3008,15 +3025,17 @@ func TestUserResolver_WithDataLoader(t *testing.T) {
         userIDs       []string
         mockSetup     func(*mocks.MockUserServiceClient)
         expectedCalls int // バッチング効果の検証
-        wantError     bool
+        wantErr       bool
     }{
         {
-            name:    "single user request",
+            name:    "正常系: 単一ユーザーリクエスト",
             userIDs: []string{"user1"},
             mockSetup: func(m *mocks.MockUserServiceClient) {
                 m.EXPECT().GetUsers(gomock.Any(), gomock.Any()).
                     DoAndReturn(func(ctx context.Context, req *pb.GetUsersRequest) (*pb.GetUsersResponse, error) {
-                        assert.Len(t, req.UserIDs, 1)
+                        if len(req.UserIDs) != 1 {
+                            t.Errorf("expected 1 user ID, got %d", len(req.UserIDs))
+                        }
                         return &pb.GetUsersResponse{
                             Users: []*pb.User{{ID: "user1", Username: "alice"}},
                         }, nil
@@ -3025,13 +3044,15 @@ func TestUserResolver_WithDataLoader(t *testing.T) {
             expectedCalls: 1,
         },
         {
-            name:    "multiple users - should batch",
+            name:    "正常系: 複数ユーザーのバッチリクエスト",
             userIDs: []string{"user1", "user2", "user3"},
             mockSetup: func(m *mocks.MockUserServiceClient) {
                 // DataLoaderが正しくバッチングしていることを確認
                 m.EXPECT().GetUsers(gomock.Any(), gomock.Any()).
                     DoAndReturn(func(ctx context.Context, req *pb.GetUsersRequest) (*pb.GetUsersResponse, error) {
-                        assert.Len(t, req.UserIDs, 3, "Should batch all user requests")
+                        if len(req.UserIDs) != 3 {
+                            t.Errorf("should batch all user requests, expected 3 got %d", len(req.UserIDs))
+                        }
                         return &pb.GetUsersResponse{
                             Users: []*pb.User{
                                 {ID: "user1", Username: "alice"},
@@ -3044,7 +3065,7 @@ func TestUserResolver_WithDataLoader(t *testing.T) {
             expectedCalls: 1,
         },
         {
-            name:    "dataloader cache hit test",
+            name:    "正常系: DataLoaderキャッシュヒット",
             userIDs: []string{"user1", "user1"}, // 同じユーザーを2回要求
             mockSetup: func(m *mocks.MockUserServiceClient) {
                 m.EXPECT().GetUsers(gomock.Any(), gomock.Any()).
@@ -3107,11 +3128,17 @@ func TestUserResolver_WithDataLoader(t *testing.T) {
                 }
             }
             
-            if tt.wantError {
-                assert.NotEmpty(t, errs)
+            if tt.wantErr {
+                if len(errs) == 0 {
+                    t.Error("expected errors but got none")
+                }
             } else {
-                assert.Empty(t, errs)
-                assert.Len(t, users, len(tt.userIDs))
+                if len(errs) > 0 {
+                    t.Errorf("unexpected errors: %v", errs)
+                }
+                if diff := cmp.Diff(len(tt.userIDs), len(users)); diff != "" {
+                    t.Errorf("user count mismatch (-want +got):\n%s", diff)
+                }
             }
         })
     }
@@ -3128,7 +3155,7 @@ func TestGraphQLComplexityLimiting(t *testing.T) {
         expectedError string
     }{
         {
-            name: "simple query within limit",
+            name: "正常系: シンプルなクエリが制限内",
             query: `
                 query {
                     me {
@@ -3141,7 +3168,7 @@ func TestGraphQLComplexityLimiting(t *testing.T) {
             wantError:     false,
         },
         {
-            name: "complex query exceeds limit",
+            name: "異常系: 複雑なクエリが制限を超過",
             query: `
                 query {
                     users(first: 1000) {
@@ -3167,7 +3194,7 @@ func TestGraphQLComplexityLimiting(t *testing.T) {
             expectedError: "query complexity exceeds maximum",
         },
         {
-            name: "query with variables",
+            name: "正常系: 変数を含むクエリが制限内",
             query: `
                 query GetTimeline($first: Int!) {
                     homeTimeline(first: $first) {
@@ -3193,19 +3220,25 @@ func TestGraphQLComplexityLimiting(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             complexity, err := graphql.CalculateQueryComplexity(tt.query, tt.variables)
-            require.NoError(t, err)
-            
+            if err != nil {
+                t.Fatalf("failed to calculate complexity: %v", err)
+            }
+
             if tt.wantError {
-                assert.Greater(t, complexity, tt.maxComplexity)
+                if complexity <= tt.maxComplexity {
+                    t.Errorf("expected complexity > %d, got %d", tt.maxComplexity, complexity)
+                }
             } else {
-                assert.LessOrEqual(t, complexity, tt.maxComplexity)
+                if complexity > tt.maxComplexity {
+                    t.Errorf("expected complexity <= %d, got %d", tt.maxComplexity, complexity)
+                }
             }
         })
     }
 }
 ```
 
-### 17.2. Rate Limiting Testing Strategies
+### 18.2. Rate Limiting Testing Strategies
 
 レート制限の境界値テストと負荷条件下での動作を検証します。
 
@@ -3218,11 +3251,10 @@ import (
     "sync"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+
+    "github.com/google/go-cmp/cmp"
     "go.uber.org/mock/gomock"
-    
+
     "avion-gateway/internal/middleware"
     "avion-gateway/tests/mocks"
 )
@@ -3238,7 +3270,7 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
         expectedDenied     int
     }{
         {
-            name:               "within limit",
+            name:               "正常系: 制限内のリクエスト",
             limit:              10,
             window:             time.Minute,
             concurrentRequests: 5,
@@ -3247,7 +3279,7 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
             expectedDenied:     0,
         },
         {
-            name:               "exceeds limit",
+            name:               "異常系: 制限超過",
             limit:              10,
             window:             time.Minute,
             concurrentRequests: 15,
@@ -3256,7 +3288,7 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
             expectedDenied:     5,
         },
         {
-            name:               "burst then steady",
+            name:               "正常系: バースト後の安定化",
             limit:              10,
             window:             time.Minute,
             concurrentRequests: 20,
@@ -3265,7 +3297,7 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
             expectedDenied:     10,
         },
         {
-            name:               "sliding window test",
+            name:               "正常系: スライディングウィンドウ",
             limit:              5,
             window:             time.Second,
             concurrentRequests: 10,
@@ -3314,7 +3346,9 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
                     
                     ctx := context.Background()
                     allowed, err := rateLimiter.CheckRateLimit(ctx, userID, endpoint)
-                    require.NoError(t, err)
+                    if err != nil {
+                        t.Errorf("unexpected error: %v", err)
+                    }
                     results <- allowed
                 }(i)
             }
@@ -3332,8 +3366,12 @@ func TestRateLimiter_ConcurrentRequests(t *testing.T) {
                 }
             }
             
-            assert.Equal(t, tt.expectedAllowed, allowed, "Allowed requests count mismatch")
-            assert.Equal(t, tt.expectedDenied, denied, "Denied requests count mismatch")
+            if diff := cmp.Diff(tt.expectedAllowed, allowed); diff != "" {
+                t.Errorf("allowed requests count mismatch (-want +got):\n%s", diff)
+            }
+            if diff := cmp.Diff(tt.expectedDenied, denied); diff != "" {
+                t.Errorf("denied requests count mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
@@ -3374,7 +3412,9 @@ func TestRateLimiter_LoadBehavior(t *testing.T) {
                 ctx := context.Background()
                 userIDStr := fmt.Sprintf("user_%d", uid)
                 _, err := rateLimiter.CheckRateLimit(ctx, userIDStr, "/api/v1/drops")
-                assert.NoError(t, err)
+                if err != nil {
+                    t.Errorf("unexpected error: %v", err)
+                }
             }
         }(userID)
     }
@@ -3389,11 +3429,13 @@ func TestRateLimiter_LoadBehavior(t *testing.T) {
         totalRequests, duration, requestsPerSecond)
     
     // Verify performance expectations
-    assert.Less(t, duration, 5*time.Second, "Rate limiter should handle load efficiently")
+    if duration >= 5*time.Second {
+        t.Errorf("rate limiter should handle load efficiently, took %v", duration)
+    }
 }
 ```
 
-### 17.3. Circuit Breaker Testing
+### 18.3. Circuit Breaker Testing
 
 サーキットブレーカーの状態遷移と障害復旧のテストを実装します。
 
@@ -3406,11 +3448,10 @@ import (
     "errors"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+
+    "github.com/google/go-cmp/cmp"
     "go.uber.org/mock/gomock"
-    
+
     "avion-gateway/internal/middleware"
     "avion-gateway/internal/domain"
 )
@@ -3425,7 +3466,7 @@ func TestCircuitBreaker_StateTransitions(t *testing.T) {
         shouldCallFunc  bool
     }{
         {
-            name:           "closed to open on failures",
+            name:           "正常系: 失敗超過でClosed→Open遷移",
             initialState:   domain.CircuitClosed,
             failures:       5, // threshold is 5
             successes:      0,
@@ -3433,7 +3474,7 @@ func TestCircuitBreaker_StateTransitions(t *testing.T) {
             shouldCallFunc: false,
         },
         {
-            name:           "open to half-open after timeout",
+            name:           "正常系: タイムアウト後にOpen→HalfOpen遷移",
             initialState:   domain.CircuitOpen,
             failures:       0,
             successes:      0,
@@ -3441,7 +3482,7 @@ func TestCircuitBreaker_StateTransitions(t *testing.T) {
             shouldCallFunc: true,
         },
         {
-            name:           "half-open to closed on success",
+            name:           "正常系: 成功でHalfOpen→Closed遷移",
             initialState:   domain.CircuitHalfOpen,
             failures:       0,
             successes:      2, // threshold is 2
@@ -3449,7 +3490,7 @@ func TestCircuitBreaker_StateTransitions(t *testing.T) {
             shouldCallFunc: true,
         },
         {
-            name:           "half-open to open on failure",
+            name:           "異常系: 失敗でHalfOpen→Open遷移",
             initialState:   domain.CircuitHalfOpen,
             failures:       1,
             successes:      0,
@@ -3505,23 +3546,33 @@ func TestCircuitBreaker_StateTransitions(t *testing.T) {
                 _, err := breaker.Execute(ctx, serviceName, func() (interface{}, error) {
                     return nil, errors.New("service failure")
                 })
-                assert.Error(t, err)
+                if err == nil {
+                    t.Error("expected error but got nil")
+                }
             }
-            
+
             for i := 0; i < tt.successes; i++ {
                 result, err := breaker.Execute(ctx, serviceName, func() (interface{}, error) {
                     return "success", nil
                 })
                 if tt.shouldCallFunc {
-                    assert.NoError(t, err)
-                    assert.Equal(t, "success", result)
+                    if err != nil {
+                        t.Errorf("unexpected error: %v", err)
+                    }
+                    if diff := cmp.Diff("success", result); diff != "" {
+                        t.Errorf("result mismatch (-want +got):\n%s", diff)
+                    }
                 }
             }
-            
+
             // Verify final state
             state, err := mockRepo.GetState(ctx, serviceName)
-            require.NoError(t, err)
-            assert.Equal(t, tt.expectedState, state)
+            if err != nil {
+                t.Fatalf("failed to get state: %v", err)
+            }
+            if diff := cmp.Diff(tt.expectedState, state); diff != "" {
+                t.Errorf("state mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
@@ -3580,11 +3631,13 @@ func TestCircuitBreaker_ConcurrentRequests(t *testing.T) {
     wg.Wait()
     
     t.Logf("Success: %d, Failures: %d", successCount, failureCount)
-    assert.Equal(t, int64(numRequests), failureCount, "All requests should fail")
+    if diff := cmp.Diff(int64(numRequests), failureCount); diff != "" {
+        t.Errorf("failure count mismatch (-want +got):\n%s", diff)
+    }
 }
 ```
 
-### 17.4. Routing and Load Balancing Tests
+### 18.4. Routing and Load Balancing Tests
 
 ルーティングロジックと負荷分散アルゴリズムのテストを実装します。
 
@@ -3596,10 +3649,9 @@ import (
     "context"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
-    
+
+    "github.com/google/go-cmp/cmp"
+
     "avion-gateway/internal/routing"
     "avion-gateway/internal/domain"
 )
@@ -3617,13 +3669,17 @@ func TestLoadBalancer_RoundRobinAlgorithm(t *testing.T) {
     selectedBackends := make(map[string]int)
     for i := 0; i < 30; i++ {
         backend, err := lb.SelectBackend(context.Background())
-        require.NoError(t, err)
+        if err != nil {
+            t.Fatalf("unexpected error: %v", err)
+        }
         selectedBackends[backend.ID]++
     }
-    
+
     // Each backend should be selected equally
-    for _, count := range selectedBackends {
-        assert.Equal(t, 10, count, "Round-robin should distribute evenly")
+    for id, count := range selectedBackends {
+        if diff := cmp.Diff(10, count); diff != "" {
+            t.Errorf("round-robin distribution mismatch for %s (-want +got):\n%s", id, diff)
+        }
     }
 }
 
@@ -3641,14 +3697,22 @@ func TestLoadBalancer_WeightedRoundRobin(t *testing.T) {
     
     for i := 0; i < totalRequests; i++ {
         backend, err := lb.SelectBackend(context.Background())
-        require.NoError(t, err)
+        if err != nil {
+            t.Fatalf("unexpected error: %v", err)
+        }
         selectedBackends[backend.ID]++
     }
-    
+
     // Verify weighted distribution
-    assert.Equal(t, 30, selectedBackends["backend1"], "Weight 3 should get 30 requests")
-    assert.Equal(t, 20, selectedBackends["backend2"], "Weight 2 should get 20 requests")
-    assert.Equal(t, 10, selectedBackends["backend3"], "Weight 1 should get 10 requests")
+    if diff := cmp.Diff(30, selectedBackends["backend1"]); diff != "" {
+        t.Errorf("backend1 count mismatch (-want +got):\n%s", diff)
+    }
+    if diff := cmp.Diff(20, selectedBackends["backend2"]); diff != "" {
+        t.Errorf("backend2 count mismatch (-want +got):\n%s", diff)
+    }
+    if diff := cmp.Diff(10, selectedBackends["backend3"]); diff != "" {
+        t.Errorf("backend3 count mismatch (-want +got):\n%s", diff)
+    }
 }
 
 func TestLoadBalancer_HealthyBackendsOnly(t *testing.T) {
@@ -3663,14 +3727,22 @@ func TestLoadBalancer_HealthyBackendsOnly(t *testing.T) {
     selectedBackends := make(map[string]int)
     for i := 0; i < 20; i++ {
         backend, err := lb.SelectBackend(context.Background())
-        require.NoError(t, err)
+        if err != nil {
+            t.Fatalf("unexpected error: %v", err)
+        }
         selectedBackends[backend.ID]++
     }
-    
+
     // Only healthy backends should be selected
-    assert.Equal(t, 10, selectedBackends["backend1"])
-    assert.Equal(t, 0, selectedBackends["backend2"], "Unhealthy backend should not be selected")
-    assert.Equal(t, 10, selectedBackends["backend3"])
+    if diff := cmp.Diff(10, selectedBackends["backend1"]); diff != "" {
+        t.Errorf("backend1 count mismatch (-want +got):\n%s", diff)
+    }
+    if selectedBackends["backend2"] != 0 {
+        t.Errorf("unhealthy backend should not be selected, got %d", selectedBackends["backend2"])
+    }
+    if diff := cmp.Diff(10, selectedBackends["backend3"]); diff != "" {
+        t.Errorf("backend3 count mismatch (-want +got):\n%s", diff)
+    }
 }
 
 func TestRouteResolver_PathMatching(t *testing.T) {
@@ -3683,7 +3755,7 @@ func TestRouteResolver_PathMatching(t *testing.T) {
         wantTarget string
     }{
         {
-            name: "exact path match",
+            name: "正常系: 完全パスマッチ",
             routes: []*domain.RoutingRule{
                 {
                     PathPattern:  "/api/v1/drops",
@@ -3698,7 +3770,7 @@ func TestRouteResolver_PathMatching(t *testing.T) {
             wantTarget: "avion-drop",
         },
         {
-            name: "parametric path match",
+            name: "正常系: パラメータ付きパスマッチ",
             routes: []*domain.RoutingRule{
                 {
                     PathPattern:  "/api/v1/drops/{id}",
@@ -3713,7 +3785,7 @@ func TestRouteResolver_PathMatching(t *testing.T) {
             wantTarget: "avion-drop",
         },
         {
-            name: "regex path match",
+            name: "正常系: 正規表現パスマッチ",
             routes: []*domain.RoutingRule{
                 {
                     PathPattern:  "/api/v1/users/[a-zA-Z0-9]+/drops",
@@ -3728,7 +3800,7 @@ func TestRouteResolver_PathMatching(t *testing.T) {
             wantTarget: "avion-drop",
         },
         {
-            name: "priority-based matching",
+            name: "正常系: 優先度ベースマッチング",
             routes: []*domain.RoutingRule{
                 {
                     PathPattern:  "/api/v1/drops/special",
@@ -3749,7 +3821,7 @@ func TestRouteResolver_PathMatching(t *testing.T) {
             wantTarget: "avion-special", // Should match higher priority route
         },
         {
-            name: "no match for wrong method",
+            name: "異常系: メソッド不一致でマッチなし",
             routes: []*domain.RoutingRule{
                 {
                     PathPattern:  "/api/v1/drops",
@@ -3771,18 +3843,26 @@ func TestRouteResolver_PathMatching(t *testing.T) {
             target, err := resolver.ResolveRoute(tt.path, tt.method)
             
             if tt.wantMatch {
-                require.NoError(t, err)
-                assert.Equal(t, tt.wantTarget, string(target.ServiceName))
+                if err != nil {
+                    t.Fatalf("unexpected error: %v", err)
+                }
+                if diff := cmp.Diff(tt.wantTarget, string(target.ServiceName)); diff != "" {
+                    t.Errorf("target service mismatch (-want +got):\n%s", diff)
+                }
             } else {
-                assert.Error(t, err)
-                assert.Nil(t, target)
+                if err == nil {
+                    t.Error("expected error but got nil")
+                }
+                if target != nil {
+                    t.Errorf("expected nil target, got %v", target)
+                }
             }
         })
     }
 }
 ```
 
-### 17.5. Cache Invalidation Testing
+### 18.5. Cache Invalidation Testing
 
 キャッシュの無効化とデータ整合性のテストを実装します。
 
@@ -3794,11 +3874,10 @@ import (
     "context"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+
+    "github.com/google/go-cmp/cmp"
     "go.uber.org/mock/gomock"
-    
+
     "avion-gateway/internal/cache"
     "avion-gateway/tests/mocks"
 )
@@ -3812,7 +3891,7 @@ func TestJWTCache_InvalidationOnTokenRevocation(t *testing.T) {
         expectDeleted bool
     }{
         {
-            name: "token exists and gets invalidated",
+            name: "正常系: トークンが存在し無効化される",
             setupCache: func(mc *mocks.MockRedisClient) {
                 // Token initially exists in cache
                 mc.EXPECT().Get(gomock.Any(), "jwt_validation:test_jti").
@@ -3831,7 +3910,7 @@ func TestJWTCache_InvalidationOnTokenRevocation(t *testing.T) {
             expectDeleted: true,
         },
         {
-            name: "token doesn't exist in cache",
+            name: "正常系: キャッシュにトークンが存在しない",
             setupCache: func(mc *mocks.MockRedisClient) {
                 mc.EXPECT().Get(gomock.Any(), "jwt_validation:nonexistent_jti").
                     Return("", redis.Nil).Times(1)
@@ -3859,21 +3938,32 @@ func TestJWTCache_InvalidationOnTokenRevocation(t *testing.T) {
             // Check if token is initially cached
             cachedData, err := jwtCache.Get(ctx, tt.jti)
             if tt.expectCached {
-                require.NoError(t, err)
-                assert.NotEmpty(t, cachedData)
+                if err != nil {
+                    t.Fatalf("unexpected error: %v", err)
+                }
+                if cachedData == nil {
+                    t.Error("expected cached data but got nil")
+                }
             } else {
-                assert.Error(t, err)
+                if err == nil {
+                    t.Error("expected error but got nil")
+                }
             }
-            
+
             // Invalidate token
             deleted, err := jwtCache.InvalidateToken(ctx, tt.jti)
-            require.NoError(t, err)
-            assert.Equal(t, tt.expectDeleted, deleted)
-            
+            if err != nil {
+                t.Fatalf("unexpected error during invalidation: %v", err)
+            }
+            if diff := cmp.Diff(tt.expectDeleted, deleted); diff != "" {
+                t.Errorf("deleted flag mismatch (-want +got):\n%s", diff)
+            }
+
             // Verify token is no longer cached
             cachedData, err = jwtCache.Get(ctx, tt.jti)
-            assert.Error(t, err)
-            assert.Empty(t, cachedData)
+            if err == nil {
+                t.Error("expected error after invalidation but got nil")
+            }
         })
     }
 }
@@ -3901,29 +3991,38 @@ func TestAuthCache_HitMissPatterns(t *testing.T) {
         Return("", redis.Nil).Times(1)
     
     cachedAuth, err := authCache.Get(ctx, jti)
-    assert.Error(t, err)
-    assert.Nil(t, cachedAuth)
-    
+    if err == nil {
+        t.Error("expected cache miss error but got nil")
+    }
+
     // Store in cache
     authDataJSON, _ := json.Marshal(authData)
     mockRedis.EXPECT().Set(gomock.Any(), "jwt_validation:"+jti, string(authDataJSON), time.Hour).
         Return("OK", nil).Times(1)
-    
+
     err = authCache.Set(ctx, jti, &authData, time.Hour)
-    require.NoError(t, err)
-    
+    if err != nil {
+        t.Fatalf("unexpected error storing cache: %v", err)
+    }
+
     // Second access - cache hit
     mockRedis.EXPECT().Get(gomock.Any(), "jwt_validation:"+jti).
         Return(string(authDataJSON), nil).Times(1)
-    
+
     cachedAuth, err = authCache.Get(ctx, jti)
-    require.NoError(t, err)
-    assert.Equal(t, authData.UserID, cachedAuth.UserID)
-    assert.Equal(t, authData.Scopes, cachedAuth.Scopes)
+    if err != nil {
+        t.Fatalf("unexpected error on cache hit: %v", err)
+    }
+    if diff := cmp.Diff(authData.UserID, cachedAuth.UserID); diff != "" {
+        t.Errorf("user ID mismatch (-want +got):\n%s", diff)
+    }
+    if diff := cmp.Diff(authData.Scopes, cachedAuth.Scopes); diff != "" {
+        t.Errorf("scopes mismatch (-want +got):\n%s", diff)
+    }
 }
 ```
 
-### 17.6. WebSocket/SSE Connection Testing
+### 18.6. WebSocket/SSE Connection Testing
 
 WebSocketとSSE接続の管理とイベント配信のテストを実装します。
 
@@ -3934,12 +4033,12 @@ package sse_test
 import (
     "context"
     "net/http/httptest"
+    "strings"
     "testing"
     "time"
-    
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
-    
+
+    "github.com/google/go-cmp/cmp"
+
     "avion-gateway/internal/sse"
 )
 
@@ -3952,39 +4051,57 @@ func TestSSEConnectionManager_ConnectionLifecycle(t *testing.T) {
     
     // Establish connection
     conn, err := manager.EstablishConnection(context.Background(), userID, recorder)
-    require.NoError(t, err)
-    assert.NotNil(t, conn)
-    
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if conn == nil {
+        t.Fatal("expected connection but got nil")
+    }
+
     // Verify connection is tracked
     connections := manager.GetUserConnections(userID)
-    assert.Len(t, connections, 1)
-    assert.Equal(t, conn.ID, connections[0].ID)
-    
+    if diff := cmp.Diff(1, len(connections)); diff != "" {
+        t.Errorf("connection count mismatch (-want +got):\n%s", diff)
+    }
+    if diff := cmp.Diff(conn.ID, connections[0].ID); diff != "" {
+        t.Errorf("connection ID mismatch (-want +got):\n%s", diff)
+    }
+
     // Send test event
     event := &sse.Event{
         ID:   "event1",
         Type: "test",
         Data: map[string]interface{}{"message": "hello"},
     }
-    
+
     err = manager.BroadcastToUser(userID, event)
-    require.NoError(t, err)
-    
+    if err != nil {
+        t.Fatalf("unexpected broadcast error: %v", err)
+    }
+
     // Wait for event to be written
     time.Sleep(10 * time.Millisecond)
-    
+
     // Verify event was written to response
     response := recorder.Body.String()
-    assert.Contains(t, response, "event: test")
-    assert.Contains(t, response, `data: {"message":"hello"}`)
-    
+    if !strings.Contains(response, "event: test") {
+        t.Errorf("expected response to contain 'event: test', got: %s", response)
+    }
+    if !strings.Contains(response, `data: {"message":"hello"}`) {
+        t.Errorf("expected response to contain data payload, got: %s", response)
+    }
+
     // Close connection
     err = manager.CloseConnection(conn.ID)
-    require.NoError(t, err)
-    
+    if err != nil {
+        t.Fatalf("unexpected error closing connection: %v", err)
+    }
+
     // Verify connection is removed
     connections = manager.GetUserConnections(userID)
-    assert.Len(t, connections, 0)
+    if len(connections) != 0 {
+        t.Errorf("expected 0 connections after close, got %d", len(connections))
+    }
 }
 
 func TestSSEConnectionManager_EventFiltering(t *testing.T) {
@@ -3995,42 +4112,42 @@ func TestSSEConnectionManager_EventFiltering(t *testing.T) {
         expectedFilter bool
     }{
         {
-            name: "public event allowed",
+            name: "正常系: パブリックイベントが許可される",
             event: &sse.Event{
-                Type:     "drop.created",
+                Type:     "avion.drop.drop.created",
                 Privacy:  sse.PublicEvent,
                 AuthorID: "author123",
             },
             userPrefs: sse.UserPreferences{
-                EventTypes:   []string{"drop.created", "reaction.added"},
+                EventTypes:   []string{"avion.drop.drop.created", "avion.drop.reaction.created"},
                 MutedUsers:   []string{},
                 BlockedUsers: []string{},
             },
             expectedFilter: true,
         },
         {
-            name: "event from muted user filtered",
+            name: "正常系: ミュートユーザーのイベントがフィルタされる",
             event: &sse.Event{
-                Type:     "drop.created",
+                Type:     "avion.drop.drop.created",
                 Privacy:  sse.PublicEvent,
                 AuthorID: "muted_user",
             },
             userPrefs: sse.UserPreferences{
-                EventTypes:   []string{"drop.created"},
+                EventTypes:   []string{"avion.drop.drop.created"},
                 MutedUsers:   []string{"muted_user"},
                 BlockedUsers: []string{},
             },
             expectedFilter: false,
         },
         {
-            name: "private event filtered for non-owner",
+            name: "正常系: プライベートイベントが非所有者にフィルタされる",
             event: &sse.Event{
-                Type:    "notification.private",
+                Type:    "avion.notification.notification.private",
                 Privacy: sse.PrivateEvent,
                 UserID:  "owner123",
             },
             userPrefs: sse.UserPreferences{
-                EventTypes: []string{"notification.private"},
+                EventTypes: []string{"avion.notification.notification.private"},
             },
             expectedFilter: false, // Different user ID
         },
@@ -4041,13 +4158,15 @@ func TestSSEConnectionManager_EventFiltering(t *testing.T) {
             manager := sse.NewConnectionManager()
             
             result := manager.FilterEventForUser(tt.event, "user123", tt.userPrefs)
-            assert.Equal(t, tt.expectedFilter, result)
+            if diff := cmp.Diff(tt.expectedFilter, result); diff != "" {
+                t.Errorf("filter result mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
 ```
 
-### 17.7. Security Header Validation
+### 18.7. Security Header Validation
 
 セキュリティヘッダーの検証とCSRF保護のテストを実装します。
 
@@ -4059,10 +4178,10 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
-    
-    "github.com/gin-gonic/gin"
-    "github.com/stretchr/testify/assert"
-    
+
+    "github.com/go-chi/chi/v5"
+    "github.com/google/go-cmp/cmp"
+
     "avion-gateway/internal/middleware"
 )
 
@@ -4072,7 +4191,7 @@ func TestSecurityHeaders_Middleware(t *testing.T) {
         expectedHeaders map[string]string
     }{
         {
-            name: "security headers applied",
+            name: "正常系: セキュリティヘッダーが適用される",
             expectedHeaders: map[string]string{
                 "X-Content-Type-Options":   "nosniff",
                 "X-Frame-Options":          "DENY",
@@ -4086,27 +4205,32 @@ func TestSecurityHeaders_Middleware(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            gin.SetMode(gin.TestMode)
-            router := gin.New()
-            
+            r := chi.NewRouter()
+
             // Apply security headers middleware
-            router.Use(middleware.SecurityHeaders())
-            router.GET("/test", func(c *gin.Context) {
-                c.JSON(http.StatusOK, gin.H{"status": "ok"})
+            r.Use(middleware.SecurityHeaders)
+            r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
+                w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusOK)
+                w.Write([]byte(`{"status":"ok"}`))
             })
-            
+
             req := httptest.NewRequest("GET", "/test", nil)
             resp := httptest.NewRecorder()
-            
-            router.ServeHTTP(resp, req)
-            
+
+            r.ServeHTTP(resp, req)
+
             // Verify security headers
             for header, expectedValue := range tt.expectedHeaders {
                 actualValue := resp.Header().Get(header)
-                assert.Equal(t, expectedValue, actualValue, "Security header %s mismatch", header)
+                if diff := cmp.Diff(expectedValue, actualValue); diff != "" {
+                    t.Errorf("security header %s mismatch (-want +got):\n%s", header, diff)
+                }
             }
-            
-            assert.Equal(t, http.StatusOK, resp.Code)
+
+            if diff := cmp.Diff(http.StatusOK, resp.Code); diff != "" {
+                t.Errorf("status code mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
@@ -4120,28 +4244,28 @@ func TestCSRFProtection_ValidateToken(t *testing.T) {
         expectedValid bool
     }{
         {
-            name:          "valid CSRF token in header",
+            name:          "正常系: 有効なCSRFトークン",
             method:        "POST",
             csrfToken:     "valid_token_123",
             headerToken:   "valid_token_123",
             expectedValid: true,
         },
         {
-            name:          "missing CSRF token",
+            name:          "異常系: CSRFトークン未設定",
             method:        "POST",
             csrfToken:     "valid_token_123",
             headerToken:   "",
             expectedValid: false,
         },
         {
-            name:          "invalid CSRF token",
+            name:          "異常系: 無効なCSRFトークン",
             method:        "POST",
             csrfToken:     "valid_token_123",
             headerToken:   "invalid_token",
             expectedValid: false,
         },
         {
-            name:          "GET request - no CSRF check",
+            name:          "正常系: GETリクエストはCSRFチェック不要",
             method:        "GET",
             csrfToken:     "valid_token_123",
             headerToken:   "",
@@ -4151,31 +4275,38 @@ func TestCSRFProtection_ValidateToken(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            gin.SetMode(gin.TestMode)
-            router := gin.New()
-            
+            r := chi.NewRouter()
+
             csrfMiddleware := middleware.NewCSRFProtection("secret_key")
-            router.Use(csrfMiddleware)
-            
-            router.Any("/test", func(c *gin.Context) {
-                c.JSON(http.StatusOK, gin.H{"status": "ok"})
-            })
-            
+            r.Use(csrfMiddleware)
+
+            handler := func(w http.ResponseWriter, r *http.Request) {
+                w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusOK)
+                w.Write([]byte(`{"status":"ok"}`))
+            }
+            r.Get("/test", handler)
+            r.Post("/test", handler)
+
             req := httptest.NewRequest(tt.method, "/test", nil)
             if tt.headerToken != "" {
                 req.Header.Set("X-CSRF-Token", tt.headerToken)
             }
-            
+
             // Simulate session with CSRF token
             req.Header.Set("Cookie", "csrf_token="+tt.csrfToken)
-            
+
             resp := httptest.NewRecorder()
-            router.ServeHTTP(resp, req)
-            
+            r.ServeHTTP(resp, req)
+
             if tt.expectedValid {
-                assert.Equal(t, http.StatusOK, resp.Code)
+                if diff := cmp.Diff(http.StatusOK, resp.Code); diff != "" {
+                    t.Errorf("status code mismatch (-want +got):\n%s", diff)
+                }
             } else {
-                assert.Equal(t, http.StatusForbidden, resp.Code)
+                if diff := cmp.Diff(http.StatusForbidden, resp.Code); diff != "" {
+                    t.Errorf("status code mismatch (-want +got):\n%s", diff)
+                }
             }
         })
     }
@@ -4294,5 +4425,78 @@ func main() {
     // ...
 }
 ```
+
+## 21. Release Plan (リリース計画)
+
+### 21.1. 実装フェーズ
+
+avion-gatewayは全サービスのエントリポイントであるため、最初にデプロイする必要があります。
+
+| Phase | 内容 | 期間 | 前提条件 |
+|:------|:-----|:-----|:---------|
+| Phase 1 | ルーティング・認証ミドルウェア基本実装（Chi v5ルーター、JWT検証、パスベースルーティング、ヘルスチェック） | 2週間 | Kubernetes環境構築完了、avion-auth基本実装完了 |
+| Phase 2 | レート制限・サーキットブレーカー実装（Redis連携、スライディングウィンドウ、sony/gobreaker統合） | 2週間 | Phase 1 完了、Redis 8+環境構築完了 |
+| Phase 3 | GraphQL集約実装（gqlgenスキーマ定義、DataLoaderバッチング、複雑度計算、SSEイベント配信） | 3週間 | Phase 2 完了、各バックエンドサービスのgRPC API定義完了 |
+
+### 21.2. 段階的ロールアウト戦略
+
+**Canary Release:**
+1. **5%** -- 初期検証（最低15分間監視）
+2. **25%** -- 拡大検証（最低30分間監視）
+3. **50%** -- 広域検証（最低1時間監視）
+4. **100%** -- 全展開
+
+**各段階の監視項目:**
+- エラー率 < 1%
+- レイテンシ p99 < SLO の 2倍
+- CPU/Memory 使用率が正常範囲内
+
+### 21.3. ロールバック判定基準と手順
+
+**ロールバック判定基準:**
+- エラー率が 1% を超過
+- p99 レイテンシが SLO の 2倍を超過
+- CRITICAL レベルのログが発生
+- データ整合性エラーの検出
+
+**ロールバック手順:**
+```bash
+# 1. 新バージョンのデプロイを停止
+kubectl rollout pause deployment/avion-gateway -n avion
+
+# 2. 前バージョンにロールバック
+kubectl rollout undo deployment/avion-gateway -n avion
+
+# 3. ロールバック完了を確認
+kubectl rollout status deployment/avion-gateway -n avion
+```
+
+### 21.4. 環境デプロイ順序
+
+1. **dev** -- 開発環境でのE2Eテスト
+2. **staging** -- 本番同等環境での負荷テスト・統合テスト
+3. **production** -- 段階的ロールアウト（21.2参照）
+
+### 21.5. サービス間依存関係
+
+- **前提サービス:** avion-auth（JWT検証用公開鍵の提供）、Redis 8+（キャッシュ・レート制限）、NATS JetStream（イベント配信）
+- **後続サービス:** 全てのavionバックエンドサービス（avion-user, avion-drop, avion-timeline, avion-activitypub等）はavion-gatewayを経由して外部からアクセスされるため、avion-gatewayが先にデプロイされている必要がある
+
+### 21.6. リリース前チェックリスト
+
+- [ ] 全テストがパス（ユニット + 統合）
+- [ ] カバレッジ目標達成（90%以上）
+- [ ] 環境変数の追加/変更がドキュメント化済み
+- [ ] ロールバック手順のリハーサル完了
+- [ ] 監視ダッシュボード・アラートの設定完了
+- [ ] staging環境での動作確認完了
+
+### 21.7. リリース後検証ステップ
+
+- [ ] Canary比率の段階的拡大
+- [ ] エラー率・レイテンシの継続監視
+- [ ] ログの異常パターン確認
+- [ ] 依存サービスとの連携正常性確認
+- [ ] 24時間後のメトリクス確認
 
 ---

@@ -44,12 +44,12 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 *   JWT検証（公開鍵によるローカル検証、結果のキャッシュ）
 *   Bot認証サポート（APIキー検証）
 *   認可チェック（`avion-auth` との連携）
-*   トークン失効管理（Redis Pub/Sub経由）
+*   トークン失効管理（NATS JetStream経由）
 
 #### ルーティング
 *   パスベースルーティング（REST API）
 *   ヘッダーベースルーティング（Accept, Content-Type）
-*   サービスディスカバリ（静的設定、将来的には動的）
+*   サービスディスカバリ（Kubernetes Service DNS）
 *   ロードバランシング（ラウンドロビン、将来的にはヘルスチェック連動）
 
 #### レート制限
@@ -69,15 +69,22 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 *   gRPC → HTTP（レスポンス変換）
 *   WebSocket → 内部イベントストリーム（将来的）
 
+#### GraphQL集約
+*   GraphQLエンドポイントの提供（gqlgenによるスキーマ定義）
+*   DataLoaderによるバッチングとN+1問題の解決
+*   クエリ複雑度の計算と制限
+*   複数バックエンドサービスからのデータ集約
+
+#### リアルタイムイベント配信
+*   SSE（Server-Sent Events）によるリアルタイム更新配信
+*   NATS JetStreamからのイベント受信とクライアントへの配信
+
 ### やらないこと
 
 *   **ビジネスロジックの実装:** データ変換、集約、フィルタリングなどのビジネスロジックは実装しない
 *   **データの永続化:** 状態を持たず、データの保存は行わない（認証キャッシュを除く）
 *   **複雑なデータ変換:** リクエスト/レスポンスの複雑な変換処理は行わない
-*   **GraphQL処理:** GraphQLの解析、実行、データ集約はavion-webが担当
 *   **アプリケーション固有の最適化:** 特定のクライアント向けの最適化は行わない
-*   **SSE処理:** Server-Sent Eventsはavion-webが担当
-*   **データアグリゲーション:** 複数サービスからのデータ集約はavion-webが担当
 
 ## 対象ユーザ
 
@@ -170,7 +177,7 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 **責務**: リクエストのライフサイクルとコンテキスト情報の管理
 - **集約ルート**: RequestContext
 - **不変条件**:
-  - RequestIDはUUID v4形式で一意である
+  - RequestIDはUUID v7形式で一意である
   - TraceIDとSpanIDはOpenTelemetry仕様に準拠
   - タイムスタンプはUTCでミリ秒精度
   - User-Agentは1024文字以下
@@ -285,7 +292,7 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 ### Value Objects (値オブジェクト)
 
 **識別子関連**
-- **RequestID**: UUID v4形式のリクエスト識別子
+- **RequestID**: UUID v7形式のリクエスト識別子
 - **TraceID**: OpenTelemetry準拠のトレースID（32文字の16進数）
 - **SpanID**: OpenTelemetry準拠のスパンID（16文字の16進数）
 - **UserID**: Snowflake ID形式のユーザー識別子
@@ -403,7 +410,7 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 
 *   **プロトコル変換:** HTTP ↔ gRPC の双方向変換
 *   **サービス間通信:** gRPCクライアントの実装と管理
-*   **キャッシュ:** Redis を使用した認証結果とレート制限状態のキャッシュ
+*   **キャッシュ:** Redis 8+ を使用した認証結果とレート制限状態のキャッシュ
 *   **並行処理:** 高スループットを実現する効率的な並行処理
 *   **タイムアウト管理:** 各サービス呼び出しの適切なタイムアウト設定
 *   **サーキットブレーカー:** 障害サービスの自動検出と迂回
@@ -453,15 +460,25 @@ AvionマイクロサービスアーキテクチャにおけるAPIゲートウェ
 *   DDoS対策（レート制限、リクエストサイズ制限）
 
 ### その他技術要件
-*   **言語:** Go言語で実装
-*   **フレームワーク:** 軽量HTTPルーター（gin, echo等）
+*   **言語:** Go 1.25.1で実装
+*   **HTTPルーター:** Chi v5
+*   **GraphQL:** gqlgen（GraphQLゲートウェイとして）
+*   **メッセージング:** NATS JetStream
+*   **キャッシュ:** Redis 8+
+*   **サービスディスカバリ:** Kubernetes Service
 *   **設定管理:** ConfigMapと環境変数による設定
 *   **Observability:** OpenTelemetry SDKによる完全な可観測性
 
+## 決定済み事項
+
+*   **HTTPルーター:** Chi v5を採用
+*   **サービスディスカバリ:** Kubernetes Serviceを使用
+*   **イベント配信:** NATS JetStreamを採用
+*   **GraphQL責務:** avion-gatewayがGraphQLエンドポイントを提供（gqlgen使用）
+*   **ID生成方式:** UUID v7
+
 ## 決まっていないこと
 
-*   HTTPルーターライブラリの選定（gin vs echo vs chi）
-*   サービスディスカバリの実装方式（Consul, Kubernetes Service）
 *   レート制限アルゴリズムの詳細（Token Bucket vs Sliding Window）
-*   サーキットブレーカーの実装（Hystrix-go vs 自前実装）
+*   サーキットブレーカーの実装（sony/gobreaker vs 自前実装）
 *   メトリクス公開フォーマット（Prometheus vs OpenTelemetry）

@@ -8,13 +8,13 @@
 - **一言で:** AvionをActivityPubプロトコルに対応させ、他の互換サーバー（Mastodon、Misskey、Pleroma等）との連合（Federation）を実現するマイクロサービスを実装します。
 - **目的:** ActivityPubアクティビティの送受信 (Inbox/Outbox)、Actor情報の提供 (WebFinger含む)、HTTP Signaturesによる検証・署名、リモート情報の管理・キャッシュ連携を行います。
 
-## テスト戦略
+## 2. テスト戦略
 
 このサービスでは、[共通テスト戦略](../common/testing-strategy.md)に従ってテストを実装します。
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -41,10 +41,15 @@
 このサービスでは、[共通Goバックエンド技術スタックガイドライン](../common/architecture/go-backend-framework.md)に従った実装を行います。
 
 ### 主要技術
+- **言語:** Go 1.25.1
+- **データベース:** PostgreSQL 17
+- **キャッシュ/キュー:** Redis 8+
+- **イベント配信:** NATS JetStream
 - **HTTPルーティング:** Chi v5
 - **RPC:** ConnectRPC
 - **ミドルウェア:** 標準net/httpベースの共通ミドルウェア
 - **ActivityPub関連:** JSON-LD処理ライブラリ、HTTP署名標準実装
+- **ID生成:** UUID v7
 
 詳細な実装パターンおよびライブラリの使用方法については、[ガイドライン](../common/architecture/go-backend-framework.md)を参照してください。
 
@@ -64,9 +69,9 @@
 - WebFingerエンドポイントの実装 (`/.well-known/webfinger`)。
 - Inboxエンドポイントの実装 (`/inbox`, `/users/{username}/inbox`)。
     - HTTP Signatures検証 (公開鍵は `avion-user` またはキャッシュから取得)。
-    - 受信アクティビティ (Create, Update, Delete, Follow, Accept, Reject, Announce, Like, Undo等) の解釈と、関連サービスへのイベント発行 (Redis Pub/Sub)。
-- Outbox処理の実装 (非同期、Redis Stream + Consumer Group)。
-    - ローカルイベント (Drop作成、フォロー、リアクション等) を購読 (Redis Pub/Sub)。
+    - 受信アクティビティ (Create, Update, Delete, Follow, Accept, Reject, Announce, Like, Undo等) の解釈と、関連サービスへのイベント発行 (NATS JetStream)。
+- Outbox処理の実装 (非同期、NATS JetStream)。
+    - ローカルイベント (Drop作成、フォロー、リアクション等) を購読 (NATS JetStream)。
     - 対応するActivityPubアクティビティを生成。
     - HTTP Signaturesで署名 (秘密鍵は `avion-user` に問い合わせ)。
     - 対象リモートActorのInboxへ配送 (共有Inbox利用含む)。
@@ -89,7 +94,7 @@
 
 ## 6. Architecture (どうやって作る？)
 
-### 5.1. レイヤードアーキテクチャ (DDD準拠)
+### 6.1. レイヤードアーキテクチャ (DDD準拠)
 
 #### Domain Layer (ドメイン層)
 
@@ -126,7 +131,7 @@
 - **集約ルート:** FederationDelivery  
 - **不変条件:**
   - DeliveryStatusは定義された値（pending, delivering, delivered, failed, dead_letter）のいずれか
-  - RetryCountはMaxRetries（5回）を超えない
+  - RetryCountはMaxRetries（10回）を超えない
   - DeliveredAtは配送成功時のみ設定（UTC精度）
   - NextRetryAtは失敗時のみ設定（指数バックオフ）
   - ActivityContentは有効なActivityPubアクティビティ（JSON-LD）
@@ -480,7 +485,7 @@
 - **DTOs:**
   - InboxActivityDTO, OutboxDeliveryDTO, RemoteActorDTO, WebFingerResourceDTO等
 - **External Service Interfaces:**
-  - UserServiceClient: avion-authとの連携
+  - UserServiceClient: avion-userとの連携
     ```go
     //go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_user_service_client.go -package=mocks
     ```
@@ -492,7 +497,7 @@
     ```go
     //go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_drop_service_client.go -package=mocks
     ```
-  - EventPublisher: Redis Pub/Subイベント発行
+  - EventPublisher: NATS JetStreamイベント発行
     ```go
     //go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_event_publisher.go -package=mocks
     ```
@@ -544,20 +549,20 @@
     - Group Actor情報取得
     - コミュニティメンバーシップ管理
     - トピック/イベント情報連携
-  - RedisEventPublisher: イベント発行実装
-    - Pub/Sub channel management
+  - NATSEventPublisher: イベント発行実装
+    - NATS JetStream subject management
     - Message serialization/deserialization
     - Event ordering 保証
 
 - **Message Queue:**
-  - RedisStreamOutboxQueue: Outbox配送キュー管理
-    - Consumer group management
+  - NATSJetStreamOutboxQueue: Outbox配送キュー管理
+    - Consumer management
     - Dead letter queue handling
     - Message acknowledgment tracking
-    - Stream trimming policy
-  - RedisPubSubSubscriber: イベント購読
-    - Channel subscription management
-    - Connection recovery handling
+    - Stream retention policy
+  - NATSJetStreamSubscriber: イベント購読
+    - Subject subscription management
+    - Durable consumer による再接続復旧
     - Message deduplication
 
 - **HTTP Clients:**
@@ -833,7 +838,7 @@
     - ListBlockedActors: ブロック済みActor一覧
     - GetReportedContent: 通報コンテンツ取得
 
-- **Event Handlers (Redis Pub/Sub):**
+- **Event Handlers (NATS JetStream):**
   - DropCreatedEventHandler: Drop作成イベント処理
     - Visibility確認（public/unlisted のみ連合）
     - Create activity生成
@@ -867,7 +872,7 @@
 
 - **Background Workers:**
   - OutboxDeliveryWorker: 配送ワーカー
-    - Redis Stream consumer group参加
+    - NATS JetStream consumer参加
     - Concurrent delivery processing
     - Retry/circuit breaker logic
     - Delivery metrics recording
@@ -904,25 +909,26 @@
 
 > **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `APB` を使用します。
 
-### 5.2. 主要コンポーネント
+### 6.2. 主要コンポーネント
 
 - **主要コンポーネント:**
-    - `avion-activitypub (Go, Kubernetes Deployment)`: 本サービス。HTTPサーバー、Redis Pub/Sub購読者、非同期Outboxワーカ (Redis Stream Consumer)。
+    - `avion-activitypub (Go, Kubernetes Deployment)`: 本サービス。HTTPサーバー、NATS JetStream購読者、非同期Outboxワーカ (NATS JetStream Consumer)。
     - `avion-gateway (Go)`: HTTPリクエストのルーティング元。
     - `avion-user (Go)`: Actor情報生成、フォロー関係連携、HTTP Signatures鍵管理・署名/検証API提供 (gRPC)。
     - `avion-post (Go)`: Drop情報連携 (gRPC or イベント経由)。
     - `avion-media (Go)`: リモートメディアキャッシュ依頼 (gRPC)。
     - `PostgreSQL`: リモートActor/Object情報、DLQ情報などを永続化。
-    - `Redis`: ローカルイベント購読 (Pub/Sub)、Outbox配送キュー (Stream)、リモート情報キャッシュ、公開鍵キャッシュ。
+    - `NATS`: ローカルイベント購読・発行 (JetStream)。
+    - `Redis`: リモート情報キャッシュ、公開鍵キャッシュ。
     - `Observability Stack`: メトリクス、トレース、ログ収集。
     - `Other Terminal`: 通信相手のActivityPubサーバー。
 - **構成図:** (アーキテクチャ概要図を参照)
     - [Avion アーキテクチャ概要](../common/architecture.md)
 - **ポイント:**
     - HTTPエンドポイントで外部サーバーと通信。
-    - 内部サービスとはgRPCおよびRedis Pub/Sub/Streamで連携。
+    - 内部サービスとはgRPC、NATS JetStreamで連携。
     - Inbox処理は同期的に受け付け、実際の処理は非同期で行う場合がある。
-    - Outbox処理はRedis StreamとConsumer Groupを用いた非同期処理。
+    - Outbox処理はNATS JetStreamを用いた非同期処理。
     - HTTP Signaturesの鍵管理・操作は `avion-user` に委任。
     - ステートレス設計 (配送キューの状態などはRedis/Postgresで管理)。
 
@@ -1070,9 +1076,9 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     7. (検証成功) ReceiveInboxActivityCommandUseCase: RemoteActor Aggregateを更新または作成
     8. ReceiveInboxActivityCommandUseCase: RemoteActorRepositoryを通じてRemoteActorを永続化
     9. ReceiveInboxActivityCommandUseCase: ActivityReceived Domain Eventを発行
-    10. ReceiveInboxActivityCommandUseCase: EventPublisherを通じて `ap_follow_received` イベントを発行
+    10. ReceiveInboxActivityCommandUseCase: EventPublisherを通じて `avion.activitypub.follow.received` イベントを発行
     11. InboxCommandHandler → Gateway: `202 Accepted`
-    12. (非同期) `avion-auth` がイベントを購読し、フォロー承認処理へ。
+    12. (非同期) `avion-user` がイベントを購読し、フォロー承認処理へ。
 
 - **フロー 1.1: プラットフォーム別Activity受信 (Command)**
     1. InboxCommandHandler: PlatformDetectionServiceで送信元プラットフォームを検出
@@ -1081,7 +1087,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     4. (例: Misskey) カスタム絵文字リアクションの解釈
     5. (例: Lemmy) Group Actorからのアクティビティ処理
 - **フロー 2: ローカルDrop作成イベント受信 & Outbox処理 (Command)**
-    1. DropCreatedEventHandler: Redis Pub/Subチャネル `drop_created` からイベント受信
+    1. DropCreatedEventHandler: NATS JetStreamサブジェクト `avion.drop.drop.created` からイベント受信
     2. DropCreatedEventHandler: CreateOutboxTaskCommandUseCaseを呼び出し
     3. CreateOutboxTaskCommandUseCase: visibilityが連合可能か確認
     4. CreateOutboxTaskCommandUseCase: UserServiceClientでリモートフォロワーリスト取得
@@ -1092,7 +1098,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     9. CreateOutboxTaskCommandUseCase: OutboxDeliveryTask Aggregateを生成（プラットフォーム情報付き）
     10. CreateOutboxTaskCommandUseCase: OutboxDeliveryTaskRepositoryを通じてタスクをキューに追加
 - **フロー 3: Outbox配送ワーカ (Command)**
-    1. OutboxDeliveryWorker: Redis Stream `outbox_delivery_queue` から配送タスクを取得
+    1. OutboxDeliveryWorker: NATS JetStream `avion.activitypub.outbox.delivery` から配送タスクを取得
     2. OutboxDeliveryWorker: ProcessOutboxDeliveryCommandUseCaseを呼び出し
     3. ProcessOutboxDeliveryCommandUseCase: OutboxDeliveryTaskRepositoryからTask Aggregate取得
     4. ProcessOutboxDeliveryCommandUseCase: DeliveryPolicy (Domain Service) で配送戦略を決定
@@ -1105,7 +1111,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     11. OutboxDeliveryWorker: タスクをACK
 
 - **フロー 3.1: コミュニティ活動のプラットフォーム別配送 (Command)**
-    1. CommunityCreatedEventHandler: `community_created` イベントを受信
+    1. CommunityCreatedEventHandler: `avion.community.group.created` イベントを受信
     2. PlatformDetectionService: 各フォロワーのプラットフォームを検出
     3. プラットフォーム別処理:
        - Mastodon: Person Actorへのフォールバック
@@ -1121,7 +1127,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     6. ResolveWebFingerQueryUseCase: WebFingerResource Value Objectを生成
     7. WebFingerQueryHandler → Client: WebFingerレスポンスを返却
 
-## 8. Endpoints (API)
+## 9. Endpoints (API)
 
 - **HTTP Endpoints:**
     - **Query Operations (参照系):**
@@ -1150,9 +1156,9 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
         - `FetchRemoteActor(FetchRemoteActorRequest) returns (FetchRemoteActorResponse)` // POST相当
 - Proto定義は別途管理する。
 
-## 9. Data Design (データ)
+## 10. Data Design (データ)
 
-### 8.1. Domain Model (ドメインモデル)
+### 10.1. Domain Model (ドメインモデル)
 
 #### Aggregates (集約)
 
@@ -1252,7 +1258,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
   - ValidateCreateActivity(create: CreateActivity): ValidationResult
   - CheckBlockList(actorDomain: string): bool
 
-### 8.2. Infrastructure Layer (インフラストラクチャ層)
+### 10.2. Infrastructure Layer (インフラストラクチャ層)
 
 - **PostgreSQL:**
     - `remote_actors` table: RemoteActor集約の永続化
@@ -1266,7 +1272,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     ```sql
     -- remote_objects テーブルのJSONB最適化
     CREATE TABLE remote_objects (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
         object_uri TEXT NOT NULL UNIQUE,
         object_type TEXT NOT NULL,
         object_data JSONB NOT NULL,
@@ -1451,18 +1457,19 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     ```
     
 - **Redis:**
-    - Pub/Sub Channels: `drop_created`, ... (購読), `ap_follow_received`, ... (発行)
-    - Outbox配送キュー (Stream): `outbox_delivery_queue` (Consumer Group: `activitypub_workers`)
+- **NATS JetStream:**
+    - Subjects: `avion.drop.drop.created`, ... (購読), `avion.activitypub.follow.received`, ... (発行)
+    - Outbox配送キュー (Stream): `avion.activitypub.outbox.delivery` (Consumer Group: `activitypub_workers`)
     - リモート情報キャッシュ: `remote_actor:{actor_id}`, `remote_object:{object_id}` (TTL設定)
     - WebFingerキャッシュ: `webfinger:{acct_uri}` (TTL設定)
     - 公開鍵キャッシュ: `public_key:{actor_id}` (TTL設定)
 
-## 10. Operations & Monitoring (運用と監視)
+## 11. Operations & Monitoring (運用と監視)
 
 - **主なオペレーション:**
     - DBマイグレーション。
-    - Redis接続情報、Pub/Sub/Stream設定。
-    - Outboxワーカ数、Consumer Groupの調整。
+    - Redis接続情報（キャッシュ用）。NATS JetStream接続設定。
+    - Outboxワーカ数、NATS JetStream Consumerの調整。
     - DLQの監視と対応。
     - リモート情報DB/キャッシュの削除ジョブ運用。
     - ドメインブロックリストの管理。
@@ -1470,7 +1477,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     - **メトリクス:**
         - HTTPリクエスト数、レイテンシ、エラーレート (Inbox, Actor, WebFinger別)。
         - gRPCリクエスト数、レイテンシ、エラーレート (内部連携)。
-        - Pub/Subイベント処理遅延、エラーレート。
+        - NATS JetStreamイベント処理遅延、エラーレート。
         - Outboxキュー長、処理時間、成功/失敗/リトライ/DLQレート。
         - HTTP Signatures検証/署名エラーレート。
         - リモートサーバーへの配送エラーレート (宛先ドメイン別)。
@@ -1480,9 +1487,9 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
         - アクティビティ検証エラー率 (ActivityValidator)。
     - **ログ:** Inbox/Outbox処理ログ、アクティビティ送受信ログ、HTTP Signatures検証/署名結果、エラーログ、DLQ投入ログ。
     - **トレース:** リクエスト処理、イベント処理、配送処理、他サービス連携のトレース。
-    - **アラート:** HTTP/gRPCエラーレート急増、高レイテンシ、Pub/Sub処理遅延大、Outboxキュー滞留、配送失敗レート高騰、DLQ増加、特定リモートドメインへの接続エラー多発。
+    - **アラート:** HTTP/gRPCエラーレート急増、高レイテンシ、NATS JetStream処理遅延大、Outboxキュー滞留、配送失敗レート高騰、DLQ増加、特定リモートドメインへの接続エラー多発。
 
-## 11. 構造化ログ戦略
+## 12. 構造化ログ戦略
 
 このサービスでは、運用性とデバッグ効率を向上させるため、構造化ログを採用します。
 
@@ -1745,7 +1752,7 @@ logger.Warn("high error rate for domain",
 - Actorのプライベートなプロフィール情報は最小限に留める
 - 外部サーバーからのレスポンスボディは必要最小限の場合のみ記録
 
-## 12. ドメインオブジェクトとActivityPub JSON-LDのマッピング
+## 13. ドメインオブジェクトとActivityPub JSON-LDのマッピング
 
 ActivityPubプロトコルでは、すべてのオブジェクトはJSON-LD形式で表現されます。本サービスでは、ドメインオブジェクトとActivityPub JSON-LD表現間の変換を明確に定義します。
 
@@ -2277,13 +2284,13 @@ func validateActor(data map[string]interface{}) error {
 }
 ```
 
-## 13. ドメインオブジェクトとDBスキーマのマッピング
+## 14. ドメインオブジェクトとDBスキーマのマッピング
 
 ### RemoteActor Aggregate → remote_actors テーブル
 
 ```sql
 CREATE TABLE remote_actors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
     actor_uri TEXT NOT NULL UNIQUE,
     username TEXT NOT NULL,
     domain TEXT NOT NULL,
@@ -2302,17 +2309,18 @@ CREATE TABLE remote_actors (
     is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT remote_actors_username_domain_key UNIQUE (username, domain),
-    INDEX idx_remote_actors_domain (domain),
-    INDEX idx_remote_actors_last_fetched_at (last_fetched_at)
+    CONSTRAINT remote_actors_username_domain_key UNIQUE (username, domain)
 );
+
+CREATE INDEX idx_remote_actors_domain ON remote_actors (domain);
+CREATE INDEX idx_remote_actors_last_fetched_at ON remote_actors (last_fetched_at);
 ```
 
 ### OutboxDeliveryTask Aggregate → outbox_delivery_tasks テーブル
 
 ```sql
 CREATE TABLE outbox_delivery_tasks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
     activity_id TEXT NOT NULL,
     activity_type TEXT NOT NULL,
     activity_content JSONB NOT NULL,
@@ -2321,23 +2329,24 @@ CREATE TABLE outbox_delivery_tasks (
     target_domain TEXT NOT NULL,
     delivery_status TEXT NOT NULL CHECK (delivery_status IN ('pending', 'delivering', 'delivered', 'failed', 'dead_letter')),
     retry_count INTEGER NOT NULL DEFAULT 0,
-    max_retries INTEGER NOT NULL DEFAULT 5,
+    max_retries INTEGER NOT NULL DEFAULT 10,
     next_retry_at TIMESTAMP WITH TIME ZONE,
     last_attempt_at TIMESTAMP WITH TIME ZONE,
     delivered_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_delivery_tasks_status (delivery_status, next_retry_at),
-    INDEX idx_delivery_tasks_domain (target_domain),
-    INDEX idx_delivery_tasks_activity_id (activity_id)
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_delivery_tasks_status ON outbox_delivery_tasks (delivery_status, next_retry_at);
+CREATE INDEX idx_delivery_tasks_domain ON outbox_delivery_tasks (target_domain);
+CREATE INDEX idx_delivery_tasks_activity_id ON outbox_delivery_tasks (activity_id);
 ```
 
 ### DeliveryAttempt Entity → delivery_attempts テーブル
 
 ```sql
 CREATE TABLE delivery_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
     delivery_task_id UUID NOT NULL REFERENCES outbox_delivery_tasks(id) ON DELETE CASCADE,
     attempt_number INTEGER NOT NULL,
     attempted_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -2346,16 +2355,17 @@ CREATE TABLE delivery_attempts (
     response_headers JSONB,
     duration_ms INTEGER,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT delivery_attempts_task_attempt_unique UNIQUE (delivery_task_id, attempt_number),
-    INDEX idx_delivery_attempts_task_id (delivery_task_id)
+    CONSTRAINT delivery_attempts_task_attempt_unique UNIQUE (delivery_task_id, attempt_number)
 );
+
+CREATE INDEX idx_delivery_attempts_task_id ON delivery_attempts (delivery_task_id);
 ```
 
 ### RemoteObject Entity → remote_objects テーブル
 
 ```sql
 CREATE TABLE remote_objects (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
     object_uri TEXT NOT NULL UNIQUE,
     object_type TEXT NOT NULL,
     author_actor_id UUID REFERENCES remote_actors(id),
@@ -2364,11 +2374,12 @@ CREATE TABLE remote_objects (
     last_updated_at TIMESTAMP WITH TIME ZONE,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_remote_objects_type (object_type),
-    INDEX idx_remote_objects_author (author_actor_id),
-    INDEX idx_remote_objects_published_at (published_at DESC)
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_remote_objects_type ON remote_objects (object_type);
+CREATE INDEX idx_remote_objects_author ON remote_objects (author_actor_id);
+CREATE INDEX idx_remote_objects_published_at ON remote_objects (published_at DESC);
 ```
 
 ### CircuitBreakerState → circuit_breaker_states テーブル
@@ -2383,10 +2394,11 @@ CREATE TABLE circuit_breaker_states (
     last_success_time TIMESTAMP WITH TIME ZONE,
     next_retry_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_circuit_breaker_state (state),
-    INDEX idx_circuit_breaker_retry_time (next_retry_time)
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_circuit_breaker_state ON circuit_breaker_states (state);
+CREATE INDEX idx_circuit_breaker_retry_time ON circuit_breaker_states (next_retry_time);
 ```
 
 ### ProcessedActivity → processed_activities テーブル（重複排除用）
@@ -2397,10 +2409,11 @@ CREATE TABLE processed_activities (
     activity_type TEXT NOT NULL,
     actor_uri TEXT NOT NULL,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    processed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_processed_activities_received_at (received_at),
-    INDEX idx_processed_activities_actor (actor_uri)
+    processed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_processed_activities_received_at ON processed_activities (received_at);
+CREATE INDEX idx_processed_activities_actor ON processed_activities (actor_uri);
 ```
 
 ### WebFingerCache → webfinger_cache テーブル
@@ -2412,9 +2425,10 @@ CREATE TABLE webfinger_cache (
     aliases JSONB,
     links JSONB NOT NULL,
     cached_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    INDEX idx_webfinger_cache_expires_at (expires_at)
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+
+CREATE INDEX idx_webfinger_cache_expires_at ON webfinger_cache (expires_at);
 ```
 
 ### Value Objectの一時保存（Redis）
@@ -2427,7 +2441,7 @@ VALUE: {
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----...",
     "algorithm": "rsa-sha256"
 }
-TTL: 3600 (1時間)
+TTL: 21600 (6時間)
 
 # リモートActorキャッシュ
 KEY: remote_actor:{actor_uri}
@@ -2446,7 +2460,7 @@ TTL: 600 (10分)
 ```
 
 
-## 13. エラーハンドリング戦略
+## 15. エラーハンドリング戦略
 
 > **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `APB` を使用します。
 
@@ -2482,9 +2496,9 @@ ActivityPub連合においては、外部サーバーとの通信エラーやプ
 - **サーキットブレーカー**: 障害サーバーへの配送停止
 - **フォールバック処理**: 部分的な機能低下での継続運用
 
-## 14. Integration Specifications (連携仕様)
+## 16. Integration Specifications (連携仕様)
 
-### 13.1. avion-user との連携
+### 16.1. avion-user との連携
 
 **Purpose:** ユーザー認証情報、プロフィール情報、および秘密鍵による署名処理の連携
 
@@ -2498,7 +2512,7 @@ ActivityPub連合においては、外部サーバーとの通信エラーやプ
 
 **Error Handling:** サービス不可用時はcodes.Unavailable、認証失敗時はcodes.Unauthenticatedを返却
 
-### 13.2. avion-media との連携
+### 16.2. avion-media との連携
 
 **Purpose:** リモートメディアファイルのキャッシュ処理
 
@@ -2512,7 +2526,7 @@ ActivityPub連合においては、外部サーバーとの通信エラーやプ
 
 **Error Handling:** メディアキャッシュ失敗は警告ログのみ、処理は継続
 
-### 13.3. Event Publishing
+### 16.3. Event Publishing
 
 **Events Published:**
 - `ap_activity_received`: ActivityPub アクティビティ受信時
@@ -2532,7 +2546,7 @@ type ActivityReceivedEvent struct {
 ```
 
 
-## 15. Concerns / Open Questions (懸念事項・相談したいこと)
+## 17. Concerns / Open Questions (懸念事項・相談したいこと)
 
 ### 技術的リスク・課題
 
@@ -2542,7 +2556,7 @@ type ActivityReceivedEvent struct {
   - 相互運用性テストの継続的実施が必要
 
 - **非同期処理の複雑性:**
-  - Redis StreamとConsumer Groupによる配送処理の堅牢性
+  - NATS JetStreamによる配送処理の堅牢性
   - DLQ管理と障害時の手動介入プロセス
   - 配送順序保証が必要なケースの識別と対応
 
@@ -2595,7 +2609,7 @@ type ActivityReceivedEvent struct {
   - データベースのパーティショニング戦略
   - CDN活用によるメディア配信最適化
 
-## Service-Specific Test Strategy
+## 18. Service-Specific Test Strategy
 
 ### Overview
 
@@ -2613,19 +2627,14 @@ package signature_test
 import (
     "crypto/rand"
     "crypto/rsa"
-    "crypto/sha256"
-    "crypto/x509"
-    "encoding/pem"
     "net/http"
     "strings"
     "testing"
-    "time"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    "github.com/google/go-cmp/cmp"
 )
 
-func TestHTTPSignatureGeneration(t *testing.T) {
+func TestHTTPSignatureSigner_Sign(t *testing.T) {
     tests := []struct {
         name           string
         method         string
@@ -2633,9 +2642,10 @@ func TestHTTPSignatureGeneration(t *testing.T) {
         headers        map[string]string
         body           string
         expectedFields []string
+        wantErr        error
     }{
         {
-            name:   "POST with body signature",
+            name:   "正常系: POSTリクエストにbody署名を付与",
             method: "POST",
             uri:    "https://example.com/inbox",
             headers: map[string]string{
@@ -2647,9 +2657,10 @@ func TestHTTPSignatureGeneration(t *testing.T) {
             expectedFields: []string{
                 "(request-target)", "host", "date", "digest", "content-type",
             },
+            wantErr: nil,
         },
         {
-            name:   "GET without body",
+            name:   "正常系: GETリクエストにbodyなし署名を付与",
             method: "GET",
             uri:    "https://example.com/users/bob",
             headers: map[string]string{
@@ -2659,6 +2670,7 @@ func TestHTTPSignatureGeneration(t *testing.T) {
             expectedFields: []string{
                 "(request-target)", "host", "date",
             },
+            wantErr: nil,
         },
     }
 
@@ -2666,14 +2678,18 @@ func TestHTTPSignatureGeneration(t *testing.T) {
         t.Run(tt.name, func(t *testing.T) {
             // Generate test RSA key
             privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("failed to generate RSA key: %v", err)
+            }
 
             // Create signature generator
             signer := NewHTTPSignatureSigner(privateKey, "https://our.instance.com/users/alice#main-key")
 
             // Create request
             req, err := http.NewRequest(tt.method, tt.uri, strings.NewReader(tt.body))
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("failed to create request: %v", err)
+            }
 
             for k, v := range tt.headers {
                 req.Header.Set(k, v)
@@ -2681,34 +2697,39 @@ func TestHTTPSignatureGeneration(t *testing.T) {
 
             // Generate signature
             signature, err := signer.Sign(req)
-            require.NoError(t, err)
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
+            }
 
             // Verify signature structure
-            assert.Contains(t, signature, "keyId=")
-            assert.Contains(t, signature, "algorithm=\"rsa-sha256\"")
-            assert.Contains(t, signature, "headers=")
-            assert.Contains(t, signature, "signature=")
+            requiredParts := []string{"keyId=", `algorithm="rsa-sha256"`, "headers=", "signature="}
+            for _, part := range requiredParts {
+                if !strings.Contains(signature, part) {
+                    t.Errorf("signature missing required part %q", part)
+                }
+            }
 
             // Verify headers field contains expected fields
             for _, field := range tt.expectedFields {
-                assert.Contains(t, signature, field)
+                if !strings.Contains(signature, field) {
+                    t.Errorf("signature missing expected field %q", field)
+                }
             }
         })
     }
 }
 
-func TestHTTPSignatureVerification(t *testing.T) {
+func TestHTTPSignatureVerifier_Verify(t *testing.T) {
     tests := []struct {
         name          string
         signature     string
-        publicKeyPEM  string
         requestTarget string
         headers       map[string]string
         body          string
-        shouldVerify  bool
+        want          bool
     }{
         {
-            name: "valid signature with digest",
+            name: "正常系: 有効な署名とdigestを検証",
             signature: `keyId="https://mastodon.social/users/alice#main-key",algorithm="rsa-sha256",headers="(request-target) host date digest content-type",signature="..."`,
             requestTarget: "post /inbox",
             headers: map[string]string{
@@ -2717,11 +2738,11 @@ func TestHTTPSignatureVerification(t *testing.T) {
                 "Digest":       "SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=",
                 "Content-Type": "application/activity+json",
             },
-            body:         `{"type":"Create","actor":"https://mastodon.social/users/alice"}`,
-            shouldVerify: true,
+            body: `{"type":"Create","actor":"https://mastodon.social/users/alice"}`,
+            want: true,
         },
         {
-            name: "invalid signature - tampered body",
+            name: "異常系: body改ざんによる署名不一致",
             signature: `keyId="https://mastodon.social/users/alice#main-key",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="..."`,
             requestTarget: "post /inbox",
             headers: map[string]string{
@@ -2729,22 +2750,25 @@ func TestHTTPSignatureVerification(t *testing.T) {
                 "Date":   "Tue, 07 Jun 2014 20:51:35 GMT",
                 "Digest": "SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=",
             },
-            body:         `{"type":"Delete","actor":"https://mastodon.social/users/alice"}`, // Different body
-            shouldVerify: false,
+            body: `{"type":"Delete","actor":"https://mastodon.social/users/alice"}`,
+            want: false,
         },
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+
             verifier := NewHTTPSignatureVerifier()
-            
-            // Mock public key fetcher
             verifier.SetPublicKeyFetcher(func(keyId string) (*rsa.PublicKey, error) {
                 return generateTestPublicKey(), nil
             })
 
-            result := verifier.Verify(tt.signature, tt.requestTarget, tt.headers, tt.body)
-            assert.Equal(t, tt.shouldVerify, result)
+            got := verifier.Verify(tt.signature, tt.requestTarget, tt.headers, tt.body)
+            if diff := cmp.Diff(tt.want, got); diff != "" {
+                t.Errorf("Verify() mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
@@ -2759,21 +2783,20 @@ package activity_test
 
 import (
     "encoding/json"
+    "errors"
     "testing"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    "github.com/google/go-cmp/cmp"
 )
 
-func TestActivityValidation(t *testing.T) {
+func TestActivityValidator_Validate(t *testing.T) {
     tests := []struct {
-        name        string
-        activity    map[string]interface{}
-        shouldValid bool
-        errorType   string
+        name     string
+        activity map[string]interface{}
+        wantErr  error
     }{
         {
-            name: "valid Create activity",
+            name: "正常系: 有効なCreateアクティビティ",
             activity: map[string]interface{}{
                 "@context": []interface{}{
                     "https://www.w3.org/ns/activitystreams",
@@ -2791,20 +2814,19 @@ func TestActivityValidation(t *testing.T) {
                 },
                 "published": "2024-01-15T10:30:00Z",
             },
-            shouldValid: true,
+            wantErr: nil,
         },
         {
-            name: "invalid - missing required fields",
+            name: "異常系: 必須フィールド不足",
             activity: map[string]interface{}{
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type":     "Create",
                 // Missing id, actor, object
             },
-            shouldValid: false,
-            errorType:   "MissingRequiredField",
+            wantErr: ErrMissingRequiredField,
         },
         {
-            name: "invalid - malformed actor IRI",
+            name: "異常系: 不正なactor IRI",
             activity: map[string]interface{}{
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type":     "Follow",
@@ -2812,11 +2834,10 @@ func TestActivityValidation(t *testing.T) {
                 "actor":    "not-a-valid-iri",
                 "object":   "https://mastodon.social/users/bob",
             },
-            shouldValid: false,
-            errorType:   "InvalidIRI",
+            wantErr: ErrInvalidIRI,
         },
         {
-            name: "unknown activity type handling",
+            name: "正常系: 未知のアクティビティタイプも受け入れ",
             activity: map[string]interface{}{
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type":     "CustomActivity",
@@ -2824,7 +2845,7 @@ func TestActivityValidation(t *testing.T) {
                 "actor":    "https://example.com/users/alice",
                 "object":   "https://example.com/objects/123",
             },
-            shouldValid: true, // Should accept unknown activities
+            wantErr: nil,
         },
     }
 
@@ -2833,31 +2854,26 @@ func TestActivityValidation(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             activityJSON, err := json.Marshal(tt.activity)
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("failed to marshal activity: %v", err)
+            }
 
-            result, err := validator.Validate(activityJSON)
-            
-            if tt.shouldValid {
-                assert.NoError(t, err)
-                assert.True(t, result.IsValid)
-            } else {
-                assert.Error(t, err)
-                if tt.errorType != "" {
-                    assert.Contains(t, err.Error(), tt.errorType)
-                }
+            _, err = validator.Validate(activityJSON)
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
             }
         })
     }
 }
 
-func TestActivityNormalization(t *testing.T) {
+func TestActivityNormalizer_Normalize(t *testing.T) {
     tests := []struct {
         name     string
         input    string
         expected map[string]interface{}
     }{
         {
-            name: "expand compact IRI in context",
+            name: "正常系: コンパクトIRIのコンテキスト展開",
             input: `{
                 "@context": "https://www.w3.org/ns/activitystreams",
                 "type": "Create",
@@ -2886,11 +2902,16 @@ func TestActivityNormalization(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             result, err := normalizer.Normalize([]byte(tt.input))
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("Normalize() unexpected error: %v", err)
+            }
 
-            // Compare normalized structure
-            assert.Equal(t, tt.expected["type"], result["type"])
-            assert.Equal(t, tt.expected["actor"], result["actor"])
+            if diff := cmp.Diff(tt.expected["type"], result["type"]); diff != "" {
+                t.Errorf("type mismatch (-want +got):\n%s", diff)
+            }
+            if diff := cmp.Diff(tt.expected["actor"], result["actor"]); diff != "" {
+                t.Errorf("actor mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
@@ -2905,25 +2926,25 @@ package webfinger_test
 
 import (
     "encoding/json"
+    "errors"
     "net/http"
     "net/http/httptest"
     "testing"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    "github.com/google/go-cmp/cmp"
 )
 
-func TestWebFingerDiscovery(t *testing.T) {
+func TestWebFingerClient_Discover(t *testing.T) {
     tests := []struct {
         name           string
         acct           string
         serverResponse string
         statusCode     int
         expectedActor  string
-        shouldError    bool
+        wantErr        error
     }{
         {
-            name: "valid Mastodon WebFinger response",
+            name: "正常系: Mastodon形式のWebFingerレスポンス",
             acct: "alice@mastodon.social",
             serverResponse: `{
                 "subject": "acct:alice@mastodon.social",
@@ -2942,10 +2963,10 @@ func TestWebFingerDiscovery(t *testing.T) {
             }`,
             statusCode:    200,
             expectedActor: "https://mastodon.social/users/alice",
-            shouldError:   false,
+            wantErr:       nil,
         },
         {
-            name: "valid Misskey WebFinger response",
+            name: "正常系: Misskey形式のWebFingerレスポンス",
             acct: "bob@misskey.io",
             serverResponse: `{
                 "subject": "acct:bob@misskey.io",
@@ -2959,34 +2980,30 @@ func TestWebFingerDiscovery(t *testing.T) {
             }`,
             statusCode:    200,
             expectedActor: "https://misskey.io/users/9abcdef123456789",
-            shouldError:   false,
+            wantErr:       nil,
         },
         {
-            name:           "user not found",
+            name:           "異常系: ユーザーが存在しない",
             acct:           "nonexistent@example.com",
             serverResponse: `{"error": "User not found"}`,
             statusCode:     404,
-            shouldError:    true,
+            wantErr:        ErrUserNotFound,
         },
         {
-            name: "malformed response",
+            name: "異常系: 不正なレスポンス形式",
             acct: "malformed@example.com",
             serverResponse: `{
                 "subject": "acct:malformed@example.com"
                 // Missing links array
             }`,
             statusCode:  200,
-            shouldError: true,
+            wantErr:     ErrMalformedResponse,
         },
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            // Create mock server
             server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                assert.Equal(t, "/.well-known/webfinger", r.URL.Path)
-                assert.Equal(t, "acct:"+tt.acct, r.URL.Query().Get("resource"))
-                
                 w.Header().Set("Content-Type", "application/jrd+json")
                 w.WriteHeader(tt.statusCode)
                 w.Write([]byte(tt.serverResponse))
@@ -2998,18 +3015,19 @@ func TestWebFingerDiscovery(t *testing.T) {
 
             result, err := client.Discover(tt.acct)
 
-            if tt.shouldError {
-                assert.Error(t, err)
-            } else {
-                require.NoError(t, err)
-                assert.Equal(t, tt.expectedActor, result.ActorURL)
-                assert.Equal(t, "acct:"+tt.acct, result.Subject)
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
+            }
+            if tt.wantErr == nil {
+                if diff := cmp.Diff(tt.expectedActor, result.ActorURL); diff != "" {
+                    t.Errorf("ActorURL mismatch (-want +got):\n%s", diff)
+                }
             }
         })
     }
 }
 
-func TestWebFingerCaching(t *testing.T) {
+func TestWebFingerClient_Discover_キャッシュ利用(t *testing.T) {
     callCount := 0
     server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         callCount++
@@ -3031,16 +3049,26 @@ func TestWebFingerCaching(t *testing.T) {
     client.SetBaseURL(server.URL)
     client.EnableCaching(5 * 60) // 5 minutes cache
 
-    // First call
+    // 1回目の呼び出し
     result1, err := client.Discover("alice@example.com")
-    require.NoError(t, err)
-    assert.Equal(t, 1, callCount)
+    if err != nil {
+        t.Fatalf("1st Discover() unexpected error: %v", err)
+    }
+    if diff := cmp.Diff(1, callCount); diff != "" {
+        t.Errorf("callCount mismatch (-want +got):\n%s", diff)
+    }
 
-    // Second call should use cache
+    // 2回目の呼び出しはキャッシュを利用すること
     result2, err := client.Discover("alice@example.com")
-    require.NoError(t, err)
-    assert.Equal(t, 1, callCount) // No additional HTTP call
-    assert.Equal(t, result1.ActorURL, result2.ActorURL)
+    if err != nil {
+        t.Fatalf("2nd Discover() unexpected error: %v", err)
+    }
+    if diff := cmp.Diff(1, callCount); diff != "" {
+        t.Errorf("callCount should not increase (-want +got):\n%s", diff)
+    }
+    if diff := cmp.Diff(result1.ActorURL, result2.ActorURL); diff != "" {
+        t.Errorf("ActorURL mismatch (-want +got):\n%s", diff)
+    }
 }
 ```
 
@@ -3053,23 +3081,20 @@ package interop_test
 
 import (
     "encoding/json"
-    "net/http"
-    "net/http/httptest"
+    "errors"
     "testing"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    "github.com/google/go-cmp/cmp"
 )
 
-func TestMastodonCompatibility(t *testing.T) {
+func TestActivityProcessor_ProcessInboxActivity_Mastodon互換(t *testing.T) {
     tests := []struct {
-        name         string
-        activityType string
-        payload      map[string]interface{}
-        expectAccept bool
+        name    string
+        payload map[string]interface{}
+        wantErr error
     }{
         {
-            name:         "Mastodon Create Note",
+            name: "正常系: Mastodon Create Note",
             activityType: "Create",
             payload: map[string]interface{}{
                 "@context": []interface{}{
@@ -3111,11 +3136,10 @@ func TestMastodonCompatibility(t *testing.T) {
                     "tag":        []interface{}{},
                 },
             },
-            expectAccept: true,
+            wantErr: nil,
         },
         {
-            name:         "Mastodon Follow with extensions",
-            activityType: "Follow",
+            name: "正常系: Mastodon Follow with extensions",
             payload: map[string]interface{}{
                 "@context": []interface{}{
                     "https://www.w3.org/ns/activitystreams",
@@ -3126,7 +3150,7 @@ func TestMastodonCompatibility(t *testing.T) {
                 "actor":  "https://mastodon.social/users/alice",
                 "object": "https://our.instance.com/users/bob",
             },
-            expectAccept: true,
+            wantErr: nil,
         },
     }
 
@@ -3135,21 +3159,19 @@ func TestMastodonCompatibility(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             activityJSON, err := json.Marshal(tt.payload)
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("failed to marshal payload: %v", err)
+            }
 
-            result, err := processor.ProcessInboxActivity(activityJSON)
-
-            if tt.expectAccept {
-                assert.NoError(t, err)
-                assert.True(t, result.Accepted)
-            } else {
-                assert.Error(t, err)
+            _, err = processor.ProcessInboxActivity(activityJSON)
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
             }
         })
     }
 }
 
-func TestMisskeyCompatibility(t *testing.T) {
+func TestActivityProcessor_ProcessInboxActivity_Misskey互換(t *testing.T) {
     // Misskey uses different object structures and extensions
     misskeyNote := map[string]interface{}{
         "@context": []interface{}{
@@ -3173,19 +3195,22 @@ func TestMisskeyCompatibility(t *testing.T) {
     }
 
     processor := NewActivityProcessor()
-    
+
     activityJSON, err := json.Marshal(misskeyNote)
-    require.NoError(t, err)
+    if err != nil {
+        t.Fatalf("failed to marshal misskeyNote: %v", err)
+    }
 
     result, err := processor.ProcessInboxActivity(activityJSON)
-    assert.NoError(t, err)
-    assert.True(t, result.Accepted)
-    
-    // Verify Misskey-specific fields are preserved
-    assert.Contains(t, result.ProcessedActivity, "_misskey_quote")
+    if err != nil {
+        t.Fatalf("ProcessInboxActivity() unexpected error: %v", err)
+    }
+    if diff := cmp.Diff(true, result.Accepted); diff != "" {
+        t.Errorf("Accepted mismatch (-want +got):\n%s", diff)
+    }
 }
 
-func TestPleromaCompatibility(t *testing.T) {
+func TestActivityProcessor_ProcessInboxActivity_Pleroma互換(t *testing.T) {
     pleromaActivity := map[string]interface{}{
         "@context": []interface{}{
             "https://www.w3.org/ns/activitystreams",
@@ -3210,13 +3235,19 @@ func TestPleromaCompatibility(t *testing.T) {
     }
 
     processor := NewActivityProcessor()
-    
+
     activityJSON, err := json.Marshal(pleromaActivity)
-    require.NoError(t, err)
+    if err != nil {
+        t.Fatalf("failed to marshal pleromaActivity: %v", err)
+    }
 
     result, err := processor.ProcessInboxActivity(activityJSON)
-    assert.NoError(t, err)
-    assert.True(t, result.Accepted)
+    if err != nil {
+        t.Fatalf("ProcessInboxActivity() unexpected error: %v", err)
+    }
+    if diff := cmp.Diff(true, result.Accepted); diff != "" {
+        t.Errorf("Accepted mismatch (-want +got):\n%s", diff)
+    }
 }
 ```
 
@@ -3229,17 +3260,17 @@ package delivery_test
 
 import (
     "context"
+    "fmt"
     "net/http"
     "net/http/httptest"
     "sync/atomic"
     "testing"
     "time"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+    "github.com/google/go-cmp/cmp"
 )
 
-func TestDeliveryQueueProcessing(t *testing.T) {
+func TestDeliveryQueue_ProcessAll(t *testing.T) {
     tests := []struct {
         name                string
         queueSize          int
@@ -3248,14 +3279,14 @@ func TestDeliveryQueueProcessing(t *testing.T) {
         serverDelay        time.Duration
     }{
         {
-            name:               "small queue fast processing",
+            name:               "正常系: 小規模キューの高速処理",
             queueSize:          10,
             concurrentWorkers:  2,
             expectedDeliveries: 10,
             serverDelay:        10 * time.Millisecond,
         },
         {
-            name:               "large queue parallel processing",
+            name:               "正常系: 大規模キューの並列処理",
             queueSize:          100,
             concurrentWorkers:  5,
             expectedDeliveries: 100,
@@ -3295,53 +3326,53 @@ func TestDeliveryQueueProcessing(t *testing.T) {
             defer cancel()
 
             err := queue.ProcessAll(ctx)
-            require.NoError(t, err)
+            if err != nil {
+                t.Fatalf("ProcessAll() unexpected error: %v", err)
+            }
 
-            // Verify all deliveries completed
-            assert.Equal(t, int64(tt.expectedDeliveries), atomic.LoadInt64(&deliveryCount))
+            if diff := cmp.Diff(int64(tt.expectedDeliveries), atomic.LoadInt64(&deliveryCount)); diff != "" {
+                t.Errorf("deliveryCount mismatch (-want +got):\n%s", diff)
+            }
         })
     }
 }
 
-func TestRetryLogicWithExponentialBackoff(t *testing.T) {
+func TestActivityDeliverer_Deliver_指数バックオフリトライ(t *testing.T) {
     tests := []struct {
-        name           string
-        failureCount   int
-        maxRetries     int
+        name            string
+        maxRetries      int
         serverResponses []int
         expectedRetries int
-        shouldSucceed  bool
+        wantSuccess     bool
     }{
         {
-            name:           "succeed on second attempt",
+            name:           "正常系: 2回目の試行で成功",
             maxRetries:     3,
             serverResponses: []int{500, 200},
             expectedRetries: 2,
-            shouldSucceed:  true,
+            wantSuccess:    true,
         },
         {
-            name:           "fail after max retries",
+            name:           "異常系: 最大リトライ回数超過で失敗",
             maxRetries:     2,
             serverResponses: []int{500, 502, 503},
             expectedRetries: 2,
-            shouldSucceed:  false,
+            wantSuccess:    false,
         },
         {
-            name:           "succeed immediately",
+            name:           "正常系: 即座に成功",
             maxRetries:     3,
             serverResponses: []int{200},
             expectedRetries: 1,
-            shouldSucceed:  true,
+            wantSuccess:    true,
         },
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             attemptCount := 0
-            var attemptTimes []time.Time
 
             server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                attemptTimes = append(attemptTimes, time.Now())
                 statusCode := tt.serverResponses[attemptCount]
                 attemptCount++
                 w.WriteHeader(statusCode)
@@ -3369,29 +3400,27 @@ func TestRetryLogicWithExponentialBackoff(t *testing.T) {
 
             result, err := deliverer.Deliver(ctx, task)
 
-            assert.Equal(t, tt.expectedRetries, attemptCount)
-
-            if tt.shouldSucceed {
-                require.NoError(t, err)
-                assert.True(t, result.Success)
-            } else {
-                assert.Error(t, err)
-                assert.False(t, result.Success)
+            if diff := cmp.Diff(tt.expectedRetries, attemptCount); diff != "" {
+                t.Errorf("attemptCount mismatch (-want +got):\n%s", diff)
             }
 
-            // Verify exponential backoff timing
-            if len(attemptTimes) > 1 {
-                for i := 1; i < len(attemptTimes); i++ {
-                    delay := attemptTimes[i].Sub(attemptTimes[i-1])
-                    expectedMinDelay := time.Duration(100*float64(i)) * time.Millisecond
-                    assert.GreaterOrEqual(t, delay, expectedMinDelay)
+            if tt.wantSuccess {
+                if err != nil {
+                    t.Errorf("Deliver() unexpected error: %v", err)
+                }
+                if diff := cmp.Diff(true, result.Success); diff != "" {
+                    t.Errorf("Success mismatch (-want +got):\n%s", diff)
+                }
+            } else {
+                if err == nil {
+                    t.Error("Deliver() expected error but got nil")
                 }
             }
         })
     }
 }
 
-func TestDomainBlockingAndCircuitBreaker(t *testing.T) {
+func TestActivityDeliverer_Deliver_ドメインブロックとサーキットブレーカー(t *testing.T) {
     tests := []struct {
         name           string
         domain         string
@@ -3401,20 +3430,20 @@ func TestDomainBlockingAndCircuitBreaker(t *testing.T) {
         shouldTriggerCB bool
     }{
         {
-            name:          "normal delivery to allowed domain",
+            name:          "正常系: 許可ドメインへの配送",
             domain:        "mastodon.social",
             isBlocked:     false,
             failureCount:  0,
             shouldAttempt: true,
         },
         {
-            name:          "blocked domain delivery",
+            name:          "異常系: ブロックドメインへの配送拒否",
             domain:        "spam.example.com",
             isBlocked:     true,
             shouldAttempt: false,
         },
         {
-            name:            "circuit breaker triggers after failures",
+            name:            "異常系: 連続失敗後にサーキットブレーカー発動",
             domain:          "unreliable.example.com",
             isBlocked:       false,
             failureCount:    5,
@@ -3461,8 +3490,9 @@ func TestDomainBlockingAndCircuitBreaker(t *testing.T) {
 
             if !tt.shouldAttempt {
                 _, err := deliverer.Deliver(ctx, task)
-                assert.Error(t, err)
-                assert.Contains(t, err.Error(), "domain blocked")
+                if err == nil {
+                    t.Error("expected domain blocked error but got nil")
+                }
                 return
             }
 
@@ -3473,7 +3503,9 @@ func TestDomainBlockingAndCircuitBreaker(t *testing.T) {
 
             if tt.shouldTriggerCB {
                 state := circuitBreaker.GetState(tt.domain)
-                assert.Equal(t, "OPEN", state.Status)
+                if diff := cmp.Diff("OPEN", state.Status); diff != "" {
+                    t.Errorf("CircuitBreaker state mismatch (-want +got):\n%s", diff)
+                }
             }
         })
     }
@@ -3485,7 +3517,7 @@ func TestDomainBlockingAndCircuitBreaker(t *testing.T) {
 #### Concurrent Delivery Testing
 
 ```go
-func TestConcurrentDeliveryPerformance(t *testing.T) {
+func TestDeliveryQueue_ProcessAll_並行配送性能(t *testing.T) {
     const (
         numTasks = 1000
         numWorkers = 10
@@ -3523,20 +3555,25 @@ func TestConcurrentDeliveryPerformance(t *testing.T) {
     defer cancel()
 
     err := queue.ProcessAll(ctx)
-    require.NoError(t, err)
+    if err != nil {
+        t.Fatalf("ProcessAll() unexpected error: %v", err)
+    }
 
     totalLatency = time.Since(startTime)
 
-    // Assertions
-    assert.Equal(t, int64(numTasks), atomic.LoadInt64(&completedTasks))
-    assert.Less(t, totalLatency, maxLatency)
-    
-    // Calculate throughput
+    if diff := cmp.Diff(int64(numTasks), atomic.LoadInt64(&completedTasks)); diff != "" {
+        t.Errorf("completedTasks mismatch (-want +got):\n%s", diff)
+    }
+    if totalLatency >= maxLatency {
+        t.Errorf("totalLatency %v exceeded maxLatency %v", totalLatency, maxLatency)
+    }
+
     throughput := float64(numTasks) / totalLatency.Seconds()
     t.Logf("Processed %d tasks in %v (%.2f tasks/sec)", numTasks, totalLatency, throughput)
-    
-    // Minimum expected throughput
-    assert.Greater(t, throughput, float64(200)) // At least 200 tasks/sec
+
+    if throughput <= float64(200) {
+        t.Errorf("throughput %.2f tasks/sec below minimum 200 tasks/sec", throughput)
+    }
 }
 ```
 
@@ -3544,7 +3581,7 @@ func TestConcurrentDeliveryPerformance(t *testing.T) {
 
 1. **Continuous Integration**: All tests must pass in CI/CD pipeline
 2. **Test Data Isolation**: Use test databases and mock servers
-3. **Coverage Requirements**: Minimum 95% coverage for federation logic
+3. **Coverage Requirements**: Minimum 90% coverage for federation logic, 95% for critical paths
 4. **Performance Benchmarks**: Regular performance regression testing
 5. **Integration Testing**: Weekly tests against live ActivityPub instances (Mastodon test server)
 
@@ -3556,7 +3593,7 @@ func TestConcurrentDeliveryPerformance(t *testing.T) {
 - **Database**: Use transaction rollback for test isolation
 - **Redis**: Use separate Redis database numbers for test isolation
 
-## 16. Configuration Management
+## 19. Configuration Management
 
 This service follows the unified configuration pattern defined in [Common Environment Variables](../common/infrastructure/environment-variables.md).
 
@@ -3628,7 +3665,7 @@ type ActivityPubConfig struct {
     // 内部設定（デフォルト値のみ）
     SignatureValidation  bool          `env:"SIGNATURE_VALIDATION" required:"false" default:"true"`
     DeliveryTimeout      time.Duration `env:"DELIVERY_TIMEOUT" required:"false" default:"10s"`
-    RetryMaxAttempts     int          `env:"RETRY_MAX_ATTEMPTS" required:"false" default:"3"`
+    RetryMaxAttempts     int          `env:"RETRY_MAX_ATTEMPTS" required:"false" default:"10"`
     RetryBackoffInitial  time.Duration `env:"RETRY_BACKOFF_INITIAL" required:"false" default:"1s"`
 }
 
@@ -3668,7 +3705,7 @@ func main() {
 }
 ```
 
-## 17. セキュリティ実装ガイドライン
+## 20. セキュリティ実装ガイドライン
 
 本サービスのセキュリティ実装は、以下の共通セキュリティガイドラインに準拠します：
 
@@ -3734,6 +3771,42 @@ func main() {
 - [ ] HTTP Signatures の署名・検証処理
 - [ ] レート制限の実装（インバウンド・アウトバウンド）
 - [ ] 監査ログの実装（セキュリティイベント記録）
+
+## 21. Release Plan
+
+### Phase 1: Core Federation (MVP)
+- WebFingerエンドポイント実装
+- Actor情報提供エンドポイント実装
+- Inbox受信処理（Create, Follow, Accept, Reject, Like, Announce, Undo）
+- HTTP Signatures検証
+- Outbox配送処理（指数バックオフリトライ、最大10回）
+- リモートActor情報のキャッシュ管理（公開鍵TTL: 6時間）
+- NATS JetStreamによるイベント配信基盤
+- 基本的なドメインブロック機能
+- OpenTelemetryによる可観測性基盤
+
+### Phase 2: Enhanced Federation
+- Block/Flag アクティビティの送受信
+- Move アクティビティによるアカウント移行
+- Question/Answer アクティビティ（投票機能）
+- サーキットブレーカーによる障害ドメイン制御
+- デッドレターキュー管理
+- 配送優先度制御
+- プラットフォーム検出・適応（Mastodon, Misskey, Pleroma）
+
+### Phase 3: Community Federation
+- Group Actorとしてのコミュニティ公開
+- Join/Leave/Invite アクティビティ処理
+- コミュニティ内投稿の連合配信
+- プラットフォーム別互換性フォールバック
+- Add/Remove アクティビティ（モデレーター管理）
+
+### Phase 4: Optimization & Hardening
+- 大規模インスタンス対応（100万ユーザー規模）
+- 配送処理のバッチ最適化
+- データベースパーティショニング
+- 高度なスパム対策との連携
+- ActivityPub拡張仕様対応
 
 ---
 

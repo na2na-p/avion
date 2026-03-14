@@ -14,7 +14,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 
 * **Federation Performance**: ActivityPub標準プロトコルへの準拠により、10,000 deliveries/min以上の配送処理能力でMastodon、Misskey、Pleroma等との相互運用性を確保し、ユーザーベースの拡大を実現する
 * **Protocol Compliance**: W3C ActivityPub勧告100%準拠により、既存Fediverseエコシステムとの完全互換性を保証し、即座に100万規模のネットワーク効果を活用できる
-* **Scalable Federation**: Redis StreamとConsumer Groupを活用した非同期処理により、水平スケーリングで1,000並行配送タスクを処理し、連合ネットワークの成長に対応する
+* **Scalable Federation**: NATS JetStreamを活用した非同期処理により、水平スケーリングで1,000並行配送タスクを処理し、連合ネットワークの成長に対応する
 * **Security Excellence**: HTTP Signaturesによる厳格な認証機構（99%検証成功率）により、なりすましや不正なアクティビティを防止し、分散環境でのセキュリティを確保する
 * **High Availability**: 99.9%以上のサービス可用性と95%以上の配送成功率により、安定した連合機能を提供し、ユーザー体験を向上させる
 * **Operational Excellence**: OpenTelemetry統合による完全な可観測性とCircuit Breaker機構により、障害時の自動回復と運用効率の向上を実現する
@@ -150,7 +150,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 - **集約ルート**: FederationDelivery
 - **不変条件**:
   - DeliveryStatusは定義された値（pending, delivering, delivered, failed, dead_letter）のいずれか
-  - RetryCountはMaxRetries（5回）を超えない
+  - RetryCountはMaxRetries（10回）を超えない
   - DeliveredAtは配送成功時のみ設定（UTC精度）
   - NextRetryAtは失敗時のみ設定（指数バックオフ）
   - ActivityContentは有効なActivityPubアクティビティ（JSON-LD）
@@ -172,9 +172,9 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - `estimateRetryTime()`: 次回配送予定時刻の算出
   - `shouldUpgradePriority()`: 優先度昇格の判定（緊急配送）
 
-#### ActivityPubObject Aggregate
-**責務**: リモートActivityPubオブジェクト（Note、Image等）のライフサイクルと参照整合性を管理する集約
-- **集約ルート**: ActivityPubObject
+#### ActivityPubObject Entity（RemoteActor Aggregate配下）
+**責務**: リモートActivityPubオブジェクト（Note、Image等）のライフサイクルと参照整合性を管理するエンティティ
+- **所属集約**: RemoteActor Aggregate
 - **不変条件**:
   - ObjectURIは一意かつ変更不可（ActivityPub ID仕様準拠）
   - ObjectTypeは定義された値（Note、Image、Video、Audio、Document等）のいずれか
@@ -228,7 +228,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 **所属**: FederationDelivery Aggregate
 **責務**: 配送するActivityPubアクティビティの詳細情報と配送履歴を管理
 - **属性**:
-  - ActivityID（Snowflake ID、分散環境対応）
+  - ActivityID（UUID v7、時系列ソート対応）
   - ActivityType（25種類のActivityPub標準タイプ）
   - ActivityContent（JSON-LD形式、gzip圧縮対応）
   - ActorURI（アクティビティ実行者、検証済みURI）
@@ -238,7 +238,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - SignatureInfo（HTTP Signature メタデータ）
   - ContentHash（SHA-256、改ざん検知用）
 - **ビジネスルール**:
-  - ActivityIDは全システム一意（Snowflake生成）
+  - ActivityIDは全システム一意（UUID v7生成）
   - ActivityTypeはW3C ActivityStreams語彙準拠
   - PublishedAtは現在時刻以前（クロックスキュー考慮）
   - ActorURIとObjectURIの権限関係検証必須
@@ -248,8 +248,8 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 **所属**: FederationDelivery Aggregate
 **責務**: 配送試行の詳細記録と分析データを管理
 - **属性**:
-  - AttemptID（UUID v4、トレーシング対応）
-  - AttemptNumber（1-5、リトライ制限内）
+  - AttemptID（UUID v7、トレーシング対応）
+  - AttemptNumber（1-10、リトライ制限内）
   - AttemptedAt（UTC、マイクロ秒精度）
   - TargetEndpoint（配送先URL、正規化済み）
   - HTTPStatusCode（100-599、RFC準拠）
@@ -266,10 +266,10 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - NetworkMetricsは配送最適化に活用
 
 #### ActivityPubObject
-**所属**: ActivityPubObject Aggregate
+**所属**: RemoteActor Aggregate
 **責務**: リモートActivityPubオブジェクトのライフサイクルと参照管理
 - **属性**:
-  - ObjectID（Snowflake ID、グローバル一意）
+  - ObjectID（UUID v7、グローバル一意）
   - ObjectURI（正規化済みURI、重複排除キー）
   - ObjectType（Note/Image/Video/Audio/Document等）
   - AuthorActorURI（作成者Actor、検証済み）
@@ -299,7 +299,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 **所属**: 独立エンティティ
 **責務**: WebFingerプロトコルによるリソース解決情報の管理
 - **属性**:
-  - ResourceID（UUID v4、内部管理用）
+  - ResourceID（UUID v7、内部管理用）
   - Subject（acct:username@domain形式）
   - ActorURI（対応するActivityPub Actor URI）
   - Links（rel/type/href構造、JSON配列）
@@ -346,7 +346,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - 形式: `https://domain.com/inbox`
   - 利点: 配送効率化（単一サーバーへの集約配送）
 - **RetryPolicy**: リトライポリシー設定
-  - MaxRetries: 5回（設定値）
+  - MaxRetries: 10回（設定値）
   - BackoffStrategy: 指数バックオフ（2^n * base_delay）
   - MaxDelay: 24時間
 - **CircuitBreakerState**: サーキットブレーカー状態
@@ -364,7 +364,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 - **PublicKey**: 公開鍵情報
   - 形式: PEM形式、RSA 2048bit以上
   - 検証: 鍵ペア整合性、証明書チェーン（将来対応）
-  - キャッシュTTL: 24時間
+  - キャッシュTTL: 6時間
 - **BlockReason**: ブロック理由分類
   - 値: spam、harassment、illegal_content、copyright_violation、terms_violation、manual_review
   - スコープ: Actor単位、Domain単位
@@ -381,10 +381,10 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - 形式: ISO 8601（UTC、ミリ秒精度）
   - バリデーション: 未来日付拒否、妥当性確認
 - **FederationID**: 連合処理用一意識別子
-  - 形式: Snowflake ID（分散ID生成）
-  - 構成: タイムスタンプ(41bit) + ワーカーID(10bit) + シーケンス(12bit)
+  - 形式: UUID v7（時系列ソート可能な分散ID生成）
+  - 構成: タイムスタンプ(48bit) + バージョン/バリアント + ランダム(62bit)
 - **DeliveryToken**: 配送追跡トークン
-  - 形式: UUID v4
+  - 形式: UUID v7
   - 用途: 配送状況追跡、デバッグ支援
 - **CacheKey**: Redis キャッシュキー
   - 形式: `ap:{type}:{identifier}:{version}`
@@ -496,7 +496,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 #### avion-dropサービス連携
 
 **Drop作成時のCreate activity送信**
-1. `avion-drop`から`drop_created`イベントを受信（Redis Pub/Sub）
+1. `avion-drop`から`drop_created`イベントを受信（NATS JetStream）
 2. Drop情報を取得し、可視性（public/unlisted）を確認
 3. ActivityBuilderでCreate(Note)アクティビティ生成
 4. フォロワーのリモートインスタンスに配送タスク作成
@@ -619,7 +619,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 
 ### ローカルDrop作成時のCreate アクティビティ配送
 
-1. DropCreatedEventHandler が Redis Pub/Sub チャネル `drop_created` からイベント受信
+1. DropCreatedEventHandler が NATS JetStream サブジェクト `drop_created` からイベント受信
 2. CreateOutboxTaskCommandUseCase を呼び出し
 3. Drop の visibility が連合可能か確認（public、unlisted のみ）
 4. UserServiceClient でフォロワーリスト取得（リモートフォロワーのみ）
@@ -633,11 +633,11 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
    - 配送優先度の動的設定（FollowUp=高、通常投稿=中）
    - CircuitBreakerStateの事前確認
 7. OutboxDeliveryTaskRepository でタスクをキューに追加
-8. Redis Stream `outbox_delivery_queue` にタスクを送信
+8. NATS JetStream `outbox_delivery_queue` にタスクを送信
 
 ### Outbox配送ワーカーによるアクティビティ配送
 
-1. OutboxDeliveryWorker が Redis Stream `outbox_delivery_queue` から配送タスクを取得
+1. OutboxDeliveryWorker が NATS JetStream `outbox_delivery_queue` から配送タスクを取得
 2. ProcessOutboxDeliveryCommandUseCase を呼び出し
 3. OutboxDeliveryTaskRepository から OutboxDeliveryTask Aggregate 取得
 4. DeliveryPolicy で配送戦略を決定:
@@ -752,7 +752,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   * スパムフィルタリングとレート制限
 
 * **配送信頼性**:
-  * 指数バックオフによるリトライ機構（最大5回）
+  * 指数バックオフによるリトライ機構（最大10回）
   * サーキットブレーカーによる障害ドメイン制御
   * デッドレターキューによる永続的失敗処理
   * 配送優先度による効率的なキュー処理
@@ -797,7 +797,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 
 * **キャッシュ戦略**:
   * リモートActor情報の効率的キャッシュ（TTL: 1時間）
-  * 公開鍵情報の長期キャッシュ（TTL: 24時間）
+  * 公開鍵情報の長期キャッシュ（TTL: 6時間）
   * WebFingerレスポンスのキャッシュ（TTL: 1時間）
   * 配送先エンドポイントのキャッシュ
 
@@ -830,7 +830,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 * **同時処理**: 1,000並行配送タスク、1,000同時接続リモートサーバー対応
 * **スループット拡張性**: インスタンス数に比例したリニアスケーリング（I/Oボトルネック除く）
 * **データベース最適化**: インデックス戦略とクエリ最適化によりレスポンス時間の線形増加抑制
-* **Redis Cluster対応**: 分散キャッシュとストリーム処理による水平スケール
+* **Redis Cluster対応**: 分散キャッシュによる水平スケール
 * **負荷分散**: 配送対象ドメインによるシャーディングで処理分散
 
 ### Federation Performance Metrics
@@ -1038,3 +1038,39 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 2. **署名検証**: HTTP Signaturesの厳格な検証により、なりすまし攻撃を防止
 3. **TLS通信**: 全ての連合通信でTLS 1.2以上を強制、証明書検証必須
 4. **レート制限**: インバウンド・アウトバウンド両方でのレート制限実装
+
+## Release Plan
+
+### Phase 1: Core Federation (MVP)
+- WebFingerエンドポイント実装
+- Actor情報提供エンドポイント実装
+- Inbox受信処理（Create, Follow, Accept, Reject, Like, Announce, Undo）
+- HTTP Signatures検証
+- Outbox配送処理（指数バックオフリトライ、最大10回）
+- リモートActor情報のキャッシュ管理（公開鍵TTL: 6時間）
+- NATS JetStreamによるイベント配信基盤
+- 基本的なドメインブロック機能
+- OpenTelemetryによる可観測性基盤
+
+### Phase 2: Enhanced Federation
+- Block/Flag アクティビティの送受信
+- Move アクティビティによるアカウント移行
+- Question/Answer アクティビティ（投票機能）
+- サーキットブレーカーによる障害ドメイン制御
+- デッドレターキュー管理
+- 配送優先度制御
+- プラットフォーム検出・適応（Mastodon, Misskey, Pleroma）
+
+### Phase 3: Community Federation
+- Group Actorとしてのコミュニティ公開
+- Join/Leave/Invite アクティビティ処理
+- コミュニティ内投稿の連合配信
+- プラットフォーム別互換性フォールバック
+- Add/Remove アクティビティ（モデレーター管理）
+
+### Phase 4: Optimization & Hardening
+- 大規模インスタンス対応（100万ユーザー規模）
+- 配送処理のバッチ最適化
+- データベースパーティショニング
+- 高度なスパム対策との連携
+- ActivityPub拡張仕様対応

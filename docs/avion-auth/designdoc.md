@@ -72,7 +72,11 @@
 
 #### セッション管理
 - JWT発行・検証APIの実装
-- JWT署名鍵のローテーション機能
+- JWT署名鍵のローテーション機能（90日周期）
+  - ローテーション後の旧公開鍵保持期間: **7日間**
+  - JWKSエンドポイント（`/.well-known/jwks.json`）に旧鍵を7日間含める
+  - 7日経過後に旧鍵を完全削除
+  - ローテーション中のJWT検証: 新旧両方の公開鍵で検証を試行（`kid`ヘッダーで鍵を特定し、該当鍵で検証。`kid`不一致の場合は全有効鍵で順次検証）
 - セッション失効管理（Redis）
 - 公開鍵提供エンドポイント（JWKS）
 - リフレッシュトークン管理
@@ -138,10 +142,11 @@
 #### 必須環境変数
 - `DATABASE_URL` (required): PostgreSQL接続URL
 - `REDIS_URL` (required): Redis接続URL  
-- `JWT_SECRET` (required): JWT署名鍵のパスフレーズ
+- `JWT_PRIVATE_KEY_PATH` (required): JWT署名用RSA秘密鍵ファイルパス
+- `JWT_PUBLIC_KEY_PATH` (required): JWT検証用RSA公開鍵ファイルパス
 
 #### オプション環境変数（デフォルト値付き）
-- `JWT_EXPIRY` (default: 15m): JWTアクセストークンの有効期限
+- `JWT_EXPIRY` (default: 1h): JWTアクセストークンの有効期限
 - `REFRESH_TOKEN_EXPIRY` (default: 7d): リフレッシュトークンの有効期限
 - `PORT` (default: 8081): HTTPサーバーポート
 - `GRPC_PORT` (default: 9091): gRPCサーバーポート
@@ -195,8 +200,9 @@ type RedisConfig struct {
 
 // JWTConfig JWT関連の設定
 type JWTConfig struct {
-    Secret              string        `env:"JWT_SECRET" required:"true" secret:"true"`
-    AccessTokenExpiry   time.Duration `env:"JWT_EXPIRY" required:"false" default:"15m"`
+    PrivateKeyPath      string        `env:"JWT_PRIVATE_KEY_PATH" required:"true"`
+    PublicKeyPath       string        `env:"JWT_PUBLIC_KEY_PATH" required:"true"`
+    AccessTokenExpiry   time.Duration `env:"JWT_EXPIRY" required:"false" default:"1h"`
     RefreshTokenExpiry  time.Duration `env:"REFRESH_TOKEN_EXPIRY" required:"false" default:"7d"`
     KeyRotationInterval time.Duration `env:"JWT_KEY_ROTATION_INTERVAL" required:"false" default:"90d"`
 }
@@ -237,11 +243,11 @@ func main() {
 
 ### 6.4. セキュリティ考慮事項
 
-- `JWT_SECRET`には`secret:"true"`タグが付与されており、ログ出力時にマスキングされます
+- `JWT_PRIVATE_KEY_PATH`で指定されるRSA秘密鍵ファイルは適切なファイルパーミッション（0600）で保護する必要があります
 - データベースURLやRedis URLに認証情報が含まれる場合は適切に保護されます
 - 本番環境では環境変数を暗号化して管理することを推奨します
 
-## セキュリティ実装ガイドライン
+## 7. セキュリティ実装ガイドライン
 
 このサービスは以下のセキュリティガイドラインに準拠する必要があります：
 
@@ -255,15 +261,15 @@ func main() {
 
 ### 暗号化ガイドライン
 - **ガイドライン**: [../common/security/encryption-guidelines.md](../common/security/encryption-guidelines.md)
-- **実装要件**: パスワードハッシュには指定されたパラメータ（メモリ=64MB、イテレーション=3、並列度=2）でArgon2idを使用します。JWT署名には最小2048ビット鍵でRS256を使用する必要があります。保存時の機密データ（リカバリーコード、TOTPシークレット）はAES-256-GCMを使用して暗号化する必要があります。署名鍵（30日サイクル）と暗号化鍵（90日サイクル）の適切な鍵ローテーションを実装します。
+- **実装要件**: パスワードハッシュには指定されたパラメータ（メモリ=64MB、イテレーション=3、並列度=4）でArgon2idを使用します。JWT署名には最小2048ビット鍵でRS256を使用する必要があります。保存時の機密データ（リカバリーコード、TOTPシークレット）はAES-256-GCMを使用して暗号化する必要があります。署名鍵（30日サイクル）と暗号化鍵（90日サイクル）の適切な鍵ローテーションを実装します。
 
 ### セキュリティヘッダー
 - **ガイドライン**: [../common/security/security-headers.md](../common/security/security-headers.md)
 - **実装要件**: すべての認証エンドポイントに適切なセキュリティヘッダーを設定します。これには、X-Frame-Options（DENY）、X-Content-Type-Options（nosniff）、厳格なContent-Security-Policyが含まれます。認証レスポンスには、機密データのキャッシュを防ぐために適切なCache-Controlヘッダーを含める必要があります。
 
-## 7. Architecture (どうやって作る？)
+## 8. Architecture (どうやって作る？)
 
-### 7.1. レイヤードアーキテクチャ (DDD準拠)
+### 8.1. レイヤードアーキテクチャ (DDD準拠)
 
 #### Domain Layer (ドメイン層)
 
@@ -473,7 +479,7 @@ func main() {
 **External Service Implementations:**
 - GRPCUserService: avion-userとのgRPC通信
 - GRPCNotificationService: avion-notificationとのgRPC通信
-- RedisEventPublisher: Redis Pub/Subでのイベント発行
+- NATSEventPublisher: NATS JetStreamでのイベント発行
 
 **Security Implementations:**
 - Argon2idPasswordHasher: パスワードハッシュ化
@@ -494,7 +500,7 @@ func main() {
 - JWKSHandler: JWKS提供エンドポイント
 - HealthHandler: ヘルスチェックエンドポイント
 
-### 7.2. データモデル
+### 8.2. データモデル
 
 #### PostgreSQL
 
@@ -524,13 +530,14 @@ CREATE TABLE passkey_credentials (
     backup_eligible BOOLEAN,
     backup_state BOOLEAN,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_used_at TIMESTAMP,
-    INDEX idx_passkey_user_id (user_id)
+    last_used_at TIMESTAMP
 );
+
+CREATE INDEX idx_passkey_user_id ON passkey_credentials (user_id);
 
 -- セッション
 CREATE TABLE sessions (
-    session_id UUID PRIMARY KEY,
+    session_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     user_id UUID NOT NULL,
     session_type VARCHAR(20) NOT NULL, -- 'human', 'bot', 'service'
     device_fingerprint TEXT,
@@ -541,25 +548,27 @@ CREATE TABLE sessions (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
     revoked_at TIMESTAMP,
-    last_active_at TIMESTAMP,
-    INDEX idx_sessions_user_id (user_id),
-    INDEX idx_sessions_expires_at (expires_at),
-    INDEX idx_sessions_revoked_at (revoked_at)
+    last_active_at TIMESTAMP
 );
+
+CREATE INDEX idx_sessions_user_id ON sessions (user_id);
+CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);
+CREATE INDEX idx_sessions_revoked_at ON sessions (revoked_at);
 
 -- リフレッシュトークン
 CREATE TABLE refresh_tokens (
-    token_id UUID PRIMARY KEY,
+    token_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     session_id UUID NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
     rotation_count INT DEFAULT 0,
     parent_token_id UUID REFERENCES refresh_tokens(token_id),
-    used_at TIMESTAMP,
-    INDEX idx_refresh_tokens_session_id (session_id),
-    INDEX idx_refresh_tokens_expires_at (expires_at)
+    used_at TIMESTAMP
 );
+
+CREATE INDEX idx_refresh_tokens_session_id ON refresh_tokens (session_id);
+CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
 
 -- JWT署名鍵
 CREATE TABLE signing_keys (
@@ -570,10 +579,11 @@ CREATE TABLE signing_keys (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     rotated_at TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT false,
-    INDEX idx_signing_keys_active (is_active),
-    INDEX idx_signing_keys_expires_at (expires_at)
+    is_active BOOLEAN DEFAULT false
 );
+
+CREATE INDEX idx_signing_keys_active ON signing_keys (is_active);
+CREATE INDEX idx_signing_keys_expires_at ON signing_keys (expires_at);
 
 -- ユーザー権限
 CREATE TABLE authorizations (
@@ -602,9 +612,10 @@ CREATE TABLE user_roles (
     assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
     reason TEXT,
-    PRIMARY KEY (user_id, role_id),
-    INDEX idx_user_roles_expires_at (expires_at)
+    PRIMARY KEY (user_id, role_id)
 );
+
+CREATE INDEX idx_user_roles_expires_at ON user_roles (expires_at);
 
 -- スコープ定義
 CREATE TABLE scopes (
@@ -613,7 +624,7 @@ CREATE TABLE scopes (
     action VARCHAR(50) NOT NULL,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_scopes_resource_action (resource, action)
+    CONSTRAINT uk_scopes_resource_action UNIQUE (resource, action)
 );
 
 -- ロール・スコープマッピング
@@ -635,10 +646,11 @@ CREATE TABLE bot_clients (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     revoked_at TIMESTAMP,
-    expires_at TIMESTAMP,
-    INDEX idx_bot_clients_owner (owner_user_id),
-    INDEX idx_bot_clients_bot_user (bot_user_id)
+    expires_at TIMESTAMP
 );
+
+CREATE INDEX idx_bot_clients_owner ON bot_clients (owner_user_id);
+CREATE INDEX idx_bot_clients_bot_user ON bot_clients (bot_user_id);
 
 -- Botクライアントスコープ
 CREATE TABLE bot_client_scopes (
@@ -651,7 +663,7 @@ CREATE TABLE bot_client_scopes (
 
 -- 認可ポリシー
 CREATE TABLE policies (
-    policy_id UUID PRIMARY KEY,
+    policy_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     policy_name VARCHAR(200) NOT NULL UNIQUE,
     effect VARCHAR(20) NOT NULL CHECK (effect IN ('allow', 'deny')),
     resources TEXT[] NOT NULL,
@@ -660,14 +672,15 @@ CREATE TABLE policies (
     priority INT DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_policies_priority (priority),
-    INDEX idx_policies_active (is_active)
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_policies_priority ON policies (priority);
+CREATE INDEX idx_policies_active ON policies (is_active);
 
 -- ポリシールール
 CREATE TABLE policy_rules (
-    rule_id UUID PRIMARY KEY,
+    rule_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     policy_id UUID REFERENCES policies(policy_id) ON DELETE CASCADE,
     effect VARCHAR(20) NOT NULL CHECK (effect IN ('allow', 'deny')),
     resource_pattern TEXT NOT NULL,
@@ -675,12 +688,12 @@ CREATE TABLE policy_rules (
     conditions JSONB,
     rule_order INT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_policy_rules_order (policy_id, rule_order)
+    CONSTRAINT uk_policy_rules_order UNIQUE (policy_id, rule_order)
 );
 
 -- 監査ログ
 CREATE TABLE audit_logs (
-    log_id UUID PRIMARY KEY,
+    log_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     user_id UUID,
     action VARCHAR(100) NOT NULL,
     resource TEXT,
@@ -688,29 +701,31 @@ CREATE TABLE audit_logs (
     ip_address INET,
     user_agent TEXT,
     details JSONB,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_audit_logs_user_id (user_id),
-    INDEX idx_audit_logs_action (action),
-    INDEX idx_audit_logs_created_at (created_at)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
+CREATE INDEX idx_audit_logs_action ON audit_logs (action);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 
 -- セキュリティイベント
 CREATE TABLE security_events (
-    event_id UUID PRIMARY KEY,
+    event_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     event_type VARCHAR(50) NOT NULL,
     user_id UUID,
     ip_address INET,
     details JSONB,
     risk_score INT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_security_events_user_id (user_id),
-    INDEX idx_security_events_type (event_type),
-    INDEX idx_security_events_created_at (created_at)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_security_events_user_id ON security_events (user_id);
+CREATE INDEX idx_security_events_type ON security_events (event_type);
+CREATE INDEX idx_security_events_created_at ON security_events (created_at);
 
 -- デバイス信頼情報
 CREATE TABLE trusted_devices (
-    device_id UUID PRIMARY KEY,
+    device_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     user_id UUID NOT NULL,
     device_fingerprint TEXT NOT NULL,
     device_name TEXT,
@@ -718,13 +733,14 @@ CREATE TABLE trusted_devices (
     last_seen_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
-    UNIQUE KEY uk_trusted_devices (user_id, device_fingerprint),
-    INDEX idx_trusted_devices_expires_at (expires_at)
+    CONSTRAINT uk_trusted_devices UNIQUE (user_id, device_fingerprint)
 );
+
+CREATE INDEX idx_trusted_devices_expires_at ON trusted_devices (expires_at);
 
 -- 認証試行履歴
 CREATE TABLE authentication_attempts (
-    attempt_id UUID PRIMARY KEY,
+    attempt_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     user_id UUID,
     auth_method VARCHAR(50) NOT NULL, -- 'password', 'passkey', 'totp', 'api_key'
     success BOOLEAN NOT NULL,
@@ -732,15 +748,16 @@ CREATE TABLE authentication_attempts (
     user_agent TEXT,
     device_fingerprint TEXT,
     error_code VARCHAR(50),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_auth_attempts_user_id (user_id),
-    INDEX idx_auth_attempts_created_at (created_at),
-    INDEX idx_auth_attempts_success (success)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_auth_attempts_user_id ON authentication_attempts (user_id);
+CREATE INDEX idx_auth_attempts_created_at ON authentication_attempts (created_at);
+CREATE INDEX idx_auth_attempts_success ON authentication_attempts (success);
 
 -- APIキー管理
 CREATE TABLE api_keys (
-    key_id UUID PRIMARY KEY,
+    key_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     key_hash TEXT NOT NULL UNIQUE,
     service_account_id UUID NOT NULL,
     key_name VARCHAR(200) NOT NULL,
@@ -748,35 +765,38 @@ CREATE TABLE api_keys (
     expires_at TIMESTAMP,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    revoked_at TIMESTAMP,
-    INDEX idx_api_keys_service_account (service_account_id),
-    INDEX idx_api_keys_expires_at (expires_at)
+    revoked_at TIMESTAMP
 );
+
+CREATE INDEX idx_api_keys_service_account ON api_keys (service_account_id);
+CREATE INDEX idx_api_keys_expires_at ON api_keys (expires_at);
 
 -- サービスアカウント
 CREATE TABLE service_accounts (
-    account_id UUID PRIMARY KEY,
+    account_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     account_name VARCHAR(200) NOT NULL UNIQUE,
     owner_user_id UUID NOT NULL,
     description TEXT,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_service_accounts_owner (owner_user_id)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_service_accounts_owner ON service_accounts (owner_user_id);
 
 -- メール検証トークン
 CREATE TABLE email_verifications (
-    token_id UUID PRIMARY KEY,
+    token_id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     user_id UUID NOT NULL,
     email VARCHAR(255) NOT NULL,
     token_hash TEXT NOT NULL UNIQUE,
     verification_type VARCHAR(50) NOT NULL, -- 'registration', 'password_reset', 'email_change'
     expires_at TIMESTAMP NOT NULL,
     verified_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_email_verifications_user_id (user_id),
-    INDEX idx_email_verifications_expires_at (expires_at)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_email_verifications_user_id ON email_verifications (user_id);
+CREATE INDEX idx_email_verifications_expires_at ON email_verifications (expires_at);
 ```
 
 #### Redis キャッシュ構造
@@ -871,18 +891,18 @@ device_trust:{user_id}:{device_fingerprint} -> {
 TTL: 30日
 ```
 
-## データベースマイグレーション
+### 8.3. データベースマイグレーション
 
 このサービスでは、[共通マイグレーション戦略](../common/database-migration-strategy.md)に従って、Gooseを使用したマイグレーション管理を行います。
 
-### マイグレーション戦略
+#### マイグレーション戦略
 
 - **ツール**: Goose v3
 - **ディレクトリ**: `./migrations/`
 - **命名規則**: `[sequence_number]_[description].sql`
 - **実行方法**: `make migrate-up` / `make migrate-down`
 
-### avion-auth固有の考慮事項
+#### avion-auth固有の考慮事項
 
 - **セキュリティデータ保護**: 認証情報やセッション情報の移行では、暗号化状態を維持
 - **セッション無効化**: スキーマ変更時は影響を受けるセッションを適切に無効化
@@ -890,11 +910,11 @@ TTL: 30日
 - **多段階移行**: パスワードハッシュアルゴリズム変更など、重要な変更は段階的に実施
 - **ダウンタイム最小化**: 認証機能は他サービスの依存関係が高いため、ゼロダウンタイム移行を徹底
 
-### 標準テンプレート参照
+#### 標準テンプレート参照
 
 マイグレーションファイル作成時は[マイグレーション設定テンプレート](../templates/migration-setup-template.md)を参照してください。
 
-### 7.3. API設計
+### 8.4. API設計
 
 #### gRPC API
 
@@ -976,13 +996,24 @@ Response:
     {
       "kty": "RSA",
       "use": "sig",
-      "kid": "2024-01-key",
+      "kid": "2024-04-key",
       "alg": "RS256",
       "n": "...",
       "e": "AQAB"
+    },
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "kid": "2024-01-key",
+      "alg": "RS256",
+      "n": "...",
+      "e": "AQAB",
+      "_comment": "ローテーション後7日間保持される旧鍵。7日経過後に自動削除。"
     }
   ]
 }
+# 注: ローテーション直後は新旧両方の公開鍵がJWKSレスポンスに含まれる。
+# JWT検証時はkidヘッダーで対応する鍵を特定し検証する。
 
 # Health Check
 GET /health
@@ -1007,14 +1038,14 @@ Response:
 }
 ```
 
-### 7.4. イベント設計
+### 8.5. イベント設計
 
-#### 発行イベント (Redis Pub/Sub)
+#### 発行イベント (NATS JetStream)
 
 ```json
 // 認証成功イベント
 {
-  "event_type": "auth.login_success",
+  "event_type": "avion.auth.session.login_success",
   "event_id": "550e8400-e29b-41d4-a716-446655440000",
   "timestamp": "2024-01-01T00:00:00Z",
   "data": {
@@ -1028,7 +1059,7 @@ Response:
 
 // 認証失敗イベント
 {
-  "event_type": "auth.login_failure",
+  "event_type": "avion.auth.session.login_failure",
   "event_id": "550e8400-e29b-41d4-a716-446655440001",
   "timestamp": "2024-01-01T00:00:01Z",
   "data": {
@@ -1041,7 +1072,7 @@ Response:
 
 // アカウントロックイベント
 {
-  "event_type": "auth.account_locked",
+  "event_type": "avion.auth.account.locked",
   "event_id": "550e8400-e29b-41d4-a716-446655440002",
   "timestamp": "2024-01-01T00:00:02Z",
   "data": {
@@ -1053,7 +1084,7 @@ Response:
 
 // ロール変更イベント
 {
-  "event_type": "authz.role_changed",
+  "event_type": "avion.auth.role.changed",
   "event_id": "550e8400-e29b-41d4-a716-446655440003",
   "timestamp": "2024-01-01T00:00:03Z",
   "data": {
@@ -1067,7 +1098,7 @@ Response:
 
 // セッション失効イベント
 {
-  "event_type": "auth.session_revoked",
+  "event_type": "avion.auth.session.revoked",
   "event_id": "550e8400-e29b-41d4-a716-446655440004",
   "timestamp": "2024-01-01T00:00:04Z",
   "data": {
@@ -1079,7 +1110,7 @@ Response:
 
 // 異常ログイン検知イベント
 {
-  "event_type": "security.anomalous_login",
+  "event_type": "avion.auth.security.anomalous_login",
   "event_id": "550e8400-e29b-41d4-a716-446655440005",
   "timestamp": "2024-01-01T00:00:05Z",
   "data": {
@@ -1092,10 +1123,10 @@ Response:
 }
 ```
 
-### 7.5. セキュリティ設計
+### 8.6. セキュリティ設計
 
 #### 認証セキュリティ
-- **パスワード:** Argon2id (memory=64MB, iterations=3, parallelism=2)
+- **パスワード:** Argon2id (memory=64MB, iterations=3, parallelism=4)
 - **Passkey:** WebAuthn Level 2準拠、FIDO2対応
 - **TOTP:** SHA-256、6桁、30秒時間窓、±1ドリフト許容
 - **セッションCookie:** Secure, HttpOnly, SameSite=Strict
@@ -1126,7 +1157,7 @@ Response:
 ```
 
 #### レート制限
-- **認証試行:** 5回/分/IP、5回失敗で15分ロック
+- **認証試行:** 10回/分/IP、5回失敗で15分ロック
 - **トークン検証:** 1000回/分/サービス
 - **認可判定:** 10000回/分/サービス
 - **パスワードリセット:** 3回/時/ユーザー
@@ -1134,9 +1165,9 @@ Response:
 #### 暗号化
 - **保存時暗号化:** AES-256-GCM（秘密鍵、TOTPシークレット）
 - **通信暗号化:** TLS 1.3必須
-- **鍵管理:** KMS統合、定期ローテーション
+- **鍵管理:** KMS統合、90日周期の定期ローテーション（旧公開鍵は7日間保持後に削除）
 
-### 7.6. パフォーマンス最適化
+### 8.7. パフォーマンス最適化
 
 #### 並行処理
 - **Goroutineプール:** 認証処理の並列化（最大100）
@@ -1153,7 +1184,7 @@ Response:
 - **インデックス:** 検索頻度の高いカラムに設定
 - **パーティショニング:** 監査ログの月次パーティション
 
-### 7.7. 監視・運用
+### 8.8. 監視・運用
 
 #### メトリクス (Prometheus形式)
 ```
@@ -1175,7 +1206,7 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 
 > **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `ATH` を使用します。
 
-### エラーコード体系
+#### エラーコード体系
 
 本サービスは、Avionプラットフォーム標準のエラーコード体系に準拠します。
 
@@ -1211,7 +1242,7 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 - **キャッシュヒット率:** 50%未満
 - **署名鍵期限:** 7日前に通知
 
-### 7.8. 実装計画
+### 8.9. 実装計画
 
 #### フェーズ1: 基本機能（Sprint 1-2）
 - パスワード認証
@@ -1238,33 +1269,6 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 - パフォーマンスチューニング
 - ドキュメント整備
 
-## 8. テスト実装
-
-テスト実装の詳細については、[共通テスト戦略](../common/testing-strategy.md)に従って実装します。
-
-### 認証サービス特化のテスト要件
-
-#### セキュリティテスト
-- ペネトレーションテスト
-- OWASP Top 10チェック
-- 暗号化強度検証
-- JWT署名検証テスト
-- セッション固定攻撃防御テスト
-
-#### パフォーマンステスト
-- 負荷テスト（10,000 req/s）
-- 認証レイテンシ: p50 < 100ms
-- 認可レイテンシ: p50 < 20ms
-- メモリリーク検出
-
-#### 統合テスト重点項目
-- パスキー認証フロー
-- TOTP認証フロー
-- OAuth 2.0フロー
-- セッションライフサイクル
-- Redis障害時のフォールバック
-
-
 ## 9. 非機能要件
 
 ### 可用性
@@ -1273,7 +1277,7 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 - **RPO:** 1分以内
 
 ### パフォーマンス
-- **認証処理:** p50 < 100ms、p99 < 300ms
+- **認証処理:** p50 < 50ms、p99 < 200ms
 - **認可判定:** p50 < 20ms、p99 < 100ms
 - **JWT検証:** p50 < 5ms、p99 < 20ms
 - **スループット:** 10,000 req/s
@@ -1336,19 +1340,13 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 #### 12.1.1 認証フローのモック戦略
 
 ```go
-// WebAuthn/Passkeyのモック
-type MockWebAuthnClient struct {
-    mock.Mock
-}
+// WebAuthn/Passkeyのモックは gomock で自動生成
+//go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_webauthn_client.go -package=mocks
 
-func (m *MockWebAuthnClient) BeginRegistration(ctx context.Context, user *User) (*protocol.CredentialCreation, error) {
-    args := m.Called(ctx, user)
-    return args.Get(0).(*protocol.CredentialCreation), args.Error(1)
-}
-
-func (m *MockWebAuthnClient) FinishRegistration(ctx context.Context, user *User, response *protocol.ParsedCredentialCreationData) (*Credential, error) {
-    args := m.Called(ctx, user, response)
-    return args.Get(0).(*Credential), args.Error(1)
+// WebAuthnClient インターフェース（モック生成対象）
+type WebAuthnClient interface {
+    BeginRegistration(ctx context.Context, user *User) (*protocol.CredentialCreation, error)
+    FinishRegistration(ctx context.Context, user *User, response *protocol.ParsedCredentialCreationData) (*Credential, error)
 }
 
 // JWTトークン生成/検証のテスト
@@ -1367,7 +1365,7 @@ func TestJWTService_GenerateAndValidate(t *testing.T) {
             name:      "正常系: アクセストークン生成",
             userID:    "user123",
             scopes:    []string{"read", "write"},
-            expiresIn: 15 * time.Minute,
+            expiresIn: 1 * time.Hour,
             wantErr:   false,
         },
         {
@@ -1454,46 +1452,65 @@ func TestTOTPService_GenerateAndVerify(t *testing.T) {
 func TestAuthenticationFlow_Complete(t *testing.T) {
     tests := []struct {
         name     string
-        scenario func(t *testing.T, svc *AuthService)
+        scenario func(t *testing.T, ctrl *gomock.Controller, svc *AuthService)
     }{
         {
-            name: "パスワード認証 → MFA → JWT発行",
-            scenario: func(t *testing.T, svc *AuthService) {
+            name: "正常系: パスワード認証 → MFA → JWT発行",
+            scenario: func(t *testing.T, ctrl *gomock.Controller, svc *AuthService) {
+                t.Helper()
                 // 1. パスワード認証
                 session, err := svc.AuthenticateWithPassword(ctx, "user@example.com", "password123")
-                require.NoError(t, err)
-                require.Equal(t, SessionStateMFARequired, session.State)
-                
+                if err != nil {
+                    t.Fatalf("パスワード認証に失敗: %v", err)
+                }
+                if diff := cmp.Diff(SessionStateMFARequired, session.State); diff != "" {
+                    t.Errorf("セッション状態の不一致 (-want +got):\n%s", diff)
+                }
+
                 // 2. TOTP検証
-                err = svc.VerifyTOTP(ctx, session.ID, "123456")
-                require.NoError(t, err)
-                
+                if err := svc.VerifyTOTP(ctx, session.ID, "123456"); err != nil {
+                    t.Fatalf("TOTP検証に失敗: %v", err)
+                }
+
                 // 3. JWT発行
                 tokens, err := svc.IssueTokens(ctx, session.ID)
-                require.NoError(t, err)
-                require.NotEmpty(t, tokens.AccessToken)
-                require.NotEmpty(t, tokens.RefreshToken)
+                if err != nil {
+                    t.Fatalf("JWT発行に失敗: %v", err)
+                }
+                if tokens.AccessToken == "" {
+                    t.Error("アクセストークンが空")
+                }
+                if tokens.RefreshToken == "" {
+                    t.Error("リフレッシュトークンが空")
+                }
             },
         },
         {
-            name: "Passkey認証（MFAスキップ）",
-            scenario: func(t *testing.T, svc *AuthService) {
+            name: "正常系: Passkey認証（MFAスキップ）",
+            scenario: func(t *testing.T, ctrl *gomock.Controller, svc *AuthService) {
+                t.Helper()
                 // Passkeyは inherently MFA
                 tokens, err := svc.AuthenticateWithPasskey(ctx, passkeyCredential)
-                require.NoError(t, err)
-                require.NotEmpty(t, tokens.AccessToken)
+                if err != nil {
+                    t.Fatalf("Passkey認証に失敗: %v", err)
+                }
+                if tokens.AccessToken == "" {
+                    t.Error("アクセストークンが空")
+                }
             },
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             // Setup
-            svc := setupTestAuthService(t)
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+            svc := setupTestAuthService(t, ctrl)
             defer teardownTestAuthService(t, svc)
-            
+
             // Execute
-            tt.scenario(t, svc)
+            tt.scenario(t, ctrl, svc)
         })
     }
 }
@@ -1504,9 +1521,10 @@ func TestSession_Invariants(t *testing.T) {
         name      string
         setup     func() *Session
         invariant func(*Session) error
+        wantErr   error
     }{
         {
-            name: "セッションは必ず有効期限を持つ",
+            name: "異常系: セッションは必ず有効期限を持つ",
             setup: func() *Session {
                 return &Session{
                     ID:        "session123",
@@ -1517,13 +1535,14 @@ func TestSession_Invariants(t *testing.T) {
             },
             invariant: func(s *Session) error {
                 if s.ExpiresAt.IsZero() {
-                    return errors.New("session must have expiration")
+                    return ErrSessionMustHaveExpiration
                 }
                 return nil
             },
+            wantErr: ErrSessionMustHaveExpiration,
         },
         {
-            name: "MFA必須ユーザーは必ずMFAステップを経る",
+            name: "異常系: MFA必須ユーザーは必ずMFAステップを経る",
             setup: func() *Session {
                 return &Session{
                     ID:          "session123",
@@ -1534,18 +1553,21 @@ func TestSession_Invariants(t *testing.T) {
             },
             invariant: func(s *Session) error {
                 if s.RequiresMFA && s.State == SessionStateAuthenticated && !s.MFAVerified {
-                    return errors.New("MFA required but not verified")
+                    return ErrMFARequiredButNotVerified
                 }
                 return nil
             },
+            wantErr: ErrMFARequiredButNotVerified,
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             session := tt.setup()
             err := tt.invariant(session)
-            require.Error(t, err, "Invariant should be violated")
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("不変条件の検証結果が不正: got %v, want %v", err, tt.wantErr)
+            }
         })
     }
 }
@@ -1565,49 +1587,61 @@ func TestRedisSessionStore_Integration(t *testing.T) {
     ctx := context.Background()
     
     // Redisコンテナ起動
-    redis, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+    redisContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
         ContainerRequest: testcontainers.ContainerRequest{
-            Image:        "redis:7-alpine",
+            Image:        "redis:8-alpine",
             ExposedPorts: []string{"6379/tcp"},
             WaitingFor:   wait.ForListeningPort("6379/tcp"),
         },
         Started: true,
     })
-    require.NoError(t, err)
-    defer redis.Terminate(ctx)
-    
+    if err != nil {
+        t.Fatalf("Redisコンテナの起動に失敗: %v", err)
+    }
+    defer redisContainer.Terminate(ctx)
+
     // Redis接続
-    endpoint, err := redis.Endpoint(ctx, "")
-    require.NoError(t, err)
-    
+    endpoint, err := redisContainer.Endpoint(ctx, "")
+    if err != nil {
+        t.Fatalf("Redisエンドポイントの取得に失敗: %v", err)
+    }
+
     client := redis.NewClient(&redis.Options{
         Addr: endpoint,
     })
     defer client.Close()
-    
+
     store := NewRedisSessionStore(client)
-    
-    t.Run("セッション作成と取得", func(t *testing.T) {
+
+    t.Run("正常系: セッション作成と取得", func(t *testing.T) {
         session := &Session{
             ID:        "test-session",
             UserID:    "user123",
-            ExpiresAt: time.Now().Add(15 * time.Minute),
+            ExpiresAt: time.Now().Add(1 * time.Hour),
         }
-        
-        err := store.Save(ctx, session)
-        require.NoError(t, err)
-        
+
+        if err := store.Save(ctx, session); err != nil {
+            t.Fatalf("セッション保存に失敗: %v", err)
+        }
+
         retrieved, err := store.Get(ctx, session.ID)
-        require.NoError(t, err)
-        require.Equal(t, session.UserID, retrieved.UserID)
+        if err != nil {
+            t.Fatalf("セッション取得に失敗: %v", err)
+        }
+        if diff := cmp.Diff(session.UserID, retrieved.UserID); diff != "" {
+            t.Errorf("UserIDの不一致 (-want +got):\n%s", diff)
+        }
     })
-    
-    t.Run("セッション無効化", func(t *testing.T) {
-        err := store.Revoke(ctx, "test-session")
-        require.NoError(t, err)
-        
-        _, err = store.Get(ctx, "test-session")
-        require.ErrorIs(t, err, ErrSessionNotFound)
+
+    t.Run("正常系: セッション無効化", func(t *testing.T) {
+        if err := store.Revoke(ctx, "test-session"); err != nil {
+            t.Fatalf("セッション無効化に失敗: %v", err)
+        }
+
+        _, err := store.Get(ctx, "test-session")
+        if !errors.Is(err, ErrSessionNotFound) {
+            t.Errorf("期待するエラーと不一致: got %v, want %v", err, ErrSessionNotFound)
+        }
     })
 }
 ```
@@ -1662,7 +1696,7 @@ func BenchmarkJWT(b *testing.B) {
 
 | シナリオ | 同時接続数 | RPS | 成功率目標 | レイテンシ目標 |
 |---------|----------|-----|-----------|--------------|
-| ログイン通常負荷 | 100 | 500 | 99.9% | p50 < 100ms, p99 < 500ms |
+| ログイン通常負荷 | 100 | 500 | 99.9% | p50 < 50ms, p99 < 200ms |
 | ログインピーク | 1000 | 2000 | 99.5% | p50 < 200ms, p99 < 1000ms |
 | トークン検証 | 5000 | 10000 | 99.99% | p50 < 20ms, p99 < 100ms |
 | MFA検証 | 500 | 1000 | 99.9% | p50 < 50ms, p99 < 200ms |
@@ -1677,51 +1711,60 @@ func TestSecurity_AuthenticationBypass(t *testing.T) {
     tests := []struct {
         name    string
         attempt func(*AuthService) error
+        wantErr bool
     }{
         {
-            name: "空のJWTトークン",
+            name: "異常系: 空のJWTトークン",
             attempt: func(svc *AuthService) error {
                 _, err := svc.ValidateToken(ctx, "")
                 return err
             },
+            wantErr: true,
         },
         {
-            name: "改竄されたJWT",
+            name: "異常系: 改竄されたJWT",
             attempt: func(svc *AuthService) error {
                 token := generateValidToken()
                 tampered := token[:len(token)-10] + "tampered"
                 _, err := svc.ValidateToken(ctx, tampered)
                 return err
             },
+            wantErr: true,
         },
         {
-            name: "SQLインジェクション試行",
+            name: "異常系: SQLインジェクション試行",
             attempt: func(svc *AuthService) error {
-                _, err := svc.AuthenticateWithPassword(ctx, 
+                _, err := svc.AuthenticateWithPassword(ctx,
                     "admin' OR '1'='1", "password")
                 return err
             },
+            wantErr: true,
         },
         {
-            name: "ブルートフォース保護",
+            name: "異常系: ブルートフォース保護",
             attempt: func(svc *AuthService) error {
                 for i := 0; i < 10; i++ {
-                    svc.AuthenticateWithPassword(ctx, 
+                    svc.AuthenticateWithPassword(ctx,
                         "user@example.com", fmt.Sprintf("wrong%d", i))
                 }
                 // 11回目はロックされるべき
-                _, err := svc.AuthenticateWithPassword(ctx, 
+                _, err := svc.AuthenticateWithPassword(ctx,
                     "user@example.com", "correct")
                 return err
             },
+            wantErr: true,
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            svc := setupTestAuthService(t)
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+            svc := setupTestAuthService(t, ctrl)
             err := tt.attempt(svc)
-            require.Error(t, err, "Security bypass should fail")
+            if (err != nil) != tt.wantErr {
+                t.Errorf("認証バイパスの検証結果が不正: got error %v, wantErr %v", err, tt.wantErr)
+            }
         })
     }
 }
@@ -1735,49 +1778,57 @@ func TestSecurity_AuthenticationBypass(t *testing.T) {
 // 外部サービス障害のテスト
 func TestChaos_ExternalServiceFailure(t *testing.T) {
     tests := []struct {
-        name     string
-        failure  func(*AuthService)
-        expected error
+        name    string
+        failure func(*AuthService)
+        wantErr error
     }{
         {
-            name: "Redis接続障害",
+            name: "異常系: Redis接続障害",
             failure: func(svc *AuthService) {
                 svc.sessionStore.(*RedisSessionStore).client.Close()
             },
-            expected: ErrSessionStoreUnavailable,
+            wantErr: ErrSessionStoreUnavailable,
         },
         {
-            name: "KMS署名鍵取得失敗",
+            name: "異常系: KMS署名鍵取得失敗",
             failure: func(svc *AuthService) {
-                svc.kmsClient.(*MockKMSClient).
-                    On("GetSigningKey", mock.Anything).
+                // gomockを使用してKMSクライアントの障害を注入
+                svc.kmsClient.(*mocks.MockKMSClient).
+                    EXPECT().
+                    GetSigningKey(gomock.Any()).
                     Return(nil, errors.New("KMS unavailable"))
             },
-            expected: ErrSigningKeyUnavailable,
+            wantErr: ErrSigningKeyUnavailable,
         },
         {
-            name: "データベース接続障害",
+            name: "異常系: データベース接続障害",
             failure: func(svc *AuthService) {
                 svc.db.Close()
             },
-            expected: ErrDatabaseUnavailable,
+            wantErr: ErrDatabaseUnavailable,
         },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            svc := setupTestAuthService(t)
-            
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+            svc := setupTestAuthService(t, ctrl)
+
             // 障害を注入
             tt.failure(svc)
-            
+
             // グレースフルデグレード確認
-            _, err := svc.AuthenticateWithPassword(ctx, 
+            _, err := svc.AuthenticateWithPassword(ctx,
                 "user@example.com", "password")
-            require.ErrorIs(t, err, tt.expected)
-            
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("エラーの不一致: got %v, want %v", err, tt.wantErr)
+            }
+
             // サーキットブレーカー確認
-            require.True(t, svc.circuitBreaker.IsOpen())
+            if !svc.circuitBreaker.IsOpen() {
+                t.Error("サーキットブレーカーがOpenになっていない")
+            }
         })
     }
 }
@@ -1870,13 +1921,13 @@ func WithPasskey(credentialID []byte) TestUserOption {
 auth-service-tests:
   services:
     postgres:
-      image: postgres:15
+      image: postgres:17
       env:
         POSTGRES_PASSWORD: test
         POSTGRES_DB: auth_test
     
     redis:
-      image: redis:7-alpine
+      image: redis:8-alpine
     
     # KMSモックサーバー
     localstack:
@@ -1908,3 +1959,80 @@ auth-service-tests:
 | Security Tests | Every PR | < 15min | 必須 |
 | Performance | Nightly | < 30min | 必須 |
 | Penetration | Weekly | < 2hr | 任意 |
+
+## 13. Release Plan (リリース計画)
+
+### 13.1. 実装フェーズ
+
+| Phase | 内容 | 期間 | 前提条件 |
+|:------|:-----|:-----|:---------|
+| Phase 1 | JWT/Passkey認証の基本実装（パスワード認証、JWT発行・検証、基本RBAC、セッション管理、監査ログ） | Sprint 1-2 | インフラ基盤（PostgreSQL 17、Redis 8+、NATS JetStream）構築完了 |
+| Phase 2 | TOTP/多要素認証の追加（Passkey/WebAuthn対応、TOTP対応、デバイス信頼管理、異常ログイン検知） | Sprint 3-4 | Phase 1 完了 |
+| Phase 3 | ポリシー管理の高度化（ポリシーベース認可、動的スコープ管理、Bot OAuth 2.0対応、詳細権限管理） | Sprint 5-6 | Phase 2 完了 |
+
+### 13.2. 段階的ロールアウト戦略
+
+**Canary Release:**
+1. **5%** -- 初期検証（最低15分間監視）
+2. **25%** -- 拡大検証（最低30分間監視）
+3. **50%** -- 広域検証（最低1時間監視）
+4. **100%** -- 全展開
+
+**各段階の監視項目:**
+- エラー率 < 1%
+- レイテンシ p99 < SLO の 2倍
+- CPU/Memory 使用率が正常範囲内
+
+### 13.3. ロールバック判定基準と手順
+
+**ロールバック判定基準:**
+- エラー率が 1% を超過
+- p99 レイテンシが SLO の 2倍を超過
+- CRITICAL レベルのログが発生
+- データ整合性エラーの検出
+
+**ロールバック手順:**
+```bash
+# 1. 新バージョンのデプロイを停止
+kubectl rollout pause deployment/avion-auth -n avion
+
+# 2. 前バージョンにロールバック
+kubectl rollout undo deployment/avion-auth -n avion
+
+# 3. ロールバック完了を確認
+kubectl rollout status deployment/avion-auth -n avion
+
+# 4. 必要に応じてDBマイグレーションのロールバック
+# (docs/common/database/database-migration-strategy.md 参照)
+```
+
+### 13.4. 環境デプロイ順序
+
+1. **dev** -- 開発環境でのE2Eテスト
+2. **staging** -- 本番同等環境での負荷テスト・統合テスト
+3. **production** -- 段階的ロールアウト（13.2参照）
+
+### 13.5. サービス間依存関係
+
+- **前提サービス:** なし（avion-auth は他サービスの認証基盤であり、最初にデプロイが必要）
+- **後続サービス:** avion-gateway、avion-user、avion-drop、avion-timeline、その他全サービス（JWT検証・認可判定のために avion-auth に依存）
+
+### 13.6. リリース前チェックリスト
+
+- [ ] 全テストがパス（ユニット + 統合）
+- [ ] カバレッジ目標達成（90%以上、クリティカルパス95%以上）
+- [ ] DBマイグレーションスクリプト準備完了
+- [ ] 環境変数の追加/変更がドキュメント化済み
+- [ ] ロールバック手順のリハーサル完了
+- [ ] 監視ダッシュボード・アラートの設定完了
+- [ ] staging環境での動作確認完了
+- [ ] セキュリティテスト（OWASP Top 10）合格
+
+### 13.7. リリース後検証ステップ
+
+- [ ] Canary比率の段階的拡大
+- [ ] エラー率・レイテンシの継続監視
+- [ ] ログの異常パターン確認
+- [ ] 依存サービスとの連携正常性確認
+- [ ] JWT検証・認可判定の応答時間確認
+- [ ] 24時間後のメトリクス確認
