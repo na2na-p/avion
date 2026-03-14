@@ -49,6 +49,7 @@
 - **HTTPルーティング:** Chi v5
 - **RPC:** ConnectRPC
 - **認証ライブラリ:** go-chi/jwtauth v5 (JWT処理)
+- **OIDC/OAuth 2.0:** zitadel/oidc v3 (OpenID Connect RP/OP実装、OpenID Foundation認証済み)
 - **セキュリティ:** Argon2id (パスワードハッシュ), WebAuthn (Passkey)
 
 詳細な実装パターンおよびライブラリの使用方法については、[ガイドライン](../common/architecture/go-backend-framework.md)を参照してください。
@@ -88,10 +89,11 @@
 - 認可結果のキャッシング（Redis）
 - リソース所有者判定
 
-#### OAuth 2.0
+#### OAuth 2.0 / OIDC
 - Client Credentials Flow（Bot認証）
-- Authorization Code Flow（将来実装）
+- Authorization Code Flow + PKCE（サードパーティアプリ用、zitadel/oidcのOPパッケージで実装）
 - トークンエンドポイント（/oauth/token）
+- OIDC Discovery Endpoint（/.well-known/openid-configuration、zitadel/oidcが自動生成）
 - クライアント管理API
 
 #### セキュリティ機能
@@ -123,7 +125,7 @@
 - **UIの提供:** `avion-web` が担当
 - **ユーザー検索:** `avion-search` が担当
 - **メディア認証:** `avion-media` が独自に管理
-- **外部IdP連携（初期）:** SAML、LDAP、OAuth2プロバイダー機能は将来実装
+- **外部IdP連携（初期）:** SAML、LDAP、OAuth2プロバイダー連携は将来実装（OIDC対応IdPについてはzitadel/oidcのRPパッケージで対応予定）
 - **生体認証（初期）:** Face ID、指紋認証は将来実装
 - **適応型認証:** リスクベース認証は `avion-moderation` との連携で将来実装
 
@@ -1314,12 +1316,16 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 
 ## 11. 今後の拡張
 
-- 外部IdP連携（Google、GitHub、Twitter）
-- OpenID Connect対応
+- **OIDC/OAuth 2.0基盤の強化（zitadel/oidc v3）:**
+  - Authorization Code Flow + PKCEによるサードパーティアプリ対応（`op`パッケージ）
+  - OIDC Discovery / JWKSエンドポイントの自動化
+  - `op.Storage`インターフェース実装による既存ドメインロジックとの統合
+  - IDトークン発行（標準クレーム準拠）
+- **外部IdP連携（Google、GitHub、Twitter等）:** zitadel/oidcの`rp`パッケージでOIDC対応IdPとの連携を実装（優先順位は未定）
+- **内部モジュール構成:** AuthN + AuthZは1サービスに統一し、`oidc/`・`authn/`・`authz/`の3モジュール構成で責務を分離
 - 生体認証（Face ID、指紋）
 - ゼロトラストアーキテクチャ
 - AIベースの異常検知
-- ブロックチェーン統合（将来検討）
 
 ## 12. サービス固有のテスト戦略
 

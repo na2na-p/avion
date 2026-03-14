@@ -85,6 +85,8 @@
 - **高度なスパム/不正行為対策 (初期)。**
 - **Outbox処理における厳密な順序保証 (初期)。**
 
+> **サービス間責務境界（決定済み）**: ActivityPubプロトコル変換は本サービスの `ActivityPubTranslator`（アンチコラプションレイヤー）が一元的に担う。`avion-drop` の `toActivityPubNote()` は廃止し、`avion-drop` からは `DropCreatedEvent` 等のドメインイベントのみを受け取る。本サービス側でNote形式への変換を行う。これによりActivityPub仕様変更時に `avion-drop` を修正する必要がなくなる。
+
 ## 6. Architecture (どうやって作る？)
 
 ### 5.1. レイヤードアーキテクチャ (DDD準拠)
