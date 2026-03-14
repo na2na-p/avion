@@ -1,7 +1,7 @@
 # Design Doc: avion-system-admin
 
 **Author:** Claude Code
-**Last Updated:** 2025/08/13
+**Last Updated:** 2026/03/14
 **Review Status:** .cursor/rules準拠
 
 ## 1. Summary (これは何？)
@@ -9,13 +9,13 @@
 - **一言で:** Avionにおけるシステム管理機能（設定管理、アナウンス、統計、レート制限、バックアップ）を提供するマイクロサービスを実装します。
 - **目的:** プラットフォーム全体の安定運用、設定の一元管理、メトリクス収集と分析、運用タスクの自動化、災害復旧体制の確立を提供します。
 
-## テスト戦略
+## 2. テスト戦略
 
 このサービスでは、[共通テスト戦略](../common/testing-strategy.md)に従ってテストを実装します。
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -159,7 +159,7 @@ func LoadConfig() (*Config, error) {
 - 管理者権限と監査ログの管理
 - システムデータのPostgreSQLへの永続化
 - 設定とメトリクスのRedisキャッシュ
-- システムイベントの発行（Redis Pub/Sub）
+- システムイベントの発行（NATS JetStream）
 - 管理ダッシュボード用REST APIの提供
 - Go言語で実装し、Kubernetes上でのステートレス運用
 - OpenTelemetryによるトレーシング・メトリクス・ロギング対応
@@ -179,7 +179,7 @@ func LoadConfig() (*Config, error) {
 
 ## 7. Architecture (どうやって作る？)
 
-### 5.1. レイヤードアーキテクチャ (DDD準拠)
+### 7.1. レイヤードアーキテクチャ (DDD準拠)
 
 > **重要**: 本アーキテクチャは[Avion共通開発ガイドライン - ドメイン駆動設計（DDD）](../common/development-guidelines.md#2-ドメイン駆動設計ddd)に完全準拠し、Handler/UseCase/Domain/Infrastructureの4層構造を厳守します。
 
@@ -193,7 +193,7 @@ func LoadConfig() (*Config, error) {
 **責務**: アナウンスのライフサイクルと整合性を管理する中核的な集約
 - **集約ルート**: Announcement
 - **不変条件**:
-  - AnnouncementIDは一意（UUID v4形式）
+  - AnnouncementIDは一意（UUID v7形式）
   - 配信済みアナウンスの内容変更不可（承認フロー必須）
   - 期間設定の妥当性（publishAt < expireAt、未来の日時のみ）
   - 対象ユーザーの整合性（存在しないユーザー・グループは除外）
@@ -378,7 +378,7 @@ func LoadConfig() (*Config, error) {
 
 **システム管理特化の値オブジェクト設計**
 
-**識別子関連**（UUID v4、改竄検知機能付き）
+**識別子関連**（UUID v7、改竄検知機能付き）
 - AnnouncementID, ConfigurationID, RuleID, AdminID, MetricID, BackupID
 
 **権限・セキュリティ関連**
@@ -465,10 +465,6 @@ func LoadConfig() (*Config, error) {
       FindPendingApproval(ctx context.Context) ([]*Announcement, error)
   }
   ```
-
-## 概要
-
-本ドキュメントは、avion-system-adminサービスの技術設計を定義する。avion-system-adminはプラットフォーム全体のシステム管理機能を提供し、設定管理、アナウンス配信、統計収集、レート制限、バックアップ管理を通じて、安定したプラットフォーム運営を実現する。
 
 #### Use Case Layer (ユースケース層)
 - **Command Use Cases:**
@@ -968,10 +964,10 @@ func (h *SystemAdminEventHandler) HandleSystemConfigUpdated(ctx context.Context,
   - PrometheusMetricsService (Prometheus)
   - OpenTelemetryService (OpenTelemetry)
 - **Event Publishers:**
-  - AnnouncementEventPublisher (Redis Pub/Sub)
-  - ConfigurationEventPublisher (Redis Pub/Sub)
-  - BackupEventPublisher (Redis Pub/Sub)
-  - MetricsEventPublisher (Redis Pub/Sub)
+  - AnnouncementEventPublisher (NATS JetStream)
+  - ConfigurationEventPublisher (NATS JetStream)
+  - BackupEventPublisher (NATS JetStream)
+  - MetricsEventPublisher (NATS JetStream)
 
 #### Handler Layer (ハンドラー層)
 - **gRPC Handlers:**
@@ -996,7 +992,7 @@ func (h *SystemAdminEventHandler) HandleSystemConfigUpdated(ctx context.Context,
   - ConfigurationSyncJob: 設定同期
   - HealthCheckJob: ヘルスチェック
 
-### 5.2. システム構成
+### 7.2. システム構成
 
 ```
 ┌─────────────────────────────────────────┐
@@ -1053,7 +1049,7 @@ func (h *SystemAdminEventHandler) HandleSystemConfigUpdated(ctx context.Context,
 - **RateLimitEvaluator**: レート制限評価
 - **NotificationDispatcher**: 通知配信
 
-## データベースマイグレーション
+### 7.3. データベースマイグレーション
 
 このサービスでは、[共通マイグレーション戦略](../common/database-migration-strategy.md)に従って、Gooseを使用したマイグレーション管理を行います。
 
@@ -1076,71 +1072,7 @@ func (h *SystemAdminEventHandler) HandleSystemConfigUpdated(ctx context.Context,
 
 マイグレーションファイル作成時は[マイグレーション設定テンプレート](../templates/migration-setup-template.md)を参照してください。
 
-## 7. Endpoints (API)
-
-### 7.1. gRPC Service Definition
-
-```protobuf
-service SystemAdminService {
-  // Announcement management
-  rpc CreateAnnouncement(CreateAnnouncementRequest) returns (CreateAnnouncementResponse);
-  rpc GetAnnouncements(GetAnnouncementsRequest) returns (GetAnnouncementsResponse);
-  rpc UpdateAnnouncement(UpdateAnnouncementRequest) returns (UpdateAnnouncementResponse);
-  rpc DeleteAnnouncement(DeleteAnnouncementRequest) returns (DeleteAnnouncementResponse);
-  
-  // System configuration
-  rpc UpdateConfiguration(UpdateConfigurationRequest) returns (UpdateConfigurationResponse);
-  rpc GetConfiguration(GetConfigurationRequest) returns (GetConfigurationResponse);
-  rpc RollbackConfiguration(RollbackConfigurationRequest) returns (RollbackConfigurationResponse);
-  
-  // Admin user management
-  rpc CreateAdminUser(CreateAdminUserRequest) returns (CreateAdminUserResponse);
-  rpc UpdateAdminPermissions(UpdateAdminPermissionsRequest) returns (UpdateAdminPermissionsResponse);
-  rpc AuditAdminActions(AuditAdminActionsRequest) returns (AuditAdminActionsResponse);
-  
-  // Rate limiting
-  rpc SetRateLimitRule(SetRateLimitRuleRequest) returns (SetRateLimitRuleResponse);
-  rpc EvaluateRateLimit(EvaluateRateLimitRequest) returns (EvaluateRateLimitResponse);
-  
-  // Metrics and monitoring
-  rpc GetSystemMetrics(GetSystemMetricsRequest) returns (GetSystemMetricsResponse);
-  rpc GetAnomalies(GetAnomaliesRequest) returns (GetAnomaliesResponse);
-  
-  // Backup management
-  rpc ExecuteBackup(ExecuteBackupRequest) returns (ExecuteBackupResponse);
-  rpc RestoreBackup(RestoreBackupRequest) returns (RestoreBackupResponse);
-  rpc GetBackupStatus(GetBackupStatusRequest) returns (GetBackupStatusResponse);
-}
-
-message CreateAnnouncementRequest {
-  string title = 1;
-  string content = 2;
-  AnnouncementPriority priority = 3;
-  repeated string target_user_ids = 4;
-  google.protobuf.Timestamp publish_at = 5;
-  google.protobuf.Timestamp expire_at = 6;
-}
-
-message CreateAnnouncementResponse {
-  string announcement_id = 1;
-  AnnouncementStatus status = 2;
-}
-```
-
-### 7.2. Error Codes
-
-- `INVALID_ARGUMENT`: Invalid request parameters or business rule violations
-- `NOT_FOUND`: Requested resource not found (announcement, configuration, admin user)
-- `PERMISSION_DENIED`: Insufficient permissions for admin operation
-- `ALREADY_EXISTS`: Resource already exists (duplicate configuration key, admin email)
-- `FAILED_PRECONDITION`: Operation cannot be performed in current state
-- `RESOURCE_EXHAUSTED`: Rate limit exceeded or resource quota exceeded
-- `UNAVAILABLE`: External service unavailable (backup service, notification service)
-- `INTERNAL`: Unexpected server error, database connection issues
-
-## 8. Data Design (データ設計)
-
-### 6.1. API設計
+## 8. API Design (API設計)
 
 #### gRPC API 定義
 
@@ -1237,380 +1169,35 @@ paths:
       summary: バックアップ履歴取得
 ```
 
-### 6.2. データモデル
+### 8.2. データモデル
 
-### アナウンス管理
+> **注意:** 各テーブルの完全な定義はセクション17「ドメインオブジェクトとDBスキーマのマッピング」を参照してください。以下はサービスが管理する主要テーブルの概要です。
 
-```sql
--- アナウンス
-CREATE TABLE announcements (
-    announcement_id UUID PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    content_format TEXT DEFAULT 'markdown',
-    target_type TEXT NOT NULL CHECK (target_type IN ('all', 'group', 'individual')),
-    target_criteria JSONB,
-    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
-    display_type TEXT NOT NULL CHECK (display_type IN ('banner', 'modal', 'notification')),
-    publish_at TIMESTAMP NOT NULL,
-    expire_at TIMESTAMP,
-    created_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT true,
-    is_draft BOOLEAN DEFAULT false,
-    read_count INT DEFAULT 0,
-    dismiss_count INT DEFAULT 0
-);
+#### 主要テーブル一覧
 
--- アナウンス多言語対応
-CREATE TABLE announcement_translations (
-    announcement_id UUID REFERENCES announcements(announcement_id) ON DELETE CASCADE,
-    language_code TEXT NOT NULL,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    translated_by UUID,
-    translated_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (announcement_id, language_code)
-);
+| テーブル | 集約 | 説明 |
+|:---------|:-----|:-----|
+| `announcements` | Announcement | アナウンス管理（UUID v7 PK） |
+| `announcement_translations` | Announcement | アナウンス多言語対応 |
+| `announcement_targets` | Announcement | アナウンス配信対象 |
+| `announcement_reads` | Announcement | 既読管理 |
+| `system_configurations` | SystemConfiguration | システム設定（階層的キー構造） |
+| `configuration_versions` | SystemConfiguration | 設定バージョン履歴 |
+| `feature_flags` | SystemConfiguration | 機能フラグ管理 |
+| `rate_limit_rules` | RateLimitRule | レート制限ルール |
+| `rate_limit_events` | RateLimitRule | レート制限イベントログ |
+| `admin_users` | AdminUser | 管理者ユーザー（role: super_admin/admin/operator/viewer） |
+| `admin_audit_logs` | AdminUser | 管理者操作監査ログ（ハッシュチェーン付き） |
+| `system_metrics` | SystemMetrics | システムメトリクス（TimescaleDB） |
+| `metrics_aggregates` | SystemMetrics | メトリクス集計キャッシュ |
+| `backup_policies` | BackupPolicy | バックアップポリシー |
+| `backup_executions` | BackupPolicy | バックアップ実行履歴 |
+| `maintenance_schedules` | - | メンテナンススケジュール |
+| `user_statistics` | - | ユーザー統計 |
+| `content_statistics` | - | コンテンツ統計 |
+| `storage_statistics` | - | ストレージ統計 |
 
--- アナウンス対象
-CREATE TABLE announcement_targets (
-    target_id UUID PRIMARY KEY,
-    announcement_id UUID REFERENCES announcements(announcement_id) ON DELETE CASCADE,
-    target_type TEXT NOT NULL,
-    target_value TEXT NOT NULL,
-    exclusion_list TEXT[],
-    created_at TIMESTAMP NOT NULL
-);
-
--- アナウンス既読管理
-CREATE TABLE announcement_reads (
-    announcement_id UUID REFERENCES announcements(announcement_id) ON DELETE CASCADE,
-    user_id UUID NOT NULL,
-    read_at TIMESTAMP NOT NULL,
-    dismissed_at TIMESTAMP,
-    PRIMARY KEY (announcement_id, user_id)
-);
-
-CREATE INDEX idx_announcements_active ON announcements(publish_at, expire_at) WHERE is_active = true;
-CREATE INDEX idx_announcement_reads_user ON announcement_reads(user_id, read_at DESC);
-```
-
-### システム設定管理
-
-```sql
--- システム設定
-CREATE TABLE system_configurations (
-    config_key TEXT PRIMARY KEY,
-    config_value JSONB NOT NULL,
-    value_type TEXT NOT NULL CHECK (value_type IN ('string', 'number', 'boolean', 'json', 'array')),
-    description TEXT,
-    category TEXT NOT NULL,
-    is_sensitive BOOLEAN DEFAULT false,
-    is_readonly BOOLEAN DEFAULT false,
-    validation_rules JSONB,
-    updated_by UUID NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    version INT DEFAULT 1
-);
-
--- 設定履歴
-CREATE TABLE configuration_history (
-    history_id UUID PRIMARY KEY,
-    config_key TEXT NOT NULL,
-    old_value JSONB,
-    new_value JSONB NOT NULL,
-    changed_by UUID NOT NULL,
-    changed_at TIMESTAMP NOT NULL,
-    change_reason TEXT,
-    rollback_id UUID REFERENCES configuration_history(history_id)
-);
-
--- 機能フラグ
-CREATE TABLE feature_flags (
-    flag_name TEXT PRIMARY KEY,
-    is_enabled BOOLEAN DEFAULT false,
-    rollout_percentage INT DEFAULT 0 CHECK (rollout_percentage >= 0 AND rollout_percentage <= 100),
-    target_groups TEXT[],
-    conditions JSONB,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-
--- 設定テンプレート
-CREATE TABLE configuration_templates (
-    template_id UUID PRIMARY KEY,
-    template_name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    config_set JSONB NOT NULL,
-    created_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    is_default BOOLEAN DEFAULT false
-);
-
-CREATE INDEX idx_configuration_history_key ON configuration_history(config_key, changed_at DESC);
-CREATE INDEX idx_feature_flags_enabled ON feature_flags(flag_name) WHERE is_enabled = true;
-```
-
-### レート制限管理
-
-```sql
--- レート制限ルール
-CREATE TABLE rate_limit_rules (
-    rule_id UUID PRIMARY KEY,
-    rule_name TEXT NOT NULL UNIQUE,
-    target_type TEXT NOT NULL CHECK (target_type IN ('endpoint', 'user', 'ip', 'api_key')),
-    target_pattern TEXT NOT NULL,
-    limit_value INT NOT NULL,
-    window_seconds INT NOT NULL,
-    burst_size INT DEFAULT 0,
-    window_type TEXT DEFAULT 'fixed' CHECK (window_type IN ('fixed', 'sliding')),
-    action TEXT NOT NULL CHECK (action IN ('throttle', 'reject', 'captcha', 'queue')),
-    priority INT DEFAULT 0,
-    conditions JSONB,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-
--- レート制限カウンター（Redisに保存、ここは監査用）
-CREATE TABLE rate_limit_violations (
-    violation_id UUID PRIMARY KEY,
-    rule_id UUID REFERENCES rate_limit_rules(rule_id),
-    target_identifier TEXT NOT NULL,
-    violation_count INT DEFAULT 1,
-    first_violation_at TIMESTAMP NOT NULL,
-    last_violation_at TIMESTAMP NOT NULL,
-    action_taken TEXT NOT NULL
-);
-
--- レート制限ホワイトリスト
-CREATE TABLE rate_limit_whitelist (
-    whitelist_id UUID PRIMARY KEY,
-    target_type TEXT NOT NULL,
-    target_value TEXT NOT NULL,
-    reason TEXT,
-    added_by UUID NOT NULL,
-    added_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP,
-    UNIQUE(target_type, target_value)
-);
-
-CREATE INDEX idx_rate_limit_rules_active ON rate_limit_rules(priority DESC) WHERE is_active = true;
-CREATE INDEX idx_rate_limit_violations_time ON rate_limit_violations(last_violation_at DESC);
-```
-
-### 統計・メトリクス
-
-```sql
--- システムメトリクス
-CREATE TABLE system_metrics (
-    metric_id UUID PRIMARY KEY,
-    metric_type TEXT NOT NULL,
-    metric_name TEXT NOT NULL,
-    metric_value JSONB NOT NULL,
-    tags JSONB,
-    recorded_at TIMESTAMP NOT NULL,
-    aggregation_period TEXT NOT NULL CHECK (aggregation_period IN ('minute', 'hour', 'day', 'week', 'month')),
-    aggregation_type TEXT CHECK (aggregation_type IN ('sum', 'avg', 'max', 'min', 'p50', 'p95', 'p99'))
-);
-
--- ユーザー統計
-CREATE TABLE user_statistics (
-    stat_id UUID PRIMARY KEY,
-    period_start TIMESTAMP NOT NULL,
-    period_end TIMESTAMP NOT NULL,
-    total_users INT NOT NULL,
-    new_users INT NOT NULL,
-    active_users INT NOT NULL,
-    churned_users INT DEFAULT 0,
-    user_segments JSONB,
-    calculated_at TIMESTAMP NOT NULL
-);
-
--- コンテンツ統計
-CREATE TABLE content_statistics (
-    stat_id UUID PRIMARY KEY,
-    period_start TIMESTAMP NOT NULL,
-    period_end TIMESTAMP NOT NULL,
-    total_posts INT NOT NULL,
-    new_posts INT NOT NULL,
-    total_reactions INT NOT NULL,
-    content_types JSONB,
-    trending_topics JSONB,
-    calculated_at TIMESTAMP NOT NULL
-);
-
--- ストレージ統計
-CREATE TABLE storage_statistics (
-    stat_id UUID PRIMARY KEY,
-    measured_at TIMESTAMP NOT NULL,
-    total_size_bytes BIGINT NOT NULL,
-    used_size_bytes BIGINT NOT NULL,
-    media_size_bytes BIGINT NOT NULL,
-    database_size_bytes BIGINT NOT NULL,
-    cache_size_bytes BIGINT NOT NULL,
-    backup_size_bytes BIGINT NOT NULL,
-    growth_rate_daily FLOAT,
-    estimated_days_remaining INT
-);
-
-CREATE INDEX idx_system_metrics_type_time ON system_metrics(metric_type, recorded_at DESC);
-CREATE INDEX idx_user_statistics_period ON user_statistics(period_end DESC);
-CREATE INDEX idx_content_statistics_period ON content_statistics(period_end DESC);
-```
-
-### バックアップ管理
-
-```sql
--- バックアップポリシー
-CREATE TABLE backup_policies (
-    policy_id UUID PRIMARY KEY,
-    policy_name TEXT NOT NULL UNIQUE,
-    backup_type TEXT NOT NULL CHECK (backup_type IN ('full', 'incremental', 'differential')),
-    schedule_cron TEXT NOT NULL,
-    retention_days INT NOT NULL,
-    target_components TEXT[] NOT NULL,
-    storage_location TEXT NOT NULL,
-    encryption_enabled BOOLEAN DEFAULT true,
-    compression_type TEXT DEFAULT 'gzip',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-
--- バックアップ記録
-CREATE TABLE backup_records (
-    backup_id UUID PRIMARY KEY,
-    policy_id UUID REFERENCES backup_policies(policy_id),
-    backup_type TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'cancelled')),
-    location TEXT,
-    size_bytes BIGINT,
-    checksum TEXT,
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
-    error_message TEXT,
-    metadata JSONB
-);
-
--- バックアップ検証
-CREATE TABLE backup_verifications (
-    verification_id UUID PRIMARY KEY,
-    backup_id UUID REFERENCES backup_records(backup_id),
-    verification_type TEXT NOT NULL CHECK (verification_type IN ('checksum', 'restore_test', 'integrity')),
-    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'passed', 'failed')),
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
-    details JSONB
-);
-
--- リストア履歴
-CREATE TABLE restore_history (
-    restore_id UUID PRIMARY KEY,
-    backup_id UUID REFERENCES backup_records(backup_id),
-    restore_type TEXT NOT NULL CHECK (restore_type IN ('full', 'partial', 'selective')),
-    target_components TEXT[],
-    status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),
-    started_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
-    restored_by UUID NOT NULL,
-    restore_reason TEXT
-);
-
-CREATE INDEX idx_backup_records_policy ON backup_records(policy_id, started_at DESC);
-CREATE INDEX idx_backup_records_status ON backup_records(status) WHERE status = 'running';
-```
-
-### 管理者管理
-
-```sql
--- 管理者ユーザー
-CREATE TABLE admin_users (
-    admin_id UUID PRIMARY KEY,
-    user_id UUID NOT NULL UNIQUE,
-    role TEXT NOT NULL CHECK (role IN ('viewer', 'operator', 'admin', 'owner')),
-    permissions JSONB NOT NULL DEFAULT '{}',
-    two_factor_enabled BOOLEAN DEFAULT false,
-    two_factor_secret TEXT,
-    last_login_at TIMESTAMP,
-    failed_login_count INT DEFAULT 0,
-    locked_until TIMESTAMP,
-    created_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT true
-);
-
--- 権限グループ
-CREATE TABLE permission_groups (
-    group_id UUID PRIMARY KEY,
-    group_name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    permissions JSONB NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-
--- 管理者グループ割り当て
-CREATE TABLE admin_group_assignments (
-    admin_id UUID REFERENCES admin_users(admin_id) ON DELETE CASCADE,
-    group_id UUID REFERENCES permission_groups(group_id) ON DELETE CASCADE,
-    assigned_by UUID NOT NULL,
-    assigned_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (admin_id, group_id)
-);
-
--- 監査ログ
-CREATE TABLE admin_audit_logs (
-    log_id UUID PRIMARY KEY,
-    admin_id UUID NOT NULL,
-    action TEXT NOT NULL,
-    resource_type TEXT NOT NULL,
-    resource_id TEXT,
-    details JSONB,
-    ip_address INET,
-    user_agent TEXT,
-    performed_at TIMESTAMP NOT NULL,
-    hash TEXT NOT NULL,
-    previous_hash TEXT
-);
-
-CREATE INDEX idx_admin_audit_logs_admin ON admin_audit_logs(admin_id, performed_at DESC);
-CREATE INDEX idx_admin_audit_logs_action ON admin_audit_logs(action, performed_at DESC);
-```
-
-### メンテナンス管理
-
-```sql
--- メンテナンススケジュール
-CREATE TABLE maintenance_schedules (
-    schedule_id UUID PRIMARY KEY,
-    maintenance_type TEXT NOT NULL CHECK (maintenance_type IN ('planned', 'emergency')),
-    title TEXT NOT NULL,
-    description TEXT,
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    affected_services TEXT[],
-    maintenance_mode TEXT NOT NULL CHECK (maintenance_mode IN ('readonly', 'offline', 'limited')),
-    created_by UUID NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    is_cancelled BOOLEAN DEFAULT false
-);
-
--- メンテナンス通知
-CREATE TABLE maintenance_notifications (
-    notification_id UUID PRIMARY KEY,
-    schedule_id UUID REFERENCES maintenance_schedules(schedule_id),
-    notification_time TIMESTAMP NOT NULL,
-    notification_type TEXT NOT NULL CHECK (notification_type IN ('advance', 'start', 'end', 'update')),
-    sent_at TIMESTAMP,
-    recipients_count INT DEFAULT 0
-);
-```
-
-### 6.3. キャッシュ戦略
+### 8.3. キャッシュ戦略
 
 ```
 # システム設定キャッシュ
@@ -1654,7 +1241,7 @@ health:{service_name} -> health status
 TTL: 30秒
 ```
 
-### 6.4. バッチ処理
+### 8.4. バッチ処理
 
 ### 定期処理
 
@@ -1734,7 +1321,7 @@ monthly_report:
     - キャパシティプランニングレポート
 ```
 
-### 6.5. 外部サービス連携
+### 8.5. 外部サービス連携
 
 ### 監視サービス
 
@@ -1780,7 +1367,7 @@ type StorageObject struct {
 }
 ```
 
-### 6.6. セキュリティ設計
+### 8.6. セキュリティ設計
 
 ### 権限管理
 
@@ -1804,7 +1391,7 @@ roles:
     - manage_users
     - restore_backup
     
-  owner:
+  super_admin:
     - inherit: admin
     - manage_admins
     - delete_data
@@ -1846,7 +1433,7 @@ func (l *AuditLog) CalculateHash(previousHash string) string {
 }
 ```
 
-### 6.7. パフォーマンス最適化
+### 8.7. パフォーマンス最適化
 
 ### 並列処理
 
@@ -1901,7 +1488,7 @@ CREATE INDEX idx_backup_records_recent ON backup_records(started_at DESC);
 CREATE INDEX idx_admin_audit_logs_resource ON admin_audit_logs(resource_type, resource_id, performed_at DESC);
 ```
 
-## 7. Operations (運用)
+## 9. Operations (運用)
 
 ### メトリクス
 
@@ -1959,9 +1546,9 @@ info_alerts:
   - monthly_report_ready
 ```
 
-## 6. Use Cases / Key Flows (主な使い方・処理の流れ)
+## 10. Use Cases / Key Flows (主な使い方・処理の流れ)
 
-### 6.1. アナウンス管理フロー
+### 10.1. アナウンス管理フロー
 
 #### アナウンス作成と配信
 1. **アナウンス作成**
@@ -1977,7 +1564,7 @@ info_alerts:
    - AnnouncementDeliveryJob: 定期実行（1分ごと）
    - GetScheduledAnnouncementsQueryService: 配信時刻が到来したアナウンスを取得
    - AnnouncementPublisher: ターゲット条件に基づく配信先決定
-   - AnnouncementEventPublisher: `system.announcement.published` イベント発行
+   - AnnouncementEventPublisher: `avion.system.announcement.created` イベント発行
    - NotificationService: 各チャネルへの通知配信（SSE、プッシュ、メール）
 
 #### 既読管理
@@ -1987,7 +1574,7 @@ info_alerts:
    - GetUnreadAnnouncementsQueryService: 未読アナウンス一覧取得
    - GetAnnouncementMetricsQueryService: 既読率、エンゲージメント統計
 
-### 6.2. システム設定管理フロー
+### 10.2. システム設定管理フロー
 
 #### 設定更新
 1. **設定変更処理**
@@ -1996,7 +1583,7 @@ info_alerts:
    - ConfigurationValidationService: 新しい設定値のバリデーション
    - SystemConfigurationAggregate: 設定変更の適用、履歴保存
    - ConfigurationHistoryEntity: 変更履歴の記録（前後の値、変更理由）
-   - ConfigurationEventPublisher: `system.config.updated` イベント発行
+   - ConfigurationEventPublisher: `avion.system.config.updated` イベント発行
 
 #### 設定配信
 2. **各サービスへの設定同期**
@@ -2013,7 +1600,7 @@ info_alerts:
    - SystemConfigurationAggregate: 前回設定の適用
    - ConfigurationSyncJob: 全サービスへの緊急配信
 
-### 6.3. レート制限管理フロー
+### 10.3. レート制限管理フロー
 
 #### ルール設定と評価
 1. **レート制限ルール作成**
@@ -2022,7 +1609,7 @@ info_alerts:
    - RateLimitRuleAggregate: ルールの作成、優先度設定
    - RateLimitEvaluator: ルールの整合性チェック
    - RateLimitRuleRepository: ルール設定の永続化
-   - RateLimitEventPublisher: `system.ratelimit.updated` イベント発行
+   - RateLimitEventPublisher: `avion.system.ratelimit.updated` イベント発行
 
 #### リアルタイム評価
 2. **APIリクエストのレート制限評価**
@@ -2039,7 +1626,7 @@ info_alerts:
    - DynamicRateLimitAdjuster: 負荷に応じた制限値の自動調整
    - AnomalyDetector: 異常トラフィックの検知と緊急制限
 
-### 6.4. メトリクス収集と統計フロー
+### 10.4. メトリクス収集と統計フロー
 
 #### リアルタイム収集
 1. **メトリクス収集**
@@ -2064,7 +1651,7 @@ info_alerts:
    - MetricsStreamHandler: WebSocketベースのリアルタイム更新
    - AlertIntegration: アラート状態のリアルタイム表示
 
-### 6.5. バックアップ・リストアフロー
+### 10.5. バックアップ・リストアフロー
 
 #### バックアップ実行
 1. **スケジュールバックアップ**
@@ -2088,13 +1675,13 @@ info_alerts:
    - BackupRecordRepository: 対象バックアップの選択と検証
    - RestoreExecutor: コンポーネント別の段階的リストア
    - RestoreHistoryEntity: リストア履歴の記録
-   - BackupEventPublisher: `system.backup.restored` イベント発行
+   - BackupEventPublisher: `avion.system.backup.restored` イベント発行
 
-### 6.6. 管理者権限管理フロー
+### 10.6. 管理者権限管理フロー
 
 #### 管理者作成と権限設定
 1. **管理者登録**
-   - Owner → CreateAdminUserCommandHandler: 管理者作成要求
+   - super_admin → CreateAdminUserCommandHandler: 管理者作成要求
    - CreateAdminUserCommandHandler: CreateAdminUserCommandUseCaseを呼び出し
    - AdminUserAggregate: 管理者アカウントの作成
    - PermissionValidator: ロールと権限の検証
@@ -2117,251 +1704,7 @@ info_alerts:
    - AdminAuditLogRepository: 監査ログの永続化
    - LogRetentionPolicy: ログの保存期限管理（5年保存）
 
-## 8. Data Design (データ設計)
-
-### 8.1. Domain Model (ドメインモデル)
-
-#### Announcement Aggregate (アナウンス集約)
-```go
-type Announcement struct {
-    announcementID AnnouncementID
-    title          string
-    content        string
-    contentFormat  ContentFormat
-    targetType     TargetType
-    targetCriteria map[string]interface{}
-    severity       AnnouncementSeverity
-    displayType    DisplayType
-    publishAt      time.Time
-    expireAt       *time.Time
-    createdBy      AdminID
-    isActive       bool
-    isDraft        bool
-    translations   []AnnouncementTranslation
-    readCount      int
-    dismissCount   int
-}
-
-func (a *Announcement) Publish() error {
-    if a.isDraft {
-        return ErrAnnouncementIsDraft
-    }
-    if a.publishAt.After(time.Now()) {
-        return ErrPublishTimeNotReached
-    }
-    a.isActive = true
-    return nil
-}
-
-func (a *Announcement) AddTranslation(language string, title, content string, translatorID AdminID) error {
-    // 重複チェック
-    for _, t := range a.translations {
-        if t.LanguageCode == language {
-            return ErrTranslationAlreadyExists
-        }
-    }
-    
-    translation := AnnouncementTranslation{
-        AnnouncementID: a.announcementID,
-        LanguageCode:   language,
-        Title:          title,
-        Content:        content,
-        TranslatedBy:   translatorID,
-        TranslatedAt:   time.Now(),
-    }
-    
-    a.translations = append(a.translations, translation)
-    return nil
-}
-
-func (a *Announcement) IncrementReadCount() {
-    a.readCount++
-}
-
-func (a *Announcement) CheckExpiry() bool {
-    if a.expireAt != nil && time.Now().After(*a.expireAt) {
-        a.isActive = false
-        return true
-    }
-    return false
-}
-```
-
-#### SystemConfiguration Aggregate (システム設定集約)
-```go
-type SystemConfiguration struct {
-    configKey       ConfigurationKey
-    configValue     interface{}
-    valueType       ValueType
-    description     string
-    category        ConfigurationCategory
-    isSensitive     bool
-    isReadonly      bool
-    validationRules map[string]interface{}
-    updatedBy       AdminID
-    version         int
-    history         []ConfigurationHistory
-}
-
-func (sc *SystemConfiguration) UpdateValue(newValue interface{}, updatedBy AdminID, reason string) error {
-    if sc.isReadonly {
-        return ErrConfigurationReadonly
-    }
-    
-    // バリデーション実行
-    if err := sc.validateValue(newValue); err != nil {
-        return fmt.Errorf("validation failed: %w", err)
-    }
-    
-    // 履歴保存
-    history := ConfigurationHistory{
-        ConfigKey:    sc.configKey,
-        OldValue:     sc.configValue,
-        NewValue:     newValue,
-        ChangedBy:    updatedBy,
-        ChangedAt:    time.Now(),
-        ChangeReason: reason,
-    }
-    sc.history = append(sc.history, history)
-    
-    // 値更新
-    sc.configValue = newValue
-    sc.updatedBy = updatedBy
-    sc.version++
-    
-    return nil
-}
-
-func (sc *SystemConfiguration) validateValue(value interface{}) error {
-    // タイプチェック
-    if !sc.isValidType(value) {
-        return ErrInvalidValueType
-    }
-    
-    // バリデーションルール適用
-    for ruleName, ruleValue := range sc.validationRules {
-        if err := applyValidationRule(ruleName, value, ruleValue); err != nil {
-            return err
-        }
-    }
-    
-    return nil
-}
-
-func (sc *SystemConfiguration) Rollback(targetVersion int, adminID AdminID) error {
-    if targetVersion >= sc.version {
-        return ErrInvalidRollbackVersion
-    }
-    
-    // 目標バージョンの設定を検索
-    var targetValue interface{}
-    for _, h := range sc.history {
-        if h.Version == targetVersion {
-            targetValue = h.NewValue
-            break
-        }
-    }
-    
-    if targetValue == nil {
-        return ErrVersionNotFound
-    }
-    
-    return sc.UpdateValue(targetValue, adminID, fmt.Sprintf("Rollback to version %d", targetVersion))
-}
-```
-
-#### RateLimitRule Aggregate (レート制限ルール集約)
-```go
-type RateLimitRule struct {
-    ruleID       RuleID
-    ruleName     string
-    targetType   TargetType  // endpoint, user, ip, api_key
-    targetPattern string
-    limitValue   int
-    windowSeconds int
-    burstSize    int
-    windowType   WindowType  // fixed, sliding
-    action       LimitAction // throttle, reject, captcha, queue
-    priority     int
-    conditions   map[string]interface{}
-    isActive     bool
-    violations   []RateLimitViolation
-    effectiveness float64
-}
-
-func (rlr *RateLimitRule) EvaluateLimit(target string, currentCount int, windowStart time.Time) (*LimitEvaluation, error) {
-    if !rlr.isActive {
-        return &LimitEvaluation{Allowed: true}, nil
-    }
-    
-    // ターゲットマッチング
-    if !rlr.matchesTarget(target) {
-        return &LimitEvaluation{Allowed: true}, nil
-    }
-    
-    // 制限判定
-    allowed := currentCount < rlr.limitValue
-    
-    evaluation := &LimitEvaluation{
-        RuleID:        rlr.ruleID,
-        Target:        target,
-        CurrentCount:  currentCount,
-        LimitValue:    rlr.limitValue,
-        WindowStart:   windowStart,
-        Allowed:       allowed,
-        Action:        rlr.action,
-        RemainingRequests: max(0, rlr.limitValue - currentCount),
-        ResetTime:     windowStart.Add(time.Duration(rlr.windowSeconds) * time.Second),
-    }
-    
-    // 違反記録
-    if !allowed {
-        violation := RateLimitViolation{
-            RuleID:      rlr.ruleID,
-            Target:      target,
-            ViolatedAt:  time.Now(),
-            Count:       currentCount,
-            ActionTaken: rlr.action,
-        }
-        rlr.violations = append(rlr.violations, violation)
-    }
-    
-    return evaluation, nil
-}
-
-func (rlr *RateLimitRule) matchesTarget(target string) bool {
-    matched, err := filepath.Match(rlr.targetPattern, target)
-    if err != nil {
-        return false
-    }
-    return matched
-}
-
-func (rlr *RateLimitRule) UpdateEffectiveness() {
-    if len(rlr.violations) == 0 {
-        rlr.effectiveness = 1.0
-        return
-    }
-    
-    // 最近24時間の違反率を基に効果性を計算
-    recent := time.Now().Add(-24 * time.Hour)
-    recentViolations := 0
-    
-    for _, v := range rlr.violations {
-        if v.ViolatedAt.After(recent) {
-            recentViolations++
-        }
-    }
-    
-    // 違反率が低いほど効果的
-    rlr.effectiveness = 1.0 - (float64(recentViolations) / 1000.0) // 最大1000件で正規化
-    if rlr.effectiveness < 0 {
-        rlr.effectiveness = 0
-    }
-}
-```
-
-### 8.2. Infrastructure Model (インフラモデル)
+### 10.7. インフラストラクチャモデル拡張
 
 #### Database Schema Extensions
 ```sql
@@ -2428,7 +1771,7 @@ config:sync:pending -> List of services pending configuration sync
 config:version:current -> Current configuration version across all services
 ```
 
-## 10. エラーハンドリング戦略
+## 11. エラーハンドリング戦略
 
 > **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `SYS` を使用します。
 
@@ -2443,7 +1786,7 @@ config:version:current -> Current configuration version across all services
 
 詳細なエラーコード定義とマッピングについては、上記のドキュメントを参照してください。
 
-### 10.1. エラーカテゴリと戦略
+### 11.1. エラーカテゴリと戦略
 
 #### System Administration Errors (システム管理エラー)
 ```go
@@ -2520,7 +1863,7 @@ func (e InfraErrorWithRecovery) Error() string {
 }
 ```
 
-### 10.2. 特殊なエラーハンドリング
+### 11.2. 特殊なエラーハンドリング
 
 #### バックアップ・リストアエラー対策
 ```go
@@ -2655,7 +1998,7 @@ func (meh *MetricsErrorHandler) enableDegradedMode() {
 }
 ```
 
-### 10.3. エラーモニタリングとアラート
+### 11.3. エラーモニタリングとアラート
 
 #### 統合エラー監視
 ```yaml
@@ -2712,368 +2055,16 @@ groups:
           summary: "管理者アカウントのログイン失敗が多発しています"
 ```
 
-## 12. ドメインオブジェクトとDBスキーマのマッピング
+<!-- ドメインオブジェクトとDBスキーマのマッピングはセクション17を参照 -->
 
-### 12.1. 複合エンティティのマッピング
-
-#### Announcement Aggregate ⇔ announcements + announcement_translations
-```go
-type AnnouncementEntity struct {
-    // Primary announcement data
-    AnnouncementID string                      `db:"announcement_id" json:"announcement_id"`
-    Title          string                      `db:"title" json:"title"`
-    Content        string                      `db:"content" json:"content"`
-    ContentFormat  string                      `db:"content_format" json:"content_format"`
-    TargetType     string                      `db:"target_type" json:"target_type"`
-    TargetCriteria string                      `db:"target_criteria" json:"target_criteria"` // JSON
-    Severity       string                      `db:"severity" json:"severity"`
-    DisplayType    string                      `db:"display_type" json:"display_type"`
-    PublishAt      time.Time                   `db:"publish_at" json:"publish_at"`
-    ExpireAt       *time.Time                  `db:"expire_at" json:"expire_at,omitempty"`
-    CreatedBy      string                      `db:"created_by" json:"created_by"`
-    CreatedAt      time.Time                   `db:"created_at" json:"created_at"`
-    UpdatedAt      time.Time                   `db:"updated_at" json:"updated_at"`
-    IsActive       bool                        `db:"is_active" json:"is_active"`
-    IsDraft        bool                        `db:"is_draft" json:"is_draft"`
-    ReadCount      int                         `db:"read_count" json:"read_count"`
-    DismissCount   int                         `db:"dismiss_count" json:"dismiss_count"`
-    
-    // Related entities (loaded separately)
-    Translations   []AnnouncementTranslationEntity `json:"translations,omitempty"`
-    Targets        []AnnouncementTargetEntity      `json:"targets,omitempty"`
-}
-
-type AnnouncementTranslationEntity struct {
-    AnnouncementID string    `db:"announcement_id" json:"announcement_id"`
-    LanguageCode   string    `db:"language_code" json:"language_code"`
-    Title          string    `db:"title" json:"title"`
-    Content        string    `db:"content" json:"content"`
-    TranslatedBy   string    `db:"translated_by" json:"translated_by"`
-    TranslatedAt   time.Time `db:"translated_at" json:"translated_at"`
-}
-
-// Domain Objectへの変換
-func (ae *AnnouncementEntity) ToDomain() (*Announcement, error) {
-    announcementID, err := ParseAnnouncementID(ae.AnnouncementID)
-    if err != nil {
-        return nil, fmt.Errorf("invalid announcement ID: %w", err)
-    }
-    
-    // Target criteriaのJSONデコード
-    var targetCriteria map[string]interface{}
-    if ae.TargetCriteria != "" {
-        if err := json.Unmarshal([]byte(ae.TargetCriteria), &targetCriteria); err != nil {
-            return nil, fmt.Errorf("failed to decode target criteria: %w", err)
-        }
-    }
-    
-    announcement := &Announcement{
-        announcementID: announcementID,
-        title:          ae.Title,
-        content:        ae.Content,
-        contentFormat:  ContentFormat(ae.ContentFormat),
-        targetType:     TargetType(ae.TargetType),
-        targetCriteria: targetCriteria,
-        severity:       AnnouncementSeverity(ae.Severity),
-        displayType:    DisplayType(ae.DisplayType),
-        publishAt:      ae.PublishAt,
-        expireAt:       ae.ExpireAt,
-        createdBy:      AdminID(ae.CreatedBy),
-        isActive:       ae.IsActive,
-        isDraft:        ae.IsDraft,
-        readCount:      ae.ReadCount,
-        dismissCount:   ae.DismissCount,
-    }
-    
-    // 翻訳データの変換
-    for _, te := range ae.Translations {
-        translation := AnnouncementTranslation{
-            AnnouncementID: announcementID,
-            LanguageCode:   te.LanguageCode,
-            Title:          te.Title,
-            Content:        te.Content,
-            TranslatedBy:   AdminID(te.TranslatedBy),
-            TranslatedAt:   te.TranslatedAt,
-        }
-        announcement.translations = append(announcement.translations, translation)
-    }
-    
-    return announcement, nil
-}
-
-// Domain Objectからの変換
-func NewAnnouncementEntity(announcement *Announcement) (*AnnouncementEntity, error) {
-    targetCriteriaJSON, err := json.Marshal(announcement.targetCriteria)
-    if err != nil {
-        return nil, fmt.Errorf("failed to encode target criteria: %w", err)
-    }
-    
-    entity := &AnnouncementEntity{
-        AnnouncementID: string(announcement.announcementID),
-        Title:          announcement.title,
-        Content:        announcement.content,
-        ContentFormat:  string(announcement.contentFormat),
-        TargetType:     string(announcement.targetType),
-        TargetCriteria: string(targetCriteriaJSON),
-        Severity:       string(announcement.severity),
-        DisplayType:    string(announcement.displayType),
-        PublishAt:      announcement.publishAt,
-        ExpireAt:       announcement.expireAt,
-        CreatedBy:      string(announcement.createdBy),
-        IsActive:       announcement.isActive,
-        IsDraft:        announcement.isDraft,
-        ReadCount:      announcement.readCount,
-        DismissCount:   announcement.dismissCount,
-    }
-    
-    // 翻訳データの変換
-    for _, translation := range announcement.translations {
-        te := AnnouncementTranslationEntity{
-            AnnouncementID: string(translation.AnnouncementID),
-            LanguageCode:   translation.LanguageCode,
-            Title:          translation.Title,
-            Content:        translation.Content,
-            TranslatedBy:   string(translation.TranslatedBy),
-            TranslatedAt:   translation.TranslatedAt,
-        }
-        entity.Translations = append(entity.Translations, te)
-    }
-    
-    return entity, nil
-}
-```
-
-#### SystemConfiguration with History Tracking
-```go
-type SystemConfigurationEntity struct {
-    ConfigKey       string                           `db:"config_key" json:"config_key"`
-    ConfigValue     string                           `db:"config_value" json:"config_value"` // JSON
-    ValueType       string                           `db:"value_type" json:"value_type"`
-    Description     string                           `db:"description" json:"description"`
-    Category        string                           `db:"category" json:"category"`
-    IsSensitive     bool                             `db:"is_sensitive" json:"is_sensitive"`
-    IsReadonly      bool                             `db:"is_readonly" json:"is_readonly"`
-    ValidationRules string                           `db:"validation_rules" json:"validation_rules"` // JSON
-    UpdatedBy       string                           `db:"updated_by" json:"updated_by"`
-    UpdatedAt       time.Time                        `db:"updated_at" json:"updated_at"`
-    Version         int                              `db:"version" json:"version"`
-    
-    // History (loaded separately)
-    History         []ConfigurationHistoryEntity     `json:"history,omitempty"`
-}
-
-type ConfigurationHistoryEntity struct {
-    HistoryID    string     `db:"history_id" json:"history_id"`
-    ConfigKey    string     `db:"config_key" json:"config_key"`
-    OldValue     *string    `db:"old_value" json:"old_value,omitempty"`    // JSON
-    NewValue     string     `db:"new_value" json:"new_value"`             // JSON
-    ChangedBy    string     `db:"changed_by" json:"changed_by"`
-    ChangedAt    time.Time  `db:"changed_at" json:"changed_at"`
-    ChangeReason string     `db:"change_reason" json:"change_reason"`
-    Version      int        `db:"version" json:"version"`
-    RollbackID   *string    `db:"rollback_id" json:"rollback_id,omitempty"`
-}
-
-func (sce *SystemConfigurationEntity) ToDomain() (*SystemConfiguration, error) {
-    // JSONデコード
-    var configValue interface{}
-    if err := json.Unmarshal([]byte(sce.ConfigValue), &configValue); err != nil {
-        return nil, fmt.Errorf("failed to decode config value: %w", err)
-    }
-    
-    var validationRules map[string]interface{}
-    if sce.ValidationRules != "" {
-        if err := json.Unmarshal([]byte(sce.ValidationRules), &validationRules); err != nil {
-            return nil, fmt.Errorf("failed to decode validation rules: %w", err)
-        }
-    }
-    
-    config := &SystemConfiguration{
-        configKey:       ConfigurationKey(sce.ConfigKey),
-        configValue:     configValue,
-        valueType:       ValueType(sce.ValueType),
-        description:     sce.Description,
-        category:        ConfigurationCategory(sce.Category),
-        isSensitive:     sce.IsSensitive,
-        isReadonly:      sce.IsReadonly,
-        validationRules: validationRules,
-        updatedBy:       AdminID(sce.UpdatedBy),
-        version:         sce.Version,
-    }
-    
-    // 履歴データの変換
-    for _, he := range sce.History {
-        var oldValue interface{}
-        if he.OldValue != nil {
-            json.Unmarshal([]byte(*he.OldValue), &oldValue)
-        }
-        
-        var newValue interface{}
-        json.Unmarshal([]byte(he.NewValue), &newValue)
-        
-        history := ConfigurationHistory{
-            ConfigKey:    ConfigurationKey(he.ConfigKey),
-            OldValue:     oldValue,
-            NewValue:     newValue,
-            ChangedBy:    AdminID(he.ChangedBy),
-            ChangedAt:    he.ChangedAt,
-            ChangeReason: he.ChangeReason,
-            Version:      he.Version,
-        }
-        config.history = append(config.history, history)
-    }
-    
-    return config, nil
-}
-```
-
-### 12.2. メトリクスデータのマッピング
-
-#### TimescaleDB 時系列データ
-```go
-type SystemMetricsEntity struct {
-    MetricID         string                 `db:"metric_id" json:"metric_id"`
-    MetricType       string                 `db:"metric_type" json:"metric_type"`
-    MetricName       string                 `db:"metric_name" json:"metric_name"`
-    MetricValue      string                 `db:"metric_value" json:"metric_value"` // JSONB
-    Tags             string                 `db:"tags" json:"tags"`                 // JSONB
-    RecordedAt       time.Time              `db:"recorded_at" json:"recorded_at"`
-    AggregationPeriod string                `db:"aggregation_period" json:"aggregation_period"`
-    AggregationType  *string                `db:"aggregation_type" json:"aggregation_type,omitempty"`
-}
-
-type MetricAggregationEntity struct {
-    AggregationID    string                 `db:"aggregation_id" json:"aggregation_id"`
-    MetricType       string                 `db:"metric_type" json:"metric_type"`
-    AggregationLevel string                 `db:"aggregation_level" json:"aggregation_level"` // minute, hour, day
-    TimeBucket       time.Time              `db:"time_bucket" json:"time_bucket"`
-    MetricValues     string                 `db:"metric_values" json:"metric_values"` // JSONB
-    SampleCount      int                    `db:"sample_count" json:"sample_count"`
-    CalculatedAt     time.Time              `db:"calculated_at" json:"calculated_at"`
-}
-
-func (sme *SystemMetricsEntity) ToDomain() (*SystemMetrics, error) {
-    var metricValue interface{}
-    if err := json.Unmarshal([]byte(sme.MetricValue), &metricValue); err != nil {
-        return nil, fmt.Errorf("failed to decode metric value: %w", err)
-    }
-    
-    var tags map[string]string
-    if sme.Tags != "" {
-        if err := json.Unmarshal([]byte(sme.Tags), &tags); err != nil {
-            return nil, fmt.Errorf("failed to decode tags: %w", err)
-        }
-    }
-    
-    return &SystemMetrics{
-        metricID:         MetricID(sme.MetricID),
-        metricType:       sme.MetricType,
-        metricName:       sme.MetricName,
-        metricValue:      metricValue,
-        tags:             tags,
-        recordedAt:       sme.RecordedAt,
-        aggregationPeriod: AggregationPeriod(sme.AggregationPeriod),
-        aggregationType:  (*AggregationType)(sme.AggregationType),
-    }, nil
-}
-```
-
-### 12.3. Repository 実装のトランザクション管理
-
-```go
-// 複雑な集約の保存処理
-func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcement *Announcement) error {
-    entity, err := NewAnnouncementEntity(announcement)
-    if err != nil {
-        return fmt.Errorf("failed to convert to entity: %w", err)
-    }
-    
-    tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
-    if err != nil {
-        return fmt.Errorf("failed to begin transaction: %w", err)
-    }
-    defer func() {
-        if p := recover(); p != nil {
-            tx.Rollback()
-            panic(p)
-        } else if err != nil {
-            tx.Rollback()
-        } else {
-            err = tx.Commit()
-        }
-    }()
-    
-    // メインアナウンステーブルに挿入
-    announcementQuery := `
-        INSERT INTO announcements (
-            announcement_id, title, content, content_format, target_type, target_criteria,
-            severity, display_type, publish_at, expire_at, created_by, created_at, updated_at,
-            is_active, is_draft, read_count, dismiss_count
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-    `
-    
-    _, err = tx.ExecContext(ctx, announcementQuery,
-        entity.AnnouncementID, entity.Title, entity.Content, entity.ContentFormat,
-        entity.TargetType, entity.TargetCriteria, entity.Severity, entity.DisplayType,
-        entity.PublishAt, entity.ExpireAt, entity.CreatedBy, entity.CreatedAt,
-        entity.UpdatedAt, entity.IsActive, entity.IsDraft, entity.ReadCount,
-        entity.DismissCount,
-    )
-    if err != nil {
-        return fmt.Errorf("failed to insert announcement: %w", err)
-    }
-    
-    // 翻訳データの挿入
-    for _, translation := range entity.Translations {
-        translationQuery := `
-            INSERT INTO announcement_translations (
-                announcement_id, language_code, title, content, translated_by, translated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-        `
-        
-        _, err = tx.ExecContext(ctx, translationQuery,
-            translation.AnnouncementID, translation.LanguageCode,
-            translation.Title, translation.Content,
-            translation.TranslatedBy, translation.TranslatedAt,
-        )
-        if err != nil {
-            return fmt.Errorf("failed to insert translation: %w", err)
-        }
-    }
-    
-    // ターゲット設定の挿入
-    for _, target := range entity.Targets {
-        targetQuery := `
-            INSERT INTO announcement_targets (
-                target_id, announcement_id, target_type, target_value, exclusion_list, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-        `
-        
-        exclusionList := pq.Array(target.ExclusionList)
-        _, err = tx.ExecContext(ctx, targetQuery,
-            target.TargetID, target.AnnouncementID,
-            target.TargetType, target.TargetValue,
-            exclusionList, target.CreatedAt,
-        )
-        if err != nil {
-            return fmt.Errorf("failed to insert target: %w", err)
-        }
-    }
-    
-    return nil
-}
-```
-
-このマッピング設計により、ドメインモデルの複雑さを保ちながら、効率的なデータ永続化と整合性保証を実現します。
-
-### 7.1. イベント設計
+## 12. イベント設計
 
 ### 発行イベント
 
 ```json
 // アナウンス配信
 {
-  "event_type": "system.announcement.published",
+  "event_type": "avion.system.announcement.created",
   "announcement_id": "uuid",
   "target_type": "all|group",
   "severity": "info|warning|critical",
@@ -3082,7 +2073,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 
 // システム設定変更
 {
-  "event_type": "system.config.updated",
+  "event_type": "avion.system.config.updated",
   "config_key": "string",
   "old_value": "any",
   "new_value": "any",
@@ -3092,7 +2083,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 
 // レート制限更新
 {
-  "event_type": "system.ratelimit.updated",
+  "event_type": "avion.system.ratelimit.updated",
   "rule_id": "uuid",
   "rule_name": "string",
   "limit_value": 100,
@@ -3102,7 +2093,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 
 // バックアップ完了
 {
-  "event_type": "system.backup.completed",
+  "event_type": "avion.system.backup.completed",
   "backup_id": "uuid",
   "backup_type": "full|incremental",
   "size_bytes": 1000000,
@@ -3112,7 +2103,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 
 // メンテナンスモード
 {
-  "event_type": "system.maintenance.activated",
+  "event_type": "avion.system.maintenance.activated",
   "maintenance_type": "planned|emergency",
   "start_time": "2025-01-01T00:00:00Z",
   "estimated_end_time": "2025-01-01T01:00:00Z",
@@ -3125,7 +2116,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 ```json
 // サービス起動（設定取得）
 {
-  "event_type": "service.started",
+  "event_type": "avion.system.service.started",
   "service_name": "string",
   "instance_id": "string",
   "started_at": "2025-01-01T00:00:00Z"
@@ -3133,29 +2124,23 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 
 // メトリクス収集対象
 {
-  "event_type": "metrics.data.available",
+  "event_type": "avion.system.metrics.available",
   "source": "string",
   "metric_type": "string",
   "timestamp": "2025-01-01T00:00:00Z"
 }
 ```
 
-## 8. Technical Stack (技術スタック)
+## 13. Technical Stack (技術スタック)
 
-- 言語: Go 1.21+
-- フレームワーク: なし（標準ライブラリ中心）
-- gRPC: google.golang.org/grpc
-- REST: net/http + gorilla/mux
-- DB: PostgreSQL 15+
-- キャッシュ: Redis 7+
+セクション3「技術スタック」を参照してください。本サービスは[共通Goバックエンド技術スタックガイドライン](../common/architecture/go-backend-framework.md)に準拠しています。
+
+追加で本サービス固有の技術要素:
 - タイムシリーズDB: TimescaleDB（メトリクス用）
 - オブジェクトストレージ: S3互換（MinIO/AWS S3）
-- メッセージキュー: Redis Pub/Sub
 - ジョブスケジューラ: robfig/cron
-- 監視: OpenTelemetry, Prometheus
-- ログ: uber-go/zap
 
-## 9. Non-Functional Requirements (非機能要件)
+## 14. Non-Functional Requirements (非機能要件)
 
 ### 可用性
 - SLA: 99.95%
@@ -3178,11 +2163,11 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
 - 監査ログ: 5年
 - アナウンス: 1年
 
-## 10. エラーハンドリング戦略（システム管理特化）
+## 15. エラーハンドリング戦略（システム管理特化）
 
 システム管理機能における高い信頼性要求に対応するため、管理操作特有のエラーシナリオに特化した包括的なエラーハンドリング戦略を定義する。
 
-### 10.1. 管理操作エラー分類
+### 15.1. 管理操作エラー分類
 
 #### 権限・認証エラー
 - **AdminAuthenticationError**: 管理者認証失敗
@@ -3235,7 +2220,7 @@ func (r *PostgreSQLAnnouncementRepository) Create(ctx context.Context, announcem
   - 緊急時のローカルバックアップ作成
   - ランサムウェア対策のエアギャップ処理
 
-### 10.2. エラー回復戦略
+### 15.2. エラー回復戦略
 
 #### 自動回復（Auto-Recovery）
 ```go
@@ -3272,7 +2257,7 @@ var autoRecoverableErrors = map[error]AutoRecoveryConfig{
 - **読み取り専用モード**: データ保護優先の制限モード
 - **緊急ロールバック**: ワンクリックでの安全な状態への復帰
 
-### 10.3. エラー通知・エスカレーション
+### 15.3. エラー通知・エスカレーション
 
 #### 通知レベル定義
 - **CRITICAL**: 即座の対応が必要（サービス停止リスク）
@@ -3302,7 +2287,7 @@ type SystemAdminError struct {
 }
 ```
 
-### 10.4. コンプライアンス対応
+### 15.4. コンプライアンス対応
 
 #### 規制要件対応
 - **SOX法対応**: 監査証跡の改竄防止とアクセス制御
@@ -3314,11 +2299,11 @@ type SystemAdminError struct {
 - **承認フロー**: 高リスク操作の承認プロセス記録
 - **変更管理**: 設定変更の前後状態とロールバック情報
 
-## 11. 構造化ログ戦略（管理者活動中心）
+## 16. 構造化ログ戦略（管理者活動中心）
 
 システム管理機能における監査証跡、コンプライアンス要件、セキュリティ監視を目的とした包括的なログ戦略を定義する。
 
-### 11.1. 管理者操作ログ（Admin Activity Logs）
+### 16.1. 管理者操作ログ（Admin Activity Logs）
 
 #### 認証・セッション管理
 ```json
@@ -3414,7 +2399,7 @@ type SystemAdminError struct {
 }
 ```
 
-### 11.2. システム監視ログ（System Monitoring Logs）
+### 16.2. システム監視ログ（System Monitoring Logs）
 
 #### パフォーマンス監視
 ```json
@@ -3474,7 +2459,7 @@ type SystemAdminError struct {
 }
 ```
 
-### 11.3. セキュリティ監視ログ（Security Monitoring Logs）
+### 16.3. セキュリティ監視ログ（Security Monitoring Logs）
 
 #### 異常アクセス検知
 ```json
@@ -3538,7 +2523,7 @@ type SystemAdminError struct {
 }
 ```
 
-### 11.4. コンプライアンス監査ログ（Compliance Audit Logs）
+### 16.4. コンプライアンス監査ログ（Compliance Audit Logs）
 
 #### データアクセス記録（GDPR対応）
 ```json
@@ -3593,7 +2578,7 @@ type SystemAdminError struct {
 }
 ```
 
-### 11.5. ログ保護・整合性確保
+### 16.5. ログ保護・整合性確保
 
 #### ハッシュチェーンによる改竄防止
 ```go
@@ -3618,7 +2603,7 @@ func (entry *AuditLogEntry) VerifyIntegrity(previousEntry *AuditLogEntry) bool {
 }
 ```
 
-### 11.6. ログ分析・アラート設定
+### 16.6. ログ分析・アラート設定
 
 #### 自動脅威検知
 - **異常ログイン**: 地理的・時間的異常パターン
@@ -3631,15 +2616,15 @@ func (entry *AuditLogEntry) VerifyIntegrity(previousEntry *AuditLogEntry) bool {
 - **セキュリティ状況**: 脅威レベル・インシデント発生率
 - **コンプライアンス状況**: 監査要件充足率・違反発生状況
 
-## 12. ドメインオブジェクトとDBスキーマのマッピング
+## 17. ドメインオブジェクトとDBスキーマのマッピング
 
 システム管理機能に特化したドメインオブジェクトとデータベーススキーマ間のマッピング定義。管理者操作の監査証跡、権限管理、コンプライアンス要件を重視した設計。
 
-### 12.1. Announcement Aggregate → announcements テーブル
+### 17.1. Announcement Aggregate → announcements テーブル
 
 ```sql
 CREATE TABLE announcements (
-    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                    UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     title                VARCHAR(200) NOT NULL,
     content              TEXT NOT NULL,
     target_type          VARCHAR(20) NOT NULL CHECK (target_type IN ('all', 'group', 'individual')),
@@ -3664,7 +2649,7 @@ CREATE TABLE announcements (
 
 -- 管理者操作履歴（発表関連）
 CREATE TABLE announcement_audit_logs (
-    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                   UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     announcement_id      UUID NOT NULL REFERENCES announcements(id),
     admin_id            UUID NOT NULL REFERENCES admin_users(id),
     operation           VARCHAR(50) NOT NULL, -- CREATE, UPDATE, DELETE, PUBLISH, EXPIRE
@@ -3690,11 +2675,11 @@ CREATE TABLE announcement_audit_logs (
 - `Announcement.DeliveryStats` → `announcements.delivery_stats` (JSONB構造化データ)
 - 監査証跡は別テーブルで完全性を保証
 
-### 12.2. SystemConfiguration Aggregate → system_configurations テーブル
+### 17.2. SystemConfiguration Aggregate → system_configurations テーブル
 
 ```sql
 CREATE TABLE system_configurations (
-    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                   UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     config_key          VARCHAR(255) NOT NULL UNIQUE,
     config_value        JSONB NOT NULL,
     config_type         VARCHAR(50) NOT NULL, -- STRING, NUMBER, BOOLEAN, OBJECT, ARRAY
@@ -3719,7 +2704,7 @@ CREATE TABLE system_configurations (
 
 -- 設定変更履歴（バージョン管理）
 CREATE TABLE configuration_versions (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     config_id          UUID NOT NULL REFERENCES system_configurations(id),
     version            INTEGER NOT NULL,
     config_value       JSONB NOT NULL,
@@ -3744,11 +2729,11 @@ CREATE TABLE configuration_versions (
 - バージョン履歴は`ConfigurationVersion`エンティティとして分離
 - 段階的ロールアウト情報を直接テーブルに格納
 
-### 12.3. RateLimitRule Aggregate → rate_limit_rules テーブル
+### 17.3. RateLimitRule Aggregate → rate_limit_rules テーブル
 
 ```sql
 CREATE TABLE rate_limit_rules (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     rule_name          VARCHAR(100) NOT NULL,
     description        TEXT,
     endpoint_pattern   VARCHAR(500) NOT NULL, -- APIエンドポイントパターン
@@ -3774,16 +2759,16 @@ CREATE TABLE rate_limit_rules (
     -- レート制限効果測定
     applied_count      BIGINT DEFAULT 0, -- 適用回数
     blocked_count      BIGINT DEFAULT 0, -- ブロック回数
-    last_applied_at    TIMESTAMPTZ,
-    
-    INDEX idx_rate_limit_endpoint (endpoint_pattern),
-    INDEX idx_rate_limit_priority (priority DESC),
-    INDEX idx_rate_limit_active (is_active, effective_from, effective_until)
+    last_applied_at    TIMESTAMPTZ
 );
+
+CREATE INDEX idx_rate_limit_endpoint ON rate_limit_rules (endpoint_pattern);
+CREATE INDEX idx_rate_limit_priority ON rate_limit_rules (priority DESC);
+CREATE INDEX idx_rate_limit_active ON rate_limit_rules (is_active, effective_from, effective_until);
 
 -- レート制限イベントログ
 CREATE TABLE rate_limit_events (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                 UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     rule_id           UUID NOT NULL REFERENCES rate_limit_rules(id),
     event_type        VARCHAR(20) NOT NULL, -- APPLIED, BLOCKED, EXCEEDED
     client_identifier VARCHAR(255), -- IP or User ID or API Key
@@ -3791,11 +2776,11 @@ CREATE TABLE rate_limit_events (
     current_count     INTEGER,
     limit_exceeded_by INTEGER,
     timestamp         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    request_info      JSONB, -- リクエスト詳細情報
-    
-    INDEX idx_rate_limit_events_timestamp (timestamp),
-    INDEX idx_rate_limit_events_client (client_identifier)
+    request_info      JSONB -- リクエスト詳細情報
 );
+
+CREATE INDEX idx_rate_limit_events_timestamp ON rate_limit_events (timestamp);
+CREATE INDEX idx_rate_limit_events_client ON rate_limit_events (client_identifier);
 ```
 
 **マッピング戦略:**
@@ -3804,11 +2789,11 @@ CREATE TABLE rate_limit_events (
 - 効果測定メトリクスをテーブルに直接格納
 - イベントログは別テーブルでパフォーマンス最適化
 
-### 12.4. AdminUser Aggregate → admin_users テーブル
+### 17.4. AdminUser Aggregate → admin_users テーブル
 
 ```sql
 CREATE TABLE admin_users (
-    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                    UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     username             VARCHAR(100) NOT NULL UNIQUE,
     email                VARCHAR(255) NOT NULL UNIQUE,
     full_name            VARCHAR(200),
@@ -3847,16 +2832,16 @@ CREATE TABLE admin_users (
     -- 監査情報
     last_activity_at     TIMESTAMPTZ,
     total_logins         INTEGER DEFAULT 0,
-    risk_score           DECIMAL(5,3) DEFAULT 0.000,
-    
-    INDEX idx_admin_users_email (email),
-    INDEX idx_admin_users_role (role),
-    INDEX idx_admin_users_status (status)
+    risk_score           DECIMAL(5,3) DEFAULT 0.000
 );
+
+CREATE INDEX idx_admin_users_email ON admin_users (email);
+CREATE INDEX idx_admin_users_role ON admin_users (role);
+CREATE INDEX idx_admin_users_status ON admin_users (status);
 
 -- 管理者操作監査ログ（全操作）
 CREATE TABLE admin_audit_logs (
-    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                   UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     admin_id            UUID NOT NULL REFERENCES admin_users(id),
     session_id          VARCHAR(255) NOT NULL,
     operation_type      VARCHAR(100) NOT NULL,
@@ -3887,12 +2872,12 @@ CREATE TABLE admin_audit_logs (
     -- 改竄防止
     previous_log_hash   VARCHAR(64),
     current_log_hash    VARCHAR(64) NOT NULL,
-    digital_signature   TEXT,
-    
-    INDEX idx_admin_audit_admin (admin_id, timestamp DESC),
-    INDEX idx_admin_audit_operation (operation_type, timestamp DESC),
-    INDEX idx_admin_audit_risk (risk_level, timestamp DESC)
+    digital_signature   TEXT
 );
+
+CREATE INDEX idx_admin_audit_admin ON admin_audit_logs (admin_id, timestamp DESC);
+CREATE INDEX idx_admin_audit_operation ON admin_audit_logs (operation_type, timestamp DESC);
+CREATE INDEX idx_admin_audit_risk ON admin_audit_logs (risk_level, timestamp DESC);
 ```
 
 **マッピング戦略:**
@@ -3901,7 +2886,7 @@ CREATE TABLE admin_audit_logs (
 - セッション管理情報を直接格納
 - 全操作の監査証跡を別テーブルで完全記録
 
-### 12.5. SystemMetrics Aggregate → system_metrics テーブル (TimescaleDB)
+### 17.5. SystemMetrics Aggregate → system_metrics テーブル (TimescaleDB)
 
 ```sql
 -- メトリクスデータ（時系列特化）
@@ -3933,7 +2918,7 @@ CREATE INDEX idx_system_metrics_service_time ON system_metrics (source_service, 
 
 -- メトリクス集計結果キャッシュ
 CREATE TABLE metrics_aggregates (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                 UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     metric_name       VARCHAR(100) NOT NULL,
     aggregation_type  VARCHAR(20) NOT NULL, -- sum, avg, max, min, p50, p95, p99
     time_range_start  TIMESTAMPTZ NOT NULL,
@@ -3955,11 +2940,11 @@ CREATE TABLE metrics_aggregates (
 - 集計結果は別テーブルでキャッシュ化
 - ラベル情報はJSONBで柔軟性を確保
 
-### 12.6. BackupPolicy Aggregate → backup_policies テーブル
+### 17.6. BackupPolicy Aggregate → backup_policies テーブル
 
 ```sql
 CREATE TABLE backup_policies (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     policy_name        VARCHAR(100) NOT NULL UNIQUE,
     description        TEXT,
     backup_type        VARCHAR(20) NOT NULL CHECK (backup_type IN ('full', 'incremental', 'differential')),
@@ -4002,7 +2987,7 @@ CREATE TABLE backup_policies (
 
 -- バックアップ実行履歴
 CREATE TABLE backup_executions (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                 UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     policy_id         UUID NOT NULL REFERENCES backup_policies(id),
     backup_type       VARCHAR(20) NOT NULL,
     status            VARCHAR(20) NOT NULL DEFAULT 'running' 
@@ -4037,11 +3022,11 @@ CREATE TABLE backup_executions (
     
     -- 運用情報
     triggered_by          VARCHAR(20) DEFAULT 'schedule', -- schedule, manual, event
-    triggered_by_admin    UUID REFERENCES admin_users(id),
-    
-    INDEX idx_backup_executions_policy (policy_id, started_at DESC),
-    INDEX idx_backup_executions_status (status, started_at DESC)
+    triggered_by_admin    UUID REFERENCES admin_users(id)
 );
+
+CREATE INDEX idx_backup_executions_policy ON backup_executions (policy_id, started_at DESC);
+CREATE INDEX idx_backup_executions_status ON backup_executions (status, started_at DESC);
 ```
 
 **マッピング戦略:**
@@ -4050,7 +3035,7 @@ CREATE TABLE backup_executions (
 - 品質保証情報を構造化して記録
 - 暗号化・圧縮情報の完全な監査証跡
 
-### 12.7. Redis キャッシュ戦略
+### 17.7. Redis キャッシュ戦略
 
 ```go
 // システム設定キャッシュ
@@ -4077,7 +3062,7 @@ type DistributedLock struct {
 }
 ```
 
-### 12.8. 監査証跡の改竄防止機構
+### 17.8. 監査証跡の改竄防止機構
 
 ```sql
 -- 監査ログのハッシュチェーンテーブル
@@ -4096,7 +3081,7 @@ CREATE TABLE audit_hash_chain (
 
 -- デジタル署名検証用公開鍵ストア
 CREATE TABLE audit_signing_keys (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     key_version    VARCHAR(20) NOT NULL,
     public_key     TEXT NOT NULL, -- PEM形式公開鍵
     algorithm      VARCHAR(50) NOT NULL DEFAULT 'RSA-SHA256',
@@ -4110,11 +3095,11 @@ CREATE TABLE audit_signing_keys (
 
 この設計により、システム管理機能の高い信頼性要求、コンプライアンス要件、セキュリティ監視要求を満たすデータ構造を実現する。
 
-## 13. システム管理特化設計の統合
+## 18. システム管理特化設計の統合
 
 本設計では、一般的なマイクロサービス設計を超えて、システム管理特有の要求事項に特化した包括的なアプローチを採用しています。
 
-### 13.1. 監査証跡・コンプライアンス統合アーキテクチャ
+### 18.1. 監査証跡・コンプライアンス統合アーキテクチャ
 
 #### 完全な操作追跡
 - **全管理者操作の記録**: すべての操作が改竄防止機能付きの監査ログに記録
@@ -4128,7 +3113,7 @@ CREATE TABLE audit_signing_keys (
 - **時間・場所制限**: IP制限・時間帯制限による追加セキュリティ層
 - **動的権限評価**: コンテキストベースの権限判定
 
-### 13.2. 危険操作制御・安全性確保
+### 18.2. 危険操作制御・安全性確保
 
 #### リスク分析エンジン
 - **操作危険度評価**: システム停止・データ損失リスクの自動評価
@@ -4142,9 +3127,9 @@ CREATE TABLE audit_signing_keys (
 - **緊急停止機能**: 問題発生時の即座な処理停止
 - **セルフヒーリング**: 可能な範囲での自動修復機能
 
-## 13. Integration Specifications (連携仕様)
+## 19. Integration Specifications (連携仕様)
 
-### 13.1. avion-auth との連携
+### 19.1. avion-auth との連携
 
 **Purpose:** 管理者認証と権限管理の統合
 
@@ -4158,7 +3143,7 @@ CREATE TABLE audit_signing_keys (
 
 **Error Handling:** 認証サービス障害時はローカルセッション管理にフォールバック
 
-### 13.2. avion-notification との連携
+### 19.2. avion-notification との連携
 
 **Purpose:** システム管理アラートとアナウンス配信
 
@@ -4172,14 +3157,14 @@ CREATE TABLE audit_signing_keys (
 
 **Error Handling:** 通知配信失敗時はリトライ機構とエスカレーション
 
-### 13.3. Event Publishing
+### 19.3. Event Publishing
 
 **Events Published:**
-- `system.config.updated`: システム設定変更時
-- `system.announcement.created`: アナウンス作成時
-- `system.backup.completed`: バックアップ完了時
-- `system.admin.action`: 管理者操作実行時
-- `system.security.alert`: セキュリティアラート発生時
+- `avion.system.config.updated`: システム設定変更時
+- `avion.system.announcement.created`: アナウンス作成時
+- `avion.system.backup.completed`: バックアップ完了時
+- `avion.system.admin.action`: 管理者操作実行時
+- `avion.system.security.alert`: セキュリティアラート発生時
 
 **Event Schema:**
 ```go
@@ -4205,7 +3190,7 @@ type AnnouncementCreatedEvent struct {
 }
 ```
 
-## 14. Concerns / Open Questions (懸念事項・相談したいこと)
+## 20. Concerns / Open Questions (懸念事項・相談したいこと)
 
 ### 技術的懸念
 - **バックアップパフォーマンス**: 大容量データのバックアップ時間が目標(RTO 5分)を超過する可能性
@@ -4229,7 +3214,7 @@ type AnnouncementCreatedEvent struct {
 - **コンプライアンス自動化**: GDPR/SOX法要求への完全自動対応の実現可能性
 - **マルチクラウド対応**: 複数クラウドプロバイダーでの運用時の課題と対策
 
-### 13.3. セキュリティファースト設計
+### 18.3. セキュリティファースト設計
 
 #### 多層防御アーキテクチャ
 - **多要素認証**: 管理者アクセスの強制的なMFA
@@ -4243,7 +3228,7 @@ type AnnouncementCreatedEvent struct {
 - **フォレンジック支援**: インシデント調査のための詳細証跡
 - **外部脅威連携**: 脅威インテリジェンス情報との自動連携
 
-### 13.4. 可用性・災害復旧
+### 18.4. 可用性・災害復旧
 
 #### レジリエント設計
 - **無停止運用**: システムを停止させない変更管理
@@ -4257,7 +3242,7 @@ type AnnouncementCreatedEvent struct {
 - **段階的復旧計画**: 優先度ベースの体系的復旧手順
 - **依存関係管理**: サービス間依存関係を考慮した復旧計画
 
-### 13.5. 運用効率化・自動化
+### 18.5. 運用効率化・自動化
 
 #### インテリジェントオートメーション
 - **予測分析**: 機械学習による障害予兆検知
@@ -4271,7 +3256,7 @@ type AnnouncementCreatedEvent struct {
 - **アラート管理**: 重要度別の適切な通知制御
 - **レポート自動生成**: 定期的な運用状況報告
 
-### 13.6. 将来拡張性・保守性
+### 18.6. 将来拡張性・保守性
 
 #### モジュラー設計
 - **プラグアーキテクチャ**: 機能追加のための拡張ポイント
@@ -4287,15 +3272,70 @@ type AnnouncementCreatedEvent struct {
 
 この統合設計により、avion-system-adminは単なるシステム管理機能を超えて、企業レベルのガバナンス・リスク・コンプライアンス要求に対応する堅牢な基盤として機能します。
 
-## 14. Service-Specific Test Strategy
+## 21. Release Plan (リリース計画)
 
-### 14.1. Overview
+### 21.1. 実装フェーズ
+
+| Phase | 内容 | 期間 | 前提条件 |
+|:------|:-----|:-----|:---------|
+| Phase 1 | AdminUser, SystemConfiguration 基盤実装 | Week 1-2 | PostgreSQL 17, Redis 8+ 環境構築 |
+| Phase 2 | Announcement, RateLimitRule 実装 | Week 3-4 | Phase 1 完了 |
+| Phase 3 | SystemMetrics, BackupPolicy 実装 | Week 5-6 | Phase 2 完了 |
+| Phase 4 | セキュリティ・監査ログ・承認ワークフロー | Week 7-8 | Phase 3 完了 |
+| Phase 5 | NATS JetStream イベント連携・他サービス統合 | Week 9-10 | Phase 4 完了 |
+| Phase 6 | パフォーマンス最適化・GA | Week 11-12 | Phase 5 完了 |
+
+### 21.2. 段階的ロールアウト戦略
+
+**Canary Release:**
+1. **5%** -- 初期検証（最低15分間監視）
+2. **25%** -- 拡大検証（最低30分間監視）
+3. **50%** -- 広域検証（最低1時間監視）
+4. **100%** -- 全展開
+
+**各段階の監視項目:**
+- エラー率 < 1%
+- レイテンシ p99 < SLO の 2倍
+- CPU/Memory 使用率が正常範囲内
+
+### 21.3. ロールバック判定基準と手順
+
+**ロールバック判定基準:**
+- エラー率が 1% を超過
+- p99 レイテンシが SLO の 2倍を超過
+- CRITICAL レベルのログが発生
+- データ整合性エラーの検出
+
+**ロールバック手順:**
+```bash
+# 1. 新バージョンのデプロイを停止
+kubectl rollout pause deployment/avion-system-admin -n avion
+
+# 2. 前バージョンにロールバック
+kubectl rollout undo deployment/avion-system-admin -n avion
+
+# 3. ロールバック完了を確認
+kubectl rollout status deployment/avion-system-admin -n avion
+
+# 4. 必要に応じてDBマイグレーションのロールバック
+# (docs/common/database/database-migration-strategy.md 参照)
+```
+
+### 21.4. 環境デプロイ順序
+
+1. **dev** -- 開発環境でのE2Eテスト
+2. **staging** -- 本番同等環境での負荷テスト・統合テスト
+3. **production** -- Canary Release による段階的展開
+
+## 22. Service-Specific Test Strategy
+
+### 22.1. Overview
 
 avion-system-adminは企業システムの重要な運用機能を管理するため、特に厳格なテスト戦略が必要です。本セクションでは、システム管理特有の要求事項に対応するための包括的なテスト手法を定義します。
 
-### 14.2. Critical Test Areas
+### 22.2. Critical Test Areas
 
-#### 14.2.1. Dangerous Operation Approval Workflow Testing
+#### 22.2.1. Dangerous Operation Approval Workflow Testing
 
 危険操作の承認ワークフローは、システム安全性の要となるため、以下のシナリオを網羅的にテストします：
 
@@ -4304,19 +3344,20 @@ package dangerous_operation_test
 
 import (
     "context"
+    "errors"
     "testing"
     "time"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/mock"
+    "github.com/google/go-cmp/cmp"
     "github.com/newmo-oss/ctxtime"
-    
+    "go.uber.org/mock/gomock"
+
     "avion/internal/domain/dangerous_operation"
     "avion/internal/usecase/approval"
     "avion/tests/mocks"
 )
 
-func TestDangerousOperationApprovalWorkflow(t *testing.T) {
+func TestApprovalService_RequestApproval(t *testing.T) {
     tests := []struct {
         name           string
         operation      dangerous_operation.Operation
@@ -4324,11 +3365,11 @@ func TestDangerousOperationApprovalWorkflow(t *testing.T) {
         requiredCount  int
         timeout        time.Duration
         setupMocks     func(*mocks.MockApprovalRepository, *mocks.MockNotificationService)
-        expectError    bool
-        expectedStatus dangerous_operation.Status
+        wantErr        error
+        wantStatus     dangerous_operation.Status
     }{
         {
-            name: "successful_mass_deletion_approval",
+            name: "正常系: 大量削除操作の承認が成功する",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeMassDeletion,
                 Target:      "users.inactive_accounts",
@@ -4355,7 +3396,7 @@ func TestDangerousOperationApprovalWorkflow(t *testing.T) {
             expectedStatus: dangerous_operation.StatusApproved,
         },
         {
-            name: "timeout_rejection",
+            name: "異常系: タイムアウトで承認が拒否される",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeSystemShutdown,
                 Target:      "production.all_services",
@@ -4382,7 +3423,7 @@ func TestDangerousOperationApprovalWorkflow(t *testing.T) {
             expectedStatus: dangerous_operation.StatusTimeout,
         },
         {
-            name: "insufficient_approvals",
+            name: "正常系: 承認者が不足している場合はPending状態を返す",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeConfigurationChange,
                 Target:      "security.authentication_policy",
@@ -4413,16 +3454,19 @@ func TestDangerousOperationApprovalWorkflow(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             // Setup mocks
-            mockRepo := new(mocks.MockApprovalRepository)
-            mockNotif := new(mocks.MockNotificationService)
-            mockAudit := new(mocks.MockAuditLogger)
-            
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+
+            mockRepo := mocks.NewMockApprovalRepository(ctrl)
+            mockNotif := mocks.NewMockNotificationService(ctrl)
+            mockAudit := mocks.NewMockAuditLogger(ctrl)
+
             tt.setupMocks(mockRepo, mockNotif)
-            
+
             // Create service with time mocking
             ctx := ctxtime.WithTime(context.Background(), time.Now())
             service := approval.NewService(mockRepo, mockNotif, mockAudit)
-            
+
             // Execute test
             result, err := service.RequestApproval(ctx, &approval.Request{
                 Operation:     tt.operation,
@@ -4430,31 +3474,29 @@ func TestDangerousOperationApprovalWorkflow(t *testing.T) {
                 RequiredCount: tt.requiredCount,
                 Timeout:       tt.timeout,
             })
-            
+
             // Assertions
-            if tt.expectError {
-                assert.Error(t, err)
-            } else {
-                assert.NoError(t, err)
-                assert.Equal(t, tt.expectedStatus, result.Status)
+            if !errors.Is(err, tt.wantErr) {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
             }
-            
-            // Verify all mocks were called as expected
-            mockRepo.AssertExpectations(t)
-            mockNotif.AssertExpectations(t)
+            if err == nil {
+                if diff := cmp.Diff(tt.wantStatus, result.Status); diff != "" {
+                    t.Errorf("status mismatch (-want +got):\n%s", diff)
+                }
+            }
         })
     }
 }
 
-func TestDangerousOperationValidation(t *testing.T) {
+func TestDangerousOperationValidator_Validate(t *testing.T) {
     tests := []struct {
         name        string
         operation   dangerous_operation.Operation
-        expectError bool
+        wantErr     bool
         errorType   string
     }{
         {
-            name: "valid_bulk_operation",
+            name: "正常系: 有効なバルク操作",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeBulkUpdate,
                 Target:      "users.email_verification_status",
@@ -4462,28 +3504,28 @@ func TestDangerousOperationValidation(t *testing.T) {
                 RequestedBy: "admin@example.com",
                 Reason:      "Migration to verified status",
             },
-            expectError: false,
+            wantErr: false,
         },
         {
-            name: "invalid_empty_reason",
+            name: "異常系: 理由が空の場合エラーを返す",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeMassDeletion,
                 Target:      "posts.spam_content",
                 RequestedBy: "admin@example.com",
                 Reason:      "",
             },
-            expectError: true,
+            wantErr: true,
             errorType:   "validation.reason_required",
         },
         {
-            name: "invalid_unauthorized_requester",
+            name: "異常系: 権限不足の要求者がエラーを返す",
             operation: dangerous_operation.Operation{
                 Type:        dangerous_operation.TypeSystemShutdown,
                 Target:      "production.all_services",
                 RequestedBy: "user@example.com",
                 Reason:      "Testing shutdown procedure",
             },
-            expectError: true,
+            wantErr: true,
             errorType:   "authorization.insufficient_privileges",
         },
     }
@@ -4491,21 +3533,27 @@ func TestDangerousOperationValidation(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             validator := dangerous_operation.NewValidator()
-            
+
             err := validator.Validate(tt.operation)
-            
-            if tt.expectError {
-                assert.Error(t, err)
-                assert.Contains(t, err.Error(), tt.errorType)
+
+            if tt.wantErr {
+                if err == nil {
+                    t.Fatal("expected error but got nil")
+                }
+                if !strings.Contains(err.Error(), tt.errorType) {
+                    t.Errorf("error = %v, want containing %q", err, tt.errorType)
+                }
             } else {
-                assert.NoError(t, err)
+                if err != nil {
+                    t.Errorf("unexpected error: %v", err)
+                }
             }
         })
     }
 }
 ```
 
-#### 14.2.2. Bulk Operation Transaction Testing
+#### 22.2.2. Bulk Operation Transaction Testing
 
 大量データ操作のトランザクション整合性テスト：
 
@@ -4658,7 +3706,7 @@ func verifyDatabaseConsistency(t *testing.T, db *sql.DB, operation bulk_operatio
 }
 ```
 
-#### 14.2.3. Configuration Propagation Testing
+#### 22.2.3. Configuration Propagation Testing
 
 設定変更の全サービス伝播テスト：
 
@@ -4885,7 +3933,7 @@ func TestConfigurationRollbackMechanism(t *testing.T) {
 }
 ```
 
-#### 14.2.4. Metrics Collection and Aggregation Testing
+#### 22.2.4. Metrics Collection and Aggregation Testing
 
 Prometheusメトリクス収集・集約テスト：
 
@@ -5117,7 +4165,7 @@ func mockPrometheusResult(value float64) model.Value {
 }
 ```
 
-#### 14.2.5. Backup and Restore Operations Testing
+#### 22.2.5. Backup and Restore Operations Testing
 
 バックアップ・リストア機能の包括的テスト：
 
@@ -5396,9 +4444,9 @@ func mockBackupStream() io.ReadCloser {
 }
 ```
 
-### 14.3. Integration Testing Strategy
+### 22.3. Integration Testing Strategy
 
-#### 14.3.1. End-to-End Workflow Testing
+#### 22.3.1. End-to-End Workflow Testing
 
 システム管理のエンドツーエンドワークフローテスト：
 
@@ -5407,38 +4455,38 @@ func mockBackupStream() io.ReadCloser {
 - **大規模データ移行**: サービス継続性を保った移行作業
 - **コンプライアンス監査**: 監査証跡の完全性検証
 
-#### 14.3.2. Performance and Load Testing
+#### 22.3.2. Performance and Load Testing
 
 - **大量ユーザー操作**: 同時管理者操作の負荷テスト
 - **バックアップ性能**: 大容量データのバックアップ時間測定
 - **メトリクス収集負荷**: 高頻度メトリクス収集の影響評価
 - **設定変更伝播**: 全サービスへの同時設定反映性能
 
-#### 14.3.3. Security and Compliance Testing
+#### 22.3.3. Security and Compliance Testing
 
 - **監査ログ改ざん防止**: ログの暗号化・署名検証
 - **アクセス制御**: 権限昇格攻撃の検知・防止
 - **データ保護**: GDPR等のデータ削除要求への対応
 - **秘密情報保護**: 設定情報の暗号化・マスキング
 
-### 14.4. Test Coverage Requirements
+### 22.4. Test Coverage Requirements
 
-- **ユニットテスト**: 95%以上のコードカバレッジ
+- **ユニットテスト**: 90%以上のコードカバレッジ（クリティカルパスは95%以上）
 - **統合テスト**: 全クリティカルパスの実行確認
 - **エンドツーエンドテスト**: 主要ワークフローの完全検証
 - **パフォーマンステスト**: SLA要件の継続的検証
 - **セキュリティテスト**: 脆弱性・攻撃シナリオの定期検証
 
-### 14.5. Test Environment Management
+### 22.5. Test Environment Management
 
-#### 14.5.1. Test Data Management
+#### 22.5.1. Test Data Management
 
 - **匿名化された本番データ**: リアルなテストシナリオの実現
 - **合成データ生成**: 大規模テスト用のデータセット作成
 - **データ世代管理**: テスト間でのデータ状態管理
 - **秘密情報除去**: 本番データからの機密情報完全削除
 
-#### 14.5.2. Environment Isolation
+#### 22.5.2. Environment Isolation
 
 - **サンドボックス環境**: 危険操作の安全な実行環境
 - **マルチテナント分離**: テスト間の相互影響防止
@@ -5447,7 +4495,7 @@ func mockBackupStream() io.ReadCloser {
 
 この包括的なテスト戦略により、avion-system-adminの信頼性・安全性・性能を継続的に保証し、企業レベルの運用要件に対応します。
 
-## 15. セキュリティ実装ガイドライン
+## 23. セキュリティ実装ガイドライン
 
 本サービスのセキュリティ実装は、以下の共通セキュリティガイドラインに準拠します：
 

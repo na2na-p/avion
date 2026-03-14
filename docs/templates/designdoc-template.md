@@ -28,7 +28,7 @@ Reference to common testing strategy
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -218,7 +218,7 @@ Database schema and design decisions:
 
 - **Primary Database:** PostgreSQL
 - **Cache:** Redis (Hash, Set, Sorted Set)
-- **Message Queue:** Redis Pub/Sub
+- **Message Queue:** NATS JetStream
 
 ### 5.3. External Dependencies
 
@@ -315,7 +315,7 @@ Data model and storage design:
 ```sql
 -- Primary table for [main entity]
 CREATE TABLE [table_name] (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     -- Add table columns
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -620,31 +620,32 @@ Detailed mapping between domain objects and database schema:
 
 ```sql
 CREATE TABLE [table_name] (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     -- Add aggregate fields mapped to columns
     -- Include audit fields
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     -- Add indexes for performance
-    INDEX idx_[table_name]_[field] ([field]),
-    -- Add constraints for data integrity
     CONSTRAINT [constraint_name] CHECK ([condition])
 );
+
+-- インデックス定義（CREATE TABLE外で定義）
+CREATE INDEX idx_[table_name]_[field] ON [table_name] ([field]);
 ```
 
 ### [Entity] → [entity_table] テーブル
 
 ```sql
 CREATE TABLE [entity_table] (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID v7 (Backend採番)
     [aggregate_id] UUID NOT NULL REFERENCES [aggregate_table](id) ON DELETE CASCADE,
     -- Add entity fields
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     -- Add unique constraints
     CONSTRAINT [entity_table]_[unique_constraint] UNIQUE ([field1], [field2]),
-    -- Add indexes
-    INDEX idx_[entity_table]_[aggregate_id] ([aggregate_id])
 );
+
+CREATE INDEX idx_[entity_table]_[aggregate_id] ON [entity_table] ([aggregate_id]);
 ```
 
 ### [ValueObject] マッピング
@@ -716,7 +717,95 @@ type [Event]Data struct {
 }
 ```
 
-## 14. Concerns / Open Questions (懸念事項・相談したいこと)
+## 14. Release Plan (リリース計画)
+
+<!--
+Release strategy and deployment plan:
+- Implementation phases
+- Rollout strategy
+- Rollback criteria and procedures
+- Deployment order
+-->
+
+### 14.1. 実装フェーズ
+
+<!-- Service implementation phases -->
+
+| Phase | 内容 | 期間 | 前提条件 |
+|:------|:-----|:-----|:---------|
+| Phase 1 | [Core functionality] | [Duration] | [Prerequisites] |
+| Phase 2 | [Extended features] | [Duration] | Phase 1 完了 |
+<!-- Add more phases as needed -->
+
+### 14.2. 段階的ロールアウト戦略
+
+**Canary Release:**
+1. **5%** — 初期検証（最低15分間監視）
+2. **25%** — 拡大検証（最低30分間監視）
+3. **50%** — 広域検証（最低1時間監視）
+4. **100%** — 全展開
+
+**各段階の監視項目:**
+- エラー率 < 1%
+- レイテンシ p99 < SLO の 2倍
+- CPU/Memory 使用率が正常範囲内
+
+### 14.3. ロールバック判定基準と手順
+
+**ロールバック判定基準:**
+- エラー率が 1% を超過
+- p99 レイテンシが SLO の 2倍を超過
+- CRITICAL レベルのログが発生
+- データ整合性エラーの検出
+
+**ロールバック手順:**
+```bash
+# 1. 新バージョンのデプロイを停止
+kubectl rollout pause deployment/[service-name] -n avion
+
+# 2. 前バージョンにロールバック
+kubectl rollout undo deployment/[service-name] -n avion
+
+# 3. ロールバック完了を確認
+kubectl rollout status deployment/[service-name] -n avion
+
+# 4. 必要に応じてDBマイグレーションのロールバック
+# (docs/common/database/database-migration-strategy.md 参照)
+```
+
+### 14.4. 環境デプロイ順序
+
+1. **dev** — 開発環境でのE2Eテスト
+2. **staging** — 本番同等環境での負荷テスト・統合テスト
+3. **production** — 段階的ロールアウト（14.2参照）
+
+### 14.5. サービス間依存関係
+
+<!-- List services that must be deployed before this service -->
+- **前提サービス:** [List dependent services that must be deployed first]
+- **後続サービス:** [List services that depend on this service]
+
+### 14.6. リリース前チェックリスト
+
+- [ ] 全テストがパス（ユニット + 統合）
+- [ ] カバレッジ目標達成（90%以上）
+- [ ] DBマイグレーションスクリプト準備完了
+- [ ] 環境変数の追加/変更がドキュメント化済み
+- [ ] ロールバック手順のリハーサル完了
+- [ ] 監視ダッシュボード・アラートの設定完了
+- [ ] staging環境での動作確認完了
+
+### 14.7. リリース後検証ステップ
+
+- [ ] Canary比率の段階的拡大
+- [ ] エラー率・レイテンシの継続監視
+- [ ] ログの異常パターン確認
+- [ ] 依存サービスとの連携正常性確認
+- [ ] 24時間後のメトリクス確認
+
+---
+
+## 15. Concerns / Open Questions (懸念事項・相談したいこと)
 
 <!-- 
 Areas that need discussion or decisions:

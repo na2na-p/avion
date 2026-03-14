@@ -149,7 +149,7 @@ avion-mediaサービスで発生する可能性のあるエラーコード一覧
 | MEDIA_INFRA_IMAGE_PROCESSING_ERROR | 422 | INTERNAL | 画像処理エラー | 画像ファイルを確認してください |
 | MEDIA_INFRA_VIDEO_PROCESSING_ERROR | 422 | INTERNAL | 動画処理エラー | 動画ファイルを確認してください |
 | MEDIA_INFRA_FFMPEG_ERROR | 422 | INTERNAL | FFmpegエラー | エンコード設定を確認してください |
-| MEDIA_INFRA_IMAGEMAGICK_ERROR | 422 | INTERNAL | ImageMagickエラー | 画像変換設定を確認してください |
+| MEDIA_INFRA_LIBVIPS_ERROR | 422 | INTERNAL | libvipsエラー | 画像変換設定を確認してください |
 
 ### CDNエラー
 
