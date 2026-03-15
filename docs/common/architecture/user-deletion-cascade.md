@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026/03/14
 **Author:** Claude Code
-**Status:** 提案中
+**Status:** 採用済み
 **Compliance:** Draft
 
 ## 概要

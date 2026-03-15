@@ -1,5 +1,7 @@
 # PRD: avion-media
 
+**Last Updated:** 2026/03/15
+
 ## 概要
 
 Avionにおける画像、動画、音声ファイルのアップロード、保存、および配信機能を提供するマイクロサービスを実装する。メディア処理パイプライン、ストレージ管理、CDN配信などの機能を統合し、リッチなコンテンツ共有体験を実現する。
@@ -26,7 +28,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 ## 参考ドキュメント
 
-*   [Avion アーキテクチャ概要](./../common/architecture.md)
+*   [Avion アーキテクチャ概要](./../common/architecture/architecture.md)
 *   [Database Schema定義](./database-schema.sql)
 *   [技術要求仕様書](./technical-requirements.md)
 
@@ -35,6 +37,32 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 *   **簡単なアップロード:** ユーザーが直感的にメディアファイルを投稿に添付できること。
 *   **安全な保存:** アップロードされたファイルが安全かつ確実に保存されること。
 *   **高速な配信:** 添付されたメディアが様々なデバイスで高速に表示されること。
+
+## メディア処理の一元管理と責務境界
+
+avion-media はAvionプラットフォーム全体におけるメディア処理の唯一の責任者（Single Source of Truth）として機能する。
+
+### avion-media の責務
+
+*   **メディアのアップロード受付**: Presigned URL方式によるアップロード初期化・完了処理
+*   **メディア処理パイプライン**: リサイズ、フォーマット変換（音声MP3変換、SVG→PNG変換）、サムネイル生成、GIF静止画変換
+*   **ストレージ管理**: S3互換オブジェクトストレージへの保存・削除・ライフサイクル管理
+*   **CDN配信**: メディアファイルおよびサムネイルの配信URL生成とキャッシュ制御
+*   **セキュリティ検証**: マジックナンバー検証、ポリグロット攻撃検出、ウイルススキャン連携
+*   **メタデータ管理**: NSFW（センシティブ）フラグ、ALTテキスト、EXIF情報等の管理
+*   **リモートメディアキャッシュ**: ActivityPub経由のリモートメディアのローカルキャッシュ
+
+### 他サービスとの責務分担
+
+| サービス | 責務 | avion-media との連携方式 |
+|:--|:--|:--|
+| **avion-drop** | Drop（投稿）へのメディア添付関係（MediaID）の管理。ユーザー自己申告のセンシティブマーク管理 | メディア添付時に avion-media の gRPC API を呼び出し、メディアのメタデータ（MediaID、URL、サイズ等）のみを自身のデータに保持 |
+| **avion-message** | DM（ダイレクトメッセージ）への添付ファイル関係の管理 | メディア添付時に avion-media の gRPC API を呼び出してアップロード・処理を委譲。メディアのメタデータ（URL、サイズ等）のみを自身のデータに保持 |
+| **avion-activitypub** | リモートインスタンスからのメディアURL発見・連携 | リモートメディアのキャッシュ依頼を avion-media の内部 gRPC API で送信 |
+| **avion-moderation** | プラットフォームポリシーに基づくNSFW強制適用（最終決定権） | avion-media のNSFWフラグを上書き可能 |
+| **avion-web** | メディアアップロードUI、メディア表示コンポーネント | CDN URL経由でメディアを表示。アップロードはPresigned URLを使用してS3に直接送信 |
+
+**重要**: avion-drop および avion-message はメディアファイルの実体（バイナリ）を直接保持・処理しない。メディアに関する全ての処理（アップロード、変換、サムネイル生成、ストレージ管理、配信）は avion-media に委譲される。
 
 ## やること/やらないこと
 
@@ -74,7 +102,8 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 ### やらないこと
 
-*   **Dropとの関連付け管理:** どのDropにどのメディアが添付されているかの情報は `avion-drop` が管理する。`avion-media` はメディア自体の管理に専念する。
+*   **Dropとの関連付け管理:** どのDropにどのメディアが添付されているかの情報は `avion-drop` が管理する。`avion-media` はメディア自体の管理に専念する。`avion-drop` はメディアのメタデータ（MediaID、URL等）のみを保持する。
+*   **メッセージとの関連付け管理:** ダイレクトメッセージにどのメディアが添付されているかの情報は `avion-message` が管理する。`avion-message` はメディアのメタデータ（URL、サイズ等）のみを保持し、メディアの実体管理は `avion-media` に委譲する。
 *   **ユーザーインターフェース:** アップロードボタンやメディア表示コンポーネントは `avion-web` が担当する。
 *   **オブジェクトストレージ自体の実装:** S3互換のオブジェクトストレージ (MinIO, Ceph, AWS S3など) を利用することを前提とする。
 *   **CDN自体の実装:** CloudFront, Cloudflareなどの既存CDNサービスを利用することを前提とする。
@@ -87,7 +116,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 *   Avion エンドユーザー (メディアアップロード時、API Gateway経由)
 *   Avion フロントエンド (メディア表示時、直接 or CDN経由)
-*   Avion の他のマイクロサービス (`avion-post`, `avion-activitypub` など、メディアID/URL連携)
+*   Avion の他のマイクロサービス (`avion-drop`, `avion-message`, `avion-activitypub` など、メディアID/URL連携)
 *   Avion 開発者・運用者
 
 ## ドメインモデル (DDD戦術的パターン)
@@ -127,7 +156,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 - **集約ルート**: MediaProcessingTask
 - **不変条件**:
   - TaskIDは一意性を保持する
-  - 実行回数は最大リトライ回数（5回）を超えない
+  - 実行回数は最大リトライ回数（3回）を超えない
   - タスクタイプに応じた必須パラメータが設定されている
   - 完了済みタスクは再実行不可状態を維持する
   - スケジュール時刻は現在時刻以降である
@@ -146,23 +175,32 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
   - `notifyCompletion()`: 完了通知の発行
   - `cleanupResources()`: リソース清理処理
 
-#### StorageQuota Aggregate
-**責務**: ユーザーまたはシステム全体のストレージ使用量管理と制限制御
-- **集約ルート**: StorageQuota
+#### UserDrive Aggregate（旧 StorageQuota）
+**責務**: ユーザーのメディアストレージ使用状況管理、フォルダ管理、およびストレージ制限制御
+- **集約ルート**: UserDrive
 - **不変条件**:
+  - UserIDは変更不可
   - 使用量は割り当て量を超えない
   - 使用量は非負数である
   - 制限値の変更は管理者権限が必要
-  - 使用量計算は定期的に再計算される
+  - ストレージ容量上限は0より大きい値
+  - デフォルト容量上限: 5GB（ロールにより変更可能: Advanced 20GB、Admin 100GB）
+  - フォルダ階層は最大5階層
+  - 同一階層に同名フォルダは作成不可
+  - ルートフォルダは削除不可
   - ユーザー削除時は使用量もクリアされる
   - 一時ファイルは使用量に含まれない
 - **ドメインロジック**:
-  - `allocateSpace(size, mediaType)`: 容量割り当て確認
-  - `consumeSpace(size, mediaId)`: 使用量増加処理
-  - `releaseSpace(size, mediaId)`: 使用量減少処理
-  - `calculateUsage()`: 実際の使用量再計算
-  - `checkLimit(requestedSize)`: 制限値チェック
-  - `updateLimit(newLimit, adminId)`: 制限値更新
+  - `hasCapacity(size)`: 容量確認（現在使用量と上限比較）
+  - `addUsage(size)`: 使用量追加
+  - `reduceUsage(size)`: 使用量削減
+  - `createFolder(name, parentID)`: フォルダ作成（階層制限確認）
+  - `moveMedia(mediaID, targetFolderID)`: メディア移動
+  - `calculateUsagePercentage()`: 使用率計算
+  - `isOverQuota()`: 容量超過判定
+  - `updateStorageQuota(newQuota)`: ストレージ容量上限変更（ロールベース）
+  - `getOrganizationStructure()`: フォルダ構造取得
+  - `cleanupExpiredMedia()`: 期限切れメディアクリーンアップ
   - `generateUsageReport()`: 使用状況レポート生成
 
 ### Entities (エンティティ)
@@ -368,7 +406,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 ### 添付メディアの表示
 
-1.  フロントエンドがDropを表示する際、MediaIDを `avion-post` から取得
+1.  フロントエンドがDropを表示する際、MediaIDを `avion-drop` から取得
 2.  MediaIDを使ってCDNUrl Value Objectを構築
 3.  Thumbnail Entityが存在する場合、Size Value Objectに応じたサムネイルURLを使用
 4.  フロントエンドはCDNUrlを使って画像や動画を表示
@@ -376,14 +414,29 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 (UIモック: タイムラインやDrop詳細画面での画像・動画表示)
 
-### メディアファイルの削除
+### メディアファイルの削除（avion-drop イベント連携）
 
-1.  ユーザーがメディアを添付したDropを削除 (`avion-post` が処理)
-2.  `avion-post` はDrop削除イベントを発行（MediaIDリストを含む）
-3.  `avion-media` はイベントを受信
-4.  MediaProcessingTask Aggregateを生成（TaskType='deletion'）
-5.  非同期ワーカーがMedia Aggregateの削除可否をドメインロジックで判定
-6.  遅延実行後、StorageKey Value Objectを使ってS3から削除
+avion-mediaは `avion-drop` からの `drop.deleted` イベントを購読し、メディアの論理削除を実行する。
+
+**イベント連携仕様:**
+- **購読サブジェクト**: `avion.drop.drop.deleted`（NATS JetStream）
+- **イベントペイロード**: `{ "DropID": "...", "MediaIDs": ["...", "..."], "AuthorID": "...", "DeletedAt": "..." }`
+- **処理方式**: イベント受信後、MediaIDリストに含まれる各メディアを論理削除（即時物理削除ではない）
+- **冪等性保証**: 同一イベントの重複受信に対して冪等に処理（既に論理削除済みの場合はスキップ）
+
+**削除フロー:**
+
+1.  `avion-drop` がDrop削除処理を実行し、`avion.drop.drop.deleted` イベントをNATS JetStreamに発行（MediaIDリストを含む）
+2.  `avion-media` のイベントハンドラがイベントを受信
+3.  各MediaIDについて、Media Aggregateを取得し `markForDeletion(reason='drop_deleted')` を実行（論理削除）
+4.  MediaProcessingTask Aggregateを生成（TaskType='deletion'、スケジュール: 7日後）
+5.  論理削除されたメディアはCDN配信時にオリジンから404を返却（TTL切れ後に自動的に配信停止）
+6.  7日後、非同期ワーカーがMedia Aggregateの物理削除可否をドメインロジックで判定（他のDropやアルバムからの参照がないか確認）
+7.  参照がない場合、StorageKey Value Objectを使ってS3からファイルを物理削除
+
+**エラー処理:**
+- イベント処理失敗時はNATS JetStreamの再配信メカニズムにより自動リトライ（最大3回）
+- 最終的に処理不能な場合はデッドレターキューに移動し、アラートを発行
 
 #### CDNキャッシュ無効化戦略
 
@@ -411,6 +464,24 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 4.  NSFWフラグが設定されたメディアは、表示時にぼかし処理や警告表示
 
 (UIモック: メディアアップロード画面のNSFWチェックボックス、メディア詳細画面での設定変更)
+
+#### NSFW検出・モデレーション連携フロー
+
+以下のフローでNSFWコンテンツの検出から最終判定までを行う:
+
+1. **avion-media**: アップロード時にNudeNet（サーバー側OSS）でNSFWスコアを算出
+2. **avion-media**: スコアが閾値（設定可能）以上の場合、MediaのNSFWフラグを`true`に設定
+3. **avion-media**: `media.upload.nsfw_detected` イベントをNATS JetStreamに発行
+   - フィールド: `MediaID`, `NSFWScore`, `DetectionMethod`, `AuthorID`, `Timestamp`
+4. **avion-moderation**: イベントを受信し、プラットフォームポリシーに基づいて最終判定
+5. **最終判定の結果**:
+   - **確定（NSFWフラグ維持）**: `moderation.content_filter.nsfw_confirmed` イベント発行
+   - **上書き（NSFWフラグ変更）**: avion-mediaのgRPC API `UpdateMediaSensitivity` を呼び出し
+   - **追加アクション必要**: ModerationCaseを作成し、人間によるレビューキューに追加
+6. **avion-drop**: MediaID経由で最新のNSFWフラグを取得して表示制御に使用
+
+※ ユーザー自己申告によるセンシティブ設定（avion-drop）はavion-mediaのフラグとは独立して管理される。
+  avion-moderationはプラットフォームポリシーに基づき両方のフラグを上書き可能（最終決定権）。
 
 ### メディアの説明文（ALTテキスト）管理
 
@@ -585,6 +656,14 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 ## 技術的要求
 
+### パフォーマンス要件
+
+| 指標 | 目標値 |
+|------|--------|
+| API レスポンスタイム (p50) | < 200ms |
+| API レスポンスタイム (p99) | < 1000ms |
+| 可用性 (SLA) | 99.9% |
+
 ### レイテンシ
 
 *   **アップロード初期化**: 平均 200ms 以下、p99 500ms 以下（署名付きURL生成）
@@ -666,7 +745,7 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
   - CDN（CloudFlare/CloudFront）
   - AI サービス（画像認識API）
   - 監視システム（Prometheus/Grafana）
-*   **テスト要件**: 自動テスト カバレッジ90%以上
+*   **テスト要件**: 自動テスト カバレッジ85%以上
   - 単体テスト: ドメイン ロジック 95%カバレッジ
   - 統合テスト: API エンドポイント全件
   - パフォーマンス テスト: 想定負荷の150%での動作確認
@@ -709,15 +788,27 @@ Avionにおける画像、動画、音声ファイルのアップロード、保
 
 ## 決まっていないこと
 
-*   使用するオブジェクトストレージの具体的な選定 (MinIO, AWS S3など)。
-*   使用するCDNの具体的な選定。
-*   動画処理ライブラリ/ツールの選定 (ffmpegなど)。
-*   非同期処理キューシステムの選定。
-*   メディア削除の具体的な戦略 (参照カウント、遅延削除など)。
-*   リモートメディアキャッシュのポリシー詳細 (キャッシュ期間、サイズ上限、対象ドメイン制限など)。
-*   アクセス制御の実装方式 (署名付きURLなど)。
-*   サポートする具体的なファイル形式とサイズ制限の値。
+*   使用するオブジェクトストレージの具体的なプロバイダ選定 (MinIO, AWS S3など)。S3互換インターフェースを使用することは決定済み。
+*   使用するCDNの具体的なプロバイダ選定 (CloudFront, Cloudflareなど)。
+*   リモートメディアキャッシュのポリシー詳細 (対象ドメイン制限、ブラックリスト管理など)。キャッシュ有効期限は最大7日で決定済み。
+*   AI画像認識サービスの具体的なプロバイダ選定（ALTテキスト自動生成用）。
+
+### 決定済み事項
+
+*   **動画処理ライブラリ**: ffmpegを使用（動画サムネイル生成、将来の変換処理用）
+*   **画像処理ライブラリ**: libvips（Go バインディング: `github.com/h2non/bimg`）を使用
+*   **非同期処理キューシステム**: Redis Stream + Consumer Groupを使用
+*   **メディア削除戦略**: イベント駆動の遅延削除（論理削除7日後に物理削除）
+*   **アクセス制御**: Presigned URL方式（1時間有効期限）
+*   **サポートファイル形式**: 画像(JPEG, PNG, GIF, WebP, SVG)、動画(MP4, M4V, MOV, WebM)、音声(MP3, OGG, WAV, FLAC, OPUS, AAC, M4A, 3GP)
+*   **サイズ制限**: 画像20MB、動画40MB、音声40MB（管理者設定可能）
+*   **イベント連携**: NATS JetStreamによるイベント駆動（`avion.drop.drop.deleted` サブジェクト購読）
+*   **NSFW検出ライブラリ**: NudeNet（サーバー側OSS）を採用。画像アップロードパイプライン内でNSFWスコアを算出し、閾値以上の場合にNSFWフラグを自動設定する
 
 ### サービス間責務境界の決定事項
 
 *   **NSFW/センシティブ管理（3層構造）**: 本サービスはメディアレベルのNSFW自動検出（ML）とフラグ管理を担当する。画像アップロードパイプライン内でML検出を実行し、即座にNSFWフラグを設定する（レイテンシ最小）。`avion-drop` はユーザー自己申告によるセンシティブマークを担当。`avion-moderation` はプラットフォームポリシーに基づく強制適用（最終決定権）を担当し、本サービスのフラグを上書き可能。優先度順: moderation強制適用 > 本サービスML検出 > ユーザー自己申告
+
+> **関連ドキュメント**: センシティブ管理3層構造の詳細については以下を参照:
+> - [avion-drop PRD - センシティブ管理](../avion-drop/prd.md)
+> - [avion-moderation PRD - NSFW/センシティブ管理](../avion-moderation/prd.md)

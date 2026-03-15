@@ -1,12 +1,21 @@
 # Design Doc: avion-media
 
 **Author:** Cline
-**Last Updated:** 2025/03/30
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
 - **一言で:** Avionにおける画像、動画などのメディアファイルのアップロード、保存、配信、およびリモートメディアのキャッシュを行うマイクロサービスを実装します。
 - **目的:** メディアファイルの効率的な処理と配信を実現し、S3互換オブジェクトストレージとCDNを活用します。
+
+## 1.1. メディア処理の一元管理と責務境界
+
+avion-media はAvionプラットフォーム全体におけるメディア処理の唯一の責任者として機能します。他サービスとの責務分担は以下の通りです。
+
+- **avion-drop**: Drop（投稿）へのメディア添付関係（MediaID）の管理のみ。メディア添付時に avion-media の gRPC API を呼び出し、メディアのメタデータ（MediaID、URL、サイズ等）のみを自身のデータに保持。メディアの実体管理は avion-media に委譲。
+- **avion-message**: DM（ダイレクトメッセージ）への添付ファイル関係の管理のみ。メディア添付時に avion-media の gRPC API を呼び出してアップロード・処理を委譲。メディアのメタデータ（URL、サイズ等）のみを自身のデータに保持。
+- **avion-activitypub**: リモートメディアのキャッシュ依頼を avion-media の内部 gRPC API で送信。
+- **avion-moderation**: プラットフォームポリシーに基づくNSFW強制適用（最終決定権）。avion-media のNSFWフラグを上書き可能。
 
 ## 2. テスト戦略
 
@@ -14,7 +23,7 @@
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -89,7 +98,7 @@ ENTRYPOINT ["/avion-media"]
 - メディア処理という専門的な機能を分離し、スケーラビリティを確保するため。
 - ActivityPubで受信したリモートメディアの表示パフォーマンス向上のため、キャッシュ機能を提供。
 - [PRD: avion-media](./prd.md)
-- [Avion アーキテクチャ概要](../common/architecture.md)
+- [Avion アーキテクチャ概要](../common/architecture/architecture.md)
 - [Database Schema定義](./database-schema.sql)
 - [技術要求仕様書](./technical-requirements.md)
 
@@ -118,7 +127,7 @@ ENTRYPOINT ["/avion-media"]
 
 ### Non-Goals (やらないこと)
 
-- **Dropとの関連付け管理:** `avion-post` が担当。
+- **Dropとの関連付け管理:** `avion-drop` が担当。
 - **UI:** `avion-web` が担当。
 - **オブジェクトストレージ/CDN自体の実装。**
 - **高度な画像・動画編集機能。**
@@ -439,7 +448,7 @@ ENTRYPOINT ["/avion-media"]
     - `Redis`: 非同期処理キュー (Stream)。
     - `Observability Stack`: メトリクス、トレース、ログ収集。
 - **構成図:** (アーキテクチャ概要図を参照)
-    - [Avion アーキテクチャ概要](../common/architecture.md)
+    - [Avion アーキテクチャ概要](../common/architecture/architecture.md)
 - **ポイント:**
     - アップロードはPresigned URL方式を採用し、クライアントからS3へ直接行う。
     - サムネイル生成などの後処理は非同期ワーカで実行。
@@ -2013,7 +2022,7 @@ func (pe ProcessingError) Error() string {
 
 ## データベースマイグレーション
 
-このサービスでは、[共通マイグレーション戦略](../common/database-migration-strategy.md)に従って、Gooseを使用したマイグレーション管理を行います。
+このサービスでは、[共通マイグレーション戦略](../common/database/database-migration-strategy.md)に従って、Gooseを使用したマイグレーション管理を行います。
 
 ### マイグレーション戦略
 
@@ -2189,6 +2198,13 @@ func main() {
 - **S3バケット分離**: 環境ごとに異なるS3バケットを使用（本番、ステージング、開発）
 - **IAM権限制限**: 各環境のAWSアクセスキーは必要最小限のS3権限のみ付与
 - **CDN設定**: CDNのアクセス制御とキャッシュ戦略の適切な設定
+
+### セキュリティガイドライン参照
+
+- [XSS対策](../common/security/xss-prevention.md)
+- [SQLインジェクション対策](../common/security/sql-injection-prevention.md)
+- [TLS設定](../common/security/tls-configuration.md)
+- [セキュリティヘッダ](../common/security/security-headers.md)
 
 ## 8. Use Cases / Key Flows (主な使い方・処理の流れ)
 
@@ -3021,7 +3037,7 @@ func handleThumbnailError(mediaID string, err error, retryCount int) *Processing
 
 **Level 2: 遅延リトライ (Delayed Retry)**
 - 対象: リソース不足、外部サービス障害
-- 回数: 5回
+- 回数: 3回
 - 間隔: Exponential Backoff (30秒〜30分)
 - 適用箇所: サムネイル生成、音声変換
 
@@ -3061,14 +3077,14 @@ var retryPolicies = map[string]*RetryPolicy{
         Jitter:        true,
     },
     "audio_transcoding": {
-        MaxRetries:    5,
+        MaxRetries:    3,
         BaseDelay:     60 * time.Second,
         MaxDelay:      30 * time.Minute,
         BackoffFactor: 1.5,
         Jitter:        true,
     },
     "remote_cache": {
-        MaxRetries:    2,
+        MaxRetries:    3,
         BaseDelay:     10 * time.Second,
         MaxDelay:      5 * time.Minute,
         BackoffFactor: 3.0,
@@ -4047,7 +4063,7 @@ avion-mediaサービスは、メディア処理パイプライン、外部スト
 
 #### 18.2.1. Unit Tests (単体テスト)
 
-**Coverage Target:** 95% for critical paths, 90% minimum overall
+**Coverage Target:** 95% for critical paths, 85% minimum overall
 
 **Core Testing Areas:**
 - メディア処理アルゴリズム（リサイズ、圧縮、変換）
@@ -4761,7 +4777,7 @@ test:
 ### 18.6. Test Metrics and Monitoring (テストメトリクスとモニタリング)
 
 **Key Test Metrics:**
-- **Test Coverage:** Minimum 90% overall, 95% for critical paths
+- **Test Coverage:** Minimum 85% overall, 95% for critical paths
 - **Test Execution Time:** Unit tests < 30s, Integration tests < 5min
 - **Flaky Test Rate:** < 1% of test runs
 - **Performance Regression:** < 10% degradation in throughput

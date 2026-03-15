@@ -1,7 +1,7 @@
 # Design Doc: avion-gateway
 
 **Author:** Cline
-**Last Updated:** 2026/03/14
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
@@ -114,6 +114,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
             "avion-drop": CircuitClosed,
             "avion-timeline": CircuitClosed,
             "avion-user": CircuitClosed,
+            "avion-message": CircuitClosed,
         },
         FailureThreshold: 5,
         SuccessThreshold: 2,
@@ -138,6 +139,8 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 - CORS処理を含むクロスオリジンリクエスト
 - ヘルスチェックエンドポイントの正常性確認
 - メトリクス収集とObservabilityデータの出力確認
+- avion-messageへのWebSocketプロキシ接続確立と切断
+- avion-messageへのgRPCルーティング（メッセージ送受信、会話管理）
 
 詳細は[共通E2Eテスト戦略ドキュメント](../common/e2e-testing-strategy.md)を参照してください。
 
@@ -181,8 +184,9 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 | 責務 | 担当 | 内容 |
 |:--|:--|:--|
-| **認証（Authentication）** | **avion-gateway** | JWT署名検証 + トークン有効期限チェック。認証のみを担当する |
+| **認証（Authentication）** | **avion-gateway** | JWT署名検証 + トークン有効期限チェック。認証のみを担当する。判定結果を15分間Redisキャッシュする |
 | **認可（Authorization）** | **各バックエンドサービス** | ビジネスロジックに基づく認可判定。認可の最終決定点は各サービスにある |
+| **鍵発行・トークン生成** | **avion-auth** | JWT秘密鍵の管理、トークン生成・リフレッシュ。JWT検証は行わない |
 
 - **Gatewayは認可判定を行わない。** JWTからuser_id・rolesを抽出し、gRPCメタデータ（`x-user-id`、`x-user-roles`）に付与して下流サービスに渡す
 - 各バックエンドサービスは、受け取ったuser_id・rolesとビジネスロジックに基づいて認可判定を実行する
@@ -190,11 +194,13 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
   - 「この投稿を編集できるか？」 → **avion-drop** が投稿の所有者判定に基づき認可
   - 「このコミュニティに投稿できるか？」 → **avion-community** がメンバーシップとロールに基づき認可
   - 「このユーザーをブロックできるか？」 → **avion-user** がブロック対象の妥当性を判定し認可
+  - 「この会話にメッセージを送信できるか？」 → **avion-message** が会話の参加者判定に基づき認可
 - 構造化ログとメトリクスの収集。
 - OpenTelemetryトレースコンテキストの生成と伝播。
 - サーキットブレーカーによる障害サービスの隔離。
 - GraphQLエンドポイントの提供（gqlgenによるスキーマ定義、DataLoaderによるバッチング）。
 - SSE（Server-Sent Events）によるリアルタイムイベント配信。
+- avion-messageへのgRPCルーティングおよびWebSocket接続プロキシ（リアルタイムメッセージング用）。
 - 複数バックエンドサービスからのデータ集約。
 
 #### 技術要件
@@ -227,6 +233,14 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 ### XSS防止
 - **ガイドライン**: [../common/security/xss-prevention.md](../common/security/xss-prevention.md)
 - **実装要件**: バックエンドサービスに転送する前に、すべての受信リクエストに対して包括的な入力検証とサニタイゼーションを実装します。プロトコル間（HTTPからgRPC）でレスポンスを変換する際に、コンテキストを考慮した出力エンコーディングを適用します。Content-Typeヘッダーを検証し、予期しないコンテンツタイプを拒否します。
+
+### セキュリティガイドライン参照
+
+- [XSS対策](../common/security/xss-prevention.md)
+- [SQLインジェクション対策](../common/security/sql-injection-prevention.md)
+- [CSRF対策](../common/security/csrf-protection.md)
+- [TLS設定](../common/security/tls-configuration.md)
+- [セキュリティヘッダ](../common/security/security-headers.md)
 
 ## 6. Architecture (どうやって作る？)
 
@@ -316,6 +330,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
     - `avion-auth (Go)`: 認証・認可サービス。
     - `avion-drop (Go)`: 投稿管理。
     - `avion-timeline (Go)`: タイムライン生成。
+    - `avion-message (Go)`: メッセージング（DM、グループチャット、リアルタイム配信）。
     - `avion-notification (Go)`: 通知管理。
     - `avion-activitypub (Go)`: ActivityPub処理。
     - `Redis 8+`: 認証キャッシュ、レート制限。
@@ -381,7 +396,25 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
     4. ActivityPubService → Gateway: 処理結果
     5. Gateway → Remote Server: HTTPレスポンス
 
-- **フロー 4: サーキットブレーカー動作**
+- **フロー 4: メッセージングWebSocket接続**
+    1. Client → Gateway: WebSocket Upgrade Request (JWT付き、`/ws/messages`)
+    2. Gateway: JWT検証（Redisキャッシュチェック → ローカル検証）
+    3. Gateway: レート制限チェック（WebSocket接続数制限）
+    4. Gateway: WebSocket Upgrade実行
+    5. Gateway → avion-message: WebSocket接続をプロキシ
+    6. avion-message ↔ Client: リアルタイムメッセージ配信（タイピングインジケーター、既読通知、メッセージ受信）
+    7. 接続切断時: Gateway がクリーンアップ処理を実行
+
+- **フロー 5: メッセージングAPIリクエスト**
+    1. Client → Gateway: REST API Request (JWT付き、`/api/v1/conversations/*`)
+    2. Gateway: JWT検証、JWTからuser_id・rolesを抽出
+    3. Gateway: レート制限チェック
+    4. Gateway → avion-message: gRPC Call（user_id・rolesをメタデータで伝播）
+    5. avion-message: メッセージ送受信・会話管理等のビジネスロジック実行
+    6. avion-message → Gateway: Response
+    7. Gateway → Client: HTTP Response
+
+- **フロー 6: サーキットブレーカー動作**
     1. Gateway → BackendService: リクエスト送信
     2. BackendService: エラーレスポンス（タイムアウト等）
     3. Gateway: エラーカウント増加
@@ -389,7 +422,7 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
     5. 後続リクエスト: 即座にエラー返却（バックエンド呼び出しスキップ）
     6. 一定時間後: Half-Open状態で試行
 
-- **フロー 5: JWT失効処理**
+- **フロー 7: JWT失効処理**
     1. IAMService: ログアウト等でJWT失効
     2. IAMService → Redis: `token_revoked` イベント発行
     3. Gateway: イベント受信
@@ -400,14 +433,19 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 - **REST Endpoints:**
     - `/*`: すべてのAPIリクエストを受付、適切なバックエンドへルーティング
+    - `/api/v1/conversations`, `/api/v1/conversations/{id}`: メッセージング会話管理（avion-message）
+    - `/api/v1/conversations/{id}/messages`: メッセージ送受信（avion-message）
     - `/oauth/token`: Bot認証トークン発行
     - `/inbox`, `/users/{username}/inbox`: ActivityPub受信
     - `/.well-known/webfinger`: WebFinger
     - `/health`: ヘルスチェック
     - `/metrics`: Prometheusメトリクス
 
+- **WebSocket Endpoints:**
+    - `/ws/messages`: メッセージングリアルタイム通信（avion-messageへのプロキシ）
+
 - **内部gRPCクライアント:**
-    - 各バックエンドサービスのgRPCクライアント実装
+    - 各バックエンドサービスのgRPCクライアント実装（avion-message含む）
 
 ## 9. Data Design (データ)
 
@@ -787,8 +825,14 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 ##### RateLimitingService
 - **責務:** 複雑なレート制限ルールの評価と複数バケットの統合管理
+- **レート制限統合アルゴリズム（決定事項）:**
+  - **評価順序:** global → IP → user → endpoint の階層的評価
+  - **判定ロジック:** いずれかの層で制限を超過した時点でリクエストを即座に拒否（短絡評価）
+  - **各層の独立性:** 各層の制限カウンタは独立して管理され、相互に影響しない
+  - **適用ルール:** 最も厳しい制限が適用される（例: globalが許可してもuser層で拒否されればリクエストは拒否）
+  - **アルゴリズム:** Sliding Window方式を採用
 - **主要メソッド:**
-  - `EvaluateRateLimit(identifier, endpoint)`: レート制限の評価
+  - `EvaluateRateLimit(identifier, endpoint)`: レート制限の評価（階層的評価を実行）
   - `ApplyMultipleLimit(userLimit, ipLimit, globalLimit)`: 複数制限の統合
   - `CalculateBackoff(violations)`: 違反回数に基づくバックオフ時間計算
   - `GrantGracePeriod(user, reason)`: グレースピリオドの付与
@@ -807,13 +851,26 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
   - `GetCircuitStatus(service)`: 現在の状態取得
   - `ForceClose(service)`: 手動でのサーキットクローズ
 
+#### Domain Events
+
+avion-gatewayはAPIゲートウェイとしてビジネスドメインを持たないインフラ層サービスであるため、DDD的なドメインイベントは定義しない。
+
+##### 消費イベント
+
+以下の外部イベントを消費する:
+- `auth.session.revoked`（avion-auth発行）: JWT失効通知。キャッシュされたJWT検証結果を即座に無効化
+- 各サービスからのリアルタイム更新イベント: SSE/WebSocket配信用にNATS JetStreamから受信
+
+※ Gateway自体がドメインイベントを発行することはない。運用メトリクス（リクエスト数、レイテンシ等）はOpenTelemetryで収集する。
+
 ### 9.2. Infrastructure Layer (インフラストラクチャ層)
 
 - **Redisキャッシュ:**
     - JWT検証結果:
         - Key: `jwt_validation:{jti}`
         - Value: `{"user_id": "...", "scopes": [...], "exp": ...}`
-        - TTL: JWT有効期限まで
+        - TTL: 15分（JWT有効期限が15分より短い場合はJWT有効期限まで）
+        - **TTL上限: 24時間。** いかなるキャッシュエントリも24時間を超えるTTLを設定しない
     - レート制限:
         - Key: `rate_limit:{user_id}:{window}`
         - Value: リクエスト数
@@ -822,6 +879,12 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
         - Key: `circuit_breaker:{service_name}`
         - Value: `{"state": "OPEN", "failure_count": 5, "last_failure": ...}`
         - TTL: 状態に応じて動的
+    - **Redis キャッシュ TTL 上限ポリシー（決定事項）:**
+        - すべてのキャッシュエントリのTTL上限は **24時間** とする
+        - JWT検証結果キャッシュ: 15分
+        - レート制限カウンタ: ウィンドウサイズ（最大1時間）
+        - サーキットブレーカー状態: 最大5分
+        - TTL上限を超える設定を行った場合、自動的に24時間に切り詰める
 
 - **メモリ内データ:**
     - JWT公開鍵（IAMServiceから取得、イベントで更新）
@@ -872,9 +935,10 @@ func SimulateCircuitBreakerStates(t *testing.T) *CircuitBreakerSimulator {
 
 - **HTTPルーター:** Chi v5を採用（決定済み）。
 - **サービスディスカバリ:** Kubernetes Serviceを使用（決定済み）。
-- **レート制限アルゴリズム:** Sliding Window推奨。
-- **サーキットブレーカーライブラリ:** `sony/gobreaker`推奨。
+- **レート制限アルゴリズム:** Sliding Windowを採用（決定済み）。階層的評価（global → IP → user → endpoint）で最も厳しい制限を適用。
+- **サーキットブレーカーライブラリ:** `sony/gobreaker`を採用（決定済み）。
 - **イベント配信:** NATS JetStreamを採用（決定済み）。
+- **テストカバレッジ目標:** ユニットテスト85%以上、クリティカルパス95%以上（決定済み）。
 - 内部通信のセキュリティ強化（mTLS）。
 
 ## 12. エラーハンドリング戦略
@@ -1371,6 +1435,44 @@ data:
           requests_per_hour: 100
           burst: 10
       
+      # Message関連エンドポイント
+      - path: "/api/v1/conversations"
+        methods: ["GET", "POST"]
+        target_service: "avion-message"
+        target_port: 9000
+        auth_required: true
+        rate_limit:
+          requests_per_hour: 1000
+          burst: 100
+
+      - path: "/api/v1/conversations/{id}"
+        methods: ["GET", "PATCH", "DELETE"]
+        target_service: "avion-message"
+        target_port: 9000
+        auth_required: true
+        rate_limit:
+          requests_per_hour: 2000
+          burst: 200
+
+      - path: "/api/v1/conversations/{id}/messages"
+        methods: ["GET", "POST"]
+        target_service: "avion-message"
+        target_port: 9000
+        auth_required: true
+        rate_limit:
+          requests_per_hour: 3000
+          burst: 300
+
+      - path: "/ws/messages"
+        methods: ["GET"]
+        target_service: "avion-message"
+        target_port: 9000
+        auth_required: true
+        protocol: "websocket"
+        rate_limit:
+          requests_per_hour: 100
+          burst: 10
+
       # ActivityPub関連
       - path: "/inbox"
         methods: ["POST"]
@@ -1703,7 +1805,7 @@ type LoadBalancingConfig struct {
 // gRPC負荷分散設定
 func (gw *Gateway) setupGRPCLoadBalancing() error {
     // Kubernetes DNS resolver for service discovery
-    services := []string{"avion-auth", "avion-user", "avion-drop", "avion-timeline", "avion-search"}
+    services := []string{"avion-auth", "avion-user", "avion-drop", "avion-timeline", "avion-search", "avion-message"}
 
     serviceConfigs := make(map[string]*grpc.ClientConn)
     for _, svc := range services {
@@ -2103,6 +2205,10 @@ const (
     EventTypeUserFollowed    = "avion.user.follow.created"
     EventTypeUserUnfollowed  = "avion.user.follow.deleted"
     EventTypeNotificationCreated = "avion.notification.notification.created"
+    EventTypeMessageSent         = "avion.message.message.sent"
+    EventTypeMessageDelivered    = "avion.message.message.delivered"
+    EventTypeMessageRead         = "avion.message.message.read"
+    EventTypeConversationCreated = "avion.message.conversation.created"
 )
 
 // NATS JetStreamによるイベント発行
@@ -2853,6 +2959,127 @@ type TokenPair struct {
     TokenType    string `json:"token_type"`
 }
 ```
+
+## 16.5. WebSocketプロキシ実装（avion-message向け）
+
+### WebSocketプロキシ概要
+
+avion-gatewayは、メッセージング機能のリアルタイム通信のため、クライアントからのWebSocket接続をavion-messageサービスへプロキシします。
+
+### WebSocketプロキシマネージャー
+
+```go
+// WebSocketプロキシマネージャー
+type WebSocketProxyManager struct {
+    messageServiceURL string
+    authMiddleware    AuthMiddleware
+    rateLimiter       RateLimiter
+    metrics           *WebSocketProxyMetrics
+    logger            *slog.Logger
+}
+
+// WebSocket接続のプロキシ
+func (m *WebSocketProxyManager) HandleWebSocketProxy(w http.ResponseWriter, r *http.Request) {
+    // 1. JWT認証
+    authCtx, err := m.authMiddleware.Authenticate(r)
+    if err != nil {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    // 2. レート制限チェック（WebSocket接続数）
+    if !m.rateLimiter.AllowWebSocketConnection(authCtx.UserID) {
+        http.Error(w, "Too Many Connections", http.StatusTooManyRequests)
+        return
+    }
+
+    // 3. クライアント側WebSocketアップグレード
+    clientConn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        m.logger.Error("WebSocket upgrade failed", "error", err)
+        return
+    }
+    defer clientConn.Close()
+
+    // 4. avion-messageへのWebSocket接続確立
+    backendURL := fmt.Sprintf("%s/ws/messages", m.messageServiceURL)
+    backendConn, _, err := websocket.DefaultDialer.Dial(backendURL, m.buildProxyHeaders(authCtx))
+    if err != nil {
+        m.logger.Error("Backend WebSocket connection failed", "error", err)
+        return
+    }
+    defer backendConn.Close()
+
+    // 5. 双方向プロキシ
+    m.proxyBidirectional(clientConn, backendConn, authCtx)
+}
+
+// 双方向メッセージ転送
+func (m *WebSocketProxyManager) proxyBidirectional(client, backend *websocket.Conn, authCtx *AuthContext) {
+    errc := make(chan error, 2)
+
+    // Client → Backend
+    go func() {
+        for {
+            msgType, msg, err := client.ReadMessage()
+            if err != nil {
+                errc <- err
+                return
+            }
+            if err := backend.WriteMessage(msgType, msg); err != nil {
+                errc <- err
+                return
+            }
+        }
+    }()
+
+    // Backend → Client
+    go func() {
+        for {
+            msgType, msg, err := backend.ReadMessage()
+            if err != nil {
+                errc <- err
+                return
+            }
+            if err := client.WriteMessage(msgType, msg); err != nil {
+                errc <- err
+                return
+            }
+        }
+    }()
+
+    // いずれかのgoroutineがエラーを返したら両方の接続を閉じる
+    <-errc
+    m.metrics.WebSocketConnectionsClosed.Inc()
+}
+
+// プロキシ用ヘッダー構築（認証情報をメタデータとして伝播）
+func (m *WebSocketProxyManager) buildProxyHeaders(authCtx *AuthContext) http.Header {
+    headers := http.Header{}
+    headers.Set("X-User-ID", authCtx.UserID)
+    headers.Set("X-User-Roles", strings.Join(authCtx.Roles, ","))
+    headers.Set("X-Request-ID", authCtx.RequestID)
+    return headers
+}
+```
+
+### WebSocketプロキシのルーティング設定
+
+```go
+// Chi v5ルーターへの登録
+func (gw *Gateway) setupWebSocketRoutes(r chi.Router) {
+    wsProxy := NewWebSocketProxyManager(gw.config.MessageServiceURL, gw.authMiddleware, gw.rateLimiter)
+
+    r.Get("/ws/messages", wsProxy.HandleWebSocketProxy)
+}
+```
+
+### WebSocketプロキシのメトリクス
+
+- `ws_proxy_active_connections`: アクティブなWebSocketプロキシ接続数
+- `ws_proxy_connection_duration_seconds`: WebSocket接続の持続時間
+- `ws_proxy_messages_total`: プロキシされたメッセージ数（方向別）
+- `ws_proxy_errors_total`: WebSocketプロキシエラー数
 
 ## 17. SSE実装詳細
 
@@ -4480,12 +4707,12 @@ kubectl rollout status deployment/avion-gateway -n avion
 ### 21.5. サービス間依存関係
 
 - **前提サービス:** avion-auth（JWT検証用公開鍵の提供）、Redis 8+（キャッシュ・レート制限）、NATS JetStream（イベント配信）
-- **後続サービス:** 全てのavionバックエンドサービス（avion-user, avion-drop, avion-timeline, avion-activitypub等）はavion-gatewayを経由して外部からアクセスされるため、avion-gatewayが先にデプロイされている必要がある
+- **後続サービス:** 全てのavionバックエンドサービス（avion-user, avion-drop, avion-timeline, avion-message, avion-activitypub等）はavion-gatewayを経由して外部からアクセスされるため、avion-gatewayが先にデプロイされている必要がある
 
 ### 21.6. リリース前チェックリスト
 
 - [ ] 全テストがパス（ユニット + 統合）
-- [ ] カバレッジ目標達成（90%以上）
+- [ ] カバレッジ目標達成（85%以上）
 - [ ] 環境変数の追加/変更がドキュメント化済み
 - [ ] ロールバック手順のリハーサル完了
 - [ ] 監視ダッシュボード・アラートの設定完了

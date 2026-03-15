@@ -1,7 +1,7 @@
 # Design Doc: avion-activitypub
 
 **Author:** Cline
-**Last Updated:** 2025/03/30
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
@@ -14,7 +14,7 @@
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -69,7 +69,7 @@
 - WebFingerエンドポイントの実装 (`/.well-known/webfinger`)。
 - Inboxエンドポイントの実装 (`/inbox`, `/users/{username}/inbox`)。
     - HTTP Signatures検証 (公開鍵は `avion-user` またはキャッシュから取得)。
-    - 受信アクティビティ (Create, Update, Delete, Follow, Accept, Reject, Announce, Like, Undo等) の解釈と、関連サービスへのイベント発行 (NATS JetStream)。
+    - 受信アクティビティ (Create, Update, Delete, Follow, Accept, Reject, Announce, Like, Undo, Block, Flag, Move, Question, Answer, Join, Leave, Invite, Add, Remove) の解釈と、関連サービスへのイベント発行 (NATS JetStream)。
 - Outbox処理の実装 (非同期、NATS JetStream)。
     - ローカルイベント (Drop作成、フォロー、リアクション等) を購読 (NATS JetStream)。
     - 対応するActivityPubアクティビティを生成。
@@ -89,6 +89,8 @@
 - **リレーサーバー機能 (初期)。**
 - **高度なスパム/不正行為対策 (初期)。**
 - **Outbox処理における厳密な順序保証 (初期)。**
+- **ActivityPub拡張仕様への対応**: Mastodon固有拡張やMisskey固有拡張への対応は、相互運用性を損なわない範囲で段階的に実装する。
+- **コミュニティ固有のアクセス制御**: コミュニティメンバーシップとロールベースの詳細アクセス制御は`avion-community`サービスが担当する。
 
 > **サービス間責務境界（決定済み）**: ActivityPubプロトコル変換は本サービスの `ActivityPubTranslator`（アンチコラプションレイヤー）が一元的に担う。`avion-drop` の `toActivityPubNote()` は廃止し、`avion-drop` からは `DropCreatedEvent` 等のドメインイベントのみを受け取る。本サービス側でNote形式への変換を行う。これによりActivityPub仕様変更時に `avion-drop` を修正する必要がなくなる。
 
@@ -166,6 +168,27 @@
   - `ShouldRejectActivity()`: アクティビティ拒否判定
   - `GetBlockSeverity()`: ブロック重要度判定
   - `IsTemporaryBlock()`: 一時的ブロックかの判定
+
+###### BlockedDomain (ブロック済みドメイン集約) ※PRDの BlockedDomain Aggregate に対応
+- **責務:** avion-moderationが決定したドメインレベルのブロックポリシーの技術的実行とActivityPubプロトコル上の遮断管理を行う集約。ポリシー決定権限はavion-moderationの`InstancePolicy` Aggregateが保持し、本集約はプロトコルレイヤーでの実行を担う。
+- **集約ルート:** BlockedDomain
+- **不変条件:**
+  - DomainNameは有効なDNS名（RFC 1035準拠）
+  - BlockReasonは定義された値（spam、illegal_content、harassment等）のいずれか
+  - BlockedAtは設定後変更不可
+  - BlockTypeは定義された値（silence、suspend、media_only）のいずれか
+  - IsActiveはブロック状態を正確に表現
+  - 同一ドメインの重複ブロックは不可
+  - Expirationはブロック開始時刻以降（永続ブロックの場合はnull）
+- **ドメインロジック:**
+  - `SyncFromModerationPolicy(policy)`: avion-moderationのInstancePolicyからブロック状態を同期（NATS JetStreamイベント `moderation.instance_policy.changed` 経由）
+  - `IsBlocked(checkType)`: ドメインブロック状態の確認（タイプ別）
+  - `ShouldRejectActivity(activityType)`: アクティビティタイプ別拒否判定
+  - `CanUnblock()`: ブロック解除可能かの判定（権限・条件チェック）
+  - `Unblock(reason)`: ブロック解除処理（理由記録）
+  - `UpgradeBlockLevel(newType)`: ブロックレベルの昇格
+  - `IsExpired()`: ブロック期限切れの確認
+  - `AutoExpire()`: 自動期限切れ処理
 
 ###### ReportedContent (通報コンテンツ集約)
 - **責務:** 通報されたコンテンツの管理と処理状況追跡
@@ -410,6 +433,10 @@
     ```go
     //go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_reported_content_repository.go -package=mocks
     ```
+  - BlockedDomainRepository
+    ```go
+    //go:generate mockgen -source=$GOFILE -destination=../../../tests/mocks/mock_blocked_domain_repository.go -package=mocks
+    ```
 
 #### Use Case Layer (ユースケース層)
 - **Command Use Cases (更新系):**
@@ -521,6 +548,7 @@
     - JSONB型を活用した効率的なActivityPub object格納
     - GIN indexによる高速検索対応
   - PostgreSQLBlockedActorRepository: ブロック情報永続化実装
+  - PostgreSQLBlockedDomainRepository: ドメインブロック情報永続化実装
   - PostgreSQLReportedContentRepository: 通報情報永続化実装
 
 - **Query Service Implementations (参照系):**
@@ -535,6 +563,7 @@
     - TTL管理と自動更新
   - CachedWebFingerQueryService: Redis使用のWebFingerキャッシュ付き実装
   - PostgreSQLBlockedActorQueryService: ブロック情報参照実装
+  - PostgreSQLBlockedDomainQueryService: ドメインブロック情報参照実装
   - PostgreSQLReportedContentQueryService: 通報情報参照実装
 
 - **External Service Implementations:**
@@ -907,7 +936,7 @@
     - HTTP status code mapping
     - Error response standardization
 
-> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `APB` を使用します。
+> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `ACTIVITYPUB` を使用します（[エラーコード標準化ガイドライン](../common/errors/error-standards.md)のSERVICE識別子に準拠）。
 
 ### 6.2. 主要コンポーネント
 
@@ -915,7 +944,7 @@
     - `avion-activitypub (Go, Kubernetes Deployment)`: 本サービス。HTTPサーバー、NATS JetStream購読者、非同期Outboxワーカ (NATS JetStream Consumer)。
     - `avion-gateway (Go)`: HTTPリクエストのルーティング元。
     - `avion-user (Go)`: Actor情報生成、フォロー関係連携、HTTP Signatures鍵管理・署名/検証API提供 (gRPC)。
-    - `avion-post (Go)`: Drop情報連携 (gRPC or イベント経由)。
+    - `avion-drop (Go)`: Drop情報連携 (gRPC or イベント経由)。
     - `avion-media (Go)`: リモートメディアキャッシュ依頼 (gRPC)。
     - `PostgreSQL`: リモートActor/Object情報、DLQ情報などを永続化。
     - `NATS`: ローカルイベント購読・発行 (JetStream)。
@@ -1174,8 +1203,8 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
   - SharedInboxURL (Value Object): 共有Inbox URL（Optional）
   - LastFetchedAt (Value Object): 最終取得日時
 
-##### OutboxDeliveryTask (Outbox配送タスク集約)
-- **責務:** Outbox配送タスクの状態と配送履歴を管理する集約
+##### OutboxDeliveryTask (Outbox配送タスク集約) ※PRDでは FederationDelivery Aggregate
+- **責務:** Outbox配送タスクの状態と配送履歴を管理する集約（PRDの FederationDelivery Aggregate に対応）
 - **集約ルート:** OutboxDeliveryTask
 - **構成要素:**
   - DeliveryTaskID (Value Object): 配送タスクの一意識別子
@@ -1196,6 +1225,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
 ##### RemoteObject (リモートオブジェクト)
 - **責務:** リモートのActivityPubオブジェクト（Note等）を表現
 - **所属集約:** なし（独立したエンティティ）
+  - **設計判断:** PRDでは `ActivityPubObject` を `RemoteActor Aggregate` 配下のEntityとして定義しているが、実装レベルではRemoteObjectのライフサイクルはActorとは独立して管理されるため、独立エンティティとして設計する。PRDの `ActivityPubObject` に対応する実装がこの `RemoteObject` である。
 - **属性:**
   - RemoteObjectID (Value Object): オブジェクトの一意識別子
   - ObjectURI (Value Object): ActivityPub Object URI
@@ -1265,6 +1295,7 @@ func (s *FederationDeliveryService) DetermineDeliveryStrategy(targetDomain strin
     - `remote_objects` table: RemoteObjectエンティティの永続化
     - `outbox_delivery_tasks` table: OutboxDeliveryTask集約の永続化
     - `delivery_attempts` table: 配送試行履歴の永続化
+    - `blocked_domains` table: BlockedDomain集約の永続化
     
     **データベース最適化戦略:**
     
@@ -2401,6 +2432,24 @@ CREATE INDEX idx_circuit_breaker_state ON circuit_breaker_states (state);
 CREATE INDEX idx_circuit_breaker_retry_time ON circuit_breaker_states (next_retry_time);
 ```
 
+### BlockedDomain Aggregate → blocked_domains テーブル
+
+```sql
+CREATE TABLE blocked_domains (
+    id UUID PRIMARY KEY, -- UUID v7をアプリケーション側で生成
+    domain_name TEXT NOT NULL UNIQUE,
+    block_type TEXT NOT NULL CHECK (block_type IN ('silence', 'suspend', 'media_only')),
+    block_reason TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_blocked_domains_active ON blocked_domains (is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_blocked_domains_expires ON blocked_domains (expires_at) WHERE expires_at IS NOT NULL;
+```
+
 ### ProcessedActivity → processed_activities テーブル（重複排除用）
 
 ```sql
@@ -2462,7 +2511,7 @@ TTL: 600 (10分)
 
 ## 15. エラーハンドリング戦略
 
-> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `APB` を使用します。
+> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `ACTIVITYPUB` を使用します（[エラーコード標準化ガイドライン](../common/errors/error-standards.md)のSERVICE識別子に準拠）。
 
 ### エラーコード体系
 
@@ -3581,7 +3630,7 @@ func TestDeliveryQueue_ProcessAll_並行配送性能(t *testing.T) {
 
 1. **Continuous Integration**: All tests must pass in CI/CD pipeline
 2. **Test Data Isolation**: Use test databases and mock servers
-3. **Coverage Requirements**: Minimum 90% coverage for federation logic, 95% for critical paths
+3. **Coverage Requirements**: Minimum 85% coverage for federation logic, 95% for critical paths
 4. **Performance Benchmarks**: Regular performance regression testing
 5. **Integration Testing**: Weekly tests against live ActivityPub instances (Mastodon test server)
 

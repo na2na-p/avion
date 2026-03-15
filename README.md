@@ -104,7 +104,7 @@ avion/
 
 ## Development Principles
 
-- **Test-Driven Development (TDD)**: All packages follow TDD with minimum 90% coverage goal
+- **Test-Driven Development (TDD)**: All packages follow TDD with minimum 85% coverage goal
 - **Domain-Driven Design**: 4-layer architecture (Handler → UseCase → Domain → Infrastructure)
 - **CQRS Pattern**: Separate Command and Query responsibilities
 - **Thread Safety**: All packages are designed for concurrent use

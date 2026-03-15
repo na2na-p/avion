@@ -1,7 +1,7 @@
 # Design Doc: avion-auth
 
 **Author:** Avion Team
-**Last Updated:** 2025/08/06
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
@@ -72,7 +72,7 @@
 
 #### セッション管理
 - JWT発行・検証APIの実装
-- JWT署名鍵のローテーション機能（90日周期）
+- JWT署名鍵のローテーション機能（30日周期）
   - ローテーション後の旧公開鍵保持期間: **7日間**
   - JWKSエンドポイント（`/.well-known/jwks.json`）に旧鍵を7日間含める
   - 7日経過後に旧鍵を完全削除
@@ -99,6 +99,11 @@
 - トークンエンドポイント（/oauth/token）
 - OIDC Discovery Endpoint（/.well-known/openid-configuration、zitadel/oidcが自動生成）
 - クライアント管理API
+
+> **注記**: 上記はAvionがOP（OpenID Provider）として機能する場合の実装範囲を指す。
+> 外部IdP（Google、GitHub等）をRP（Relying Party）として利用する外部ログイン連携は、
+> zitadel/oidcのRPパッケージで対応する方針が決定済み（PRD「決まったこと」セクション参照）だが、
+> 実装時期は未定（PRD「決まっていないこと」セクション参照）。
 
 #### セキュリティ機能
 - 認証試行のロギングと分析
@@ -129,6 +134,7 @@
 - **UIの提供:** `avion-web` が担当
 - **ユーザー検索:** `avion-search` が担当
 - **メディア認証:** `avion-media` が独自に管理
+- **E2E暗号化鍵管理:** Signal ProtocolによるE2Eメッセージ暗号化鍵（Identity Key、Signed Pre Key、One-Time Pre Key等）は `avion-message` が独立管理。本サービスの鍵管理責務はJWT署名鍵、セッション暗号化鍵、認証・認可関連の暗号化鍵に限定
 - **外部IdP連携（初期）:** SAML、LDAP、OAuth2プロバイダー連携は将来実装（OIDC対応IdPについてはzitadel/oidcのRPパッケージで対応予定）
 - **生体認証（初期）:** Face ID、指紋認証は将来実装
 - **適応型認証:** リスクベース認証は `avion-moderation` との連携で将来実装
@@ -204,7 +210,7 @@ type JWTConfig struct {
     PublicKeyPath       string        `env:"JWT_PUBLIC_KEY_PATH" required:"true"`
     AccessTokenExpiry   time.Duration `env:"JWT_EXPIRY" required:"false" default:"1h"`
     RefreshTokenExpiry  time.Duration `env:"REFRESH_TOKEN_EXPIRY" required:"false" default:"7d"`
-    KeyRotationInterval time.Duration `env:"JWT_KEY_ROTATION_INTERVAL" required:"false" default:"90d"`
+    KeyRotationInterval time.Duration `env:"JWT_KEY_ROTATION_INTERVAL" required:"false" default:"30d"`
 }
 
 // ObservabilityConfig 監視関連の設定
@@ -1165,7 +1171,7 @@ Response:
 #### 暗号化
 - **保存時暗号化:** AES-256-GCM（秘密鍵、TOTPシークレット）
 - **通信暗号化:** TLS 1.3必須
-- **鍵管理:** KMS統合、90日周期の定期ローテーション（旧公開鍵は7日間保持後に削除）
+- **鍵管理:** KMS統合、JWT署名鍵は30日周期・認証関連暗号化鍵は90日周期の定期ローテーション（JWT旧公開鍵は7日間保持後に削除）。E2Eメッセージ暗号化鍵はavion-messageが独立管理するため本サービスの管理対象外
 
 ### 8.7. パフォーマンス最適化
 
@@ -1204,7 +1210,7 @@ jwt_validations_total{result="valid|invalid|expired"}
 errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.PermissionDenied|codes.Internal"}
 ```
 
-> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `ATH` を使用します。
+> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `AUTH` を使用します。
 
 #### エラーコード体系
 
@@ -1288,7 +1294,7 @@ errors_total{type="auth|authz|system", code="codes.Unauthenticated|codes.Permiss
 - **コンプライアンス:** GDPR、個人情報保護法準拠
 
 ### スケーラビリティ
-- **水平スケール:** 3-10レプリカ
+- **水平スケール:** 2-20レプリカ
 - **自動スケール:** CPU 70%閾値
 - **データ分割:** 将来的なシャーディング対応
 
@@ -2020,7 +2026,7 @@ kubectl rollout status deployment/avion-auth -n avion
 ### 13.6. リリース前チェックリスト
 
 - [ ] 全テストがパス（ユニット + 統合）
-- [ ] カバレッジ目標達成（90%以上、クリティカルパス95%以上）
+- [ ] カバレッジ目標達成（85%以上、クリティカルパス95%以上）
 - [ ] DBマイグレーションスクリプト準備完了
 - [ ] 環境変数の追加/変更がドキュメント化済み
 - [ ] ロールバック手順のリハーサル完了

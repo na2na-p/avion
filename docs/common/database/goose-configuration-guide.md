@@ -1,6 +1,6 @@
 # Goose マイグレーションツール統一設定ガイド
 
-**Last Updated:** 2025/01/13  
+**Last Updated:** 2026/03/15  
 **Tool Version:** Goose v3.x  
 **Status:** 標準ツール
 
@@ -68,7 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/pressly/goose/master/install.sh | s
 
 ```dockerfile
 # Dockerfile
-FROM golang:1.21-alpine AS goose-builder
+FROM golang:1.25-alpine AS goose-builder
 RUN go install github.com/pressly/goose/v3/cmd/goose@v3.18.0
 
 FROM alpine:3.19

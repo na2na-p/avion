@@ -1,8 +1,8 @@
 # NATS JetStream イベントバス設計
 
-**Last Updated:** 2026/03/14
+**Last Updated:** 2026/03/15
 **Author:** Claude Code
-**Status:** 提案中
+**Status:** 採用済み
 **Compliance:** Production Ready
 
 ## 概要
@@ -59,6 +59,7 @@ graph TD
         CommunityService["avion-community"]
         SystemAdminService["avion-system-admin"]
         MediaService["avion-media"]
+        MessageService["avion-message"]
     end
 
     subgraph "NATS JetStream Cluster"
@@ -70,9 +71,10 @@ graph TD
         StreamCommunity["Stream: COMMUNITY"]
         StreamSystem["Stream: SYSTEM"]
         StreamMedia["Stream: MEDIA"]
+        StreamMessage["Stream: MESSAGE"]
     end
 
-    subgraph "Event Consumers"
+    subgraph "Event Consumers (専用)"
         TimelineService["avion-timeline"]
         NotificationService["avion-notification"]
         SearchService["avion-search"]
@@ -87,6 +89,7 @@ graph TD
     CommunityService -- "Publish" --> StreamCommunity
     SystemAdminService -- "Publish" --> StreamSystem
     MediaService -- "Publish" --> StreamMedia
+    MessageService -- "Publish" --> StreamMessage
 
     StreamDrop -- "Subscribe" --> TimelineService
     StreamDrop -- "Subscribe" --> NotificationService
@@ -97,7 +100,23 @@ graph TD
     StreamUser -- "Subscribe" --> ActivityPubService
     StreamAuth -- "Subscribe" --> GatewayService
     StreamModeration -- "Subscribe" --> NotificationService
+    StreamMessage -- "Subscribe" --> NotificationService
+    StreamMessage -- "Subscribe" --> SearchService
     StreamMedia -- "Subscribe" --> DropService
+    StreamDrop -- "Subscribe" --> UserService
+    StreamModeration -- "Subscribe" --> UserService
+    StreamDrop -- "Subscribe" --> ModerationService
+    StreamUser -- "Subscribe" --> ModerationService
+    StreamUser -- "Subscribe" --> DropService
+    StreamModeration -- "Subscribe" --> DropService
+    StreamDrop -- "Subscribe" --> MediaService
+    StreamUser -- "Subscribe" --> TimelineService
+    StreamAuth -- "Subscribe" --> NotificationService
+    StreamCommunity -- "Subscribe" --> NotificationService
+    StreamSystem -- "Subscribe" --> NotificationService
+    StreamMedia -- "Subscribe" --> NotificationService
+    StreamCommunity -- "Subscribe" --> ActivityPubService
+    StreamSystem -- "Subscribe" --> GatewayService
 
     NATS --- StreamAuth
     NATS --- StreamUser
@@ -106,6 +125,7 @@ graph TD
     NATS --- StreamCommunity
     NATS --- StreamSystem
     NATS --- StreamMedia
+    NATS --- StreamMessage
 ```
 
 ### 1.2 設計原則
@@ -143,8 +163,12 @@ avion.{service}.{aggregate}.{event_type}
 |:--|:--|
 | `avion.auth.session.created` | ユーザーログイン |
 | `avion.auth.session.revoked` | セッション無効化 |
+| `avion.auth.role.changed` | ロール付与・変更 |
 | `avion.auth.policy.updated` | 認可ポリシー更新 |
 | `avion.auth.passkey.registered` | Passkey 登録 |
+| `avion.auth.account.password_changed` | パスワード変更 |
+| `avion.auth.account.locked` | アカウントロック |
+| `avion.auth.security.anomalous_login` | 異常ログイン検知 |
 
 #### avion-user
 
@@ -169,6 +193,11 @@ avion.{service}.{aggregate}.{event_type}
 | `avion.drop.drop.deleted` | Drop 削除 |
 | `avion.drop.reaction.created` | リアクション追加 |
 | `avion.drop.reaction.deleted` | リアクション削除 |
+| `avion.drop.bookmark.created` | ブックマーク追加 |
+| `avion.drop.bookmark.deleted` | ブックマーク削除 |
+| `avion.drop.poll.voted` | 投票参加 |
+| `avion.drop.poll.closed` | 投票終了 |
+| `avion.drop.renote.created` | リポスト |
 
 #### avion-moderation
 
@@ -177,6 +206,7 @@ avion.{service}.{aggregate}.{event_type}
 | `avion.moderation.report.created` | 通報作成 |
 | `avion.moderation.action.executed` | モデレーションアクション実行 |
 | `avion.moderation.filter.updated` | フィルター更新 |
+| `avion.moderation.instance_policy.changed` | インスタンスポリシー変更 |
 
 #### avion-community
 
@@ -194,6 +224,10 @@ avion.{service}.{aggregate}.{event_type}
 |:--|:--|
 | `avion.system.config.updated` | システム設定更新 |
 | `avion.system.announcement.created` | アナウンス作成 |
+| `avion.system.ratelimit.updated` | レート制限ルール更新 |
+| `avion.system.backup.completed` | バックアップ完了 |
+| `avion.system.maintenance.activated` | メンテナンスモード有効化 |
+| `avion.system.security.alert` | セキュリティアラート |
 
 #### avion-media
 
@@ -202,6 +236,22 @@ avion.{service}.{aggregate}.{event_type}
 | `avion.media.upload.completed` | メディアアップロード完了 |
 | `avion.media.processing.completed` | メディア処理完了 |
 | `avion.media.processing.failed` | メディア処理失敗 |
+| `avion.media.upload.deleted` | メディア削除 |
+| `avion.media.usage.updated` | メディア利用状況更新（NSFW フラグ等） |
+
+#### avion-message
+
+| Subject | 説明 |
+|:--|:--|
+| `avion.message.conversation.created` | 会話作成 |
+| `avion.message.conversation.updated` | 会話更新 |
+| `avion.message.conversation.deleted` | 会話削除 |
+| `avion.message.message.sent` | メッセージ送信 |
+| `avion.message.message.updated` | メッセージ編集 |
+| `avion.message.message.deleted` | メッセージ削除 |
+| `avion.message.participant.joined` | 参加者追加 |
+| `avion.message.participant.left` | 参加者退出 |
+| `avion.message.delivery.read` | 既読 |
 
 ### 2.3 ワイルドカード購読パターン
 
@@ -231,6 +281,7 @@ avion.user.follow.*       # フォロー関連の全イベント
 | `COMMUNITY` | `avion.community.>` | Limits | 7日間 | 3GB | 3 |
 | `SYSTEM` | `avion.system.>` | Limits | 30日間 | 1GB | 3 |
 | `MEDIA` | `avion.media.>` | Limits | 3日間 | 2GB | 3 |
+| `MESSAGE` | `avion.message.>` | Limits | 7日間 | 5GB | 3 |
 
 ### 3.2 Stream 設定例
 
@@ -267,15 +318,35 @@ streamConfig := &nats.StreamConfig{
 | Consumer 名 | 購読対象 Stream | Subject フィルタ | 配信ポリシー | Ack ポリシー |
 |:--|:--|:--|:--|:--|
 | `timeline-drop-consumer` | DROP | `avion.drop.>` | DeliverAll | Explicit |
-| `timeline-user-consumer` | USER | `avion.user.follow.*` | DeliverAll | Explicit |
+| `timeline-user-consumer` | USER | `avion.user.follow.*`, `avion.user.block.*`, `avion.user.mute.*` | DeliverAll | Explicit |
 | `notification-drop-consumer` | DROP | `avion.drop.>` | DeliverAll | Explicit |
 | `notification-user-consumer` | USER | `avion.user.>` | DeliverAll | Explicit |
 | `notification-moderation-consumer` | MODERATION | `avion.moderation.>` | DeliverAll | Explicit |
+| `notification-auth-consumer` | AUTH | `avion.auth.>` | DeliverAll | Explicit |
+| `notification-message-consumer` | MESSAGE | `avion.message.>` | DeliverAll | Explicit |
+| `notification-community-consumer` | COMMUNITY | `avion.community.member.*` | DeliverAll | Explicit |
+| `notification-system-consumer` | SYSTEM | `avion.system.>` | DeliverAll | Explicit |
+| `notification-media-consumer` | MEDIA | `avion.media.processing.*` | DeliverAll | Explicit |
 | `search-drop-consumer` | DROP | `avion.drop.drop.*` | DeliverAll | Explicit |
 | `search-user-consumer` | USER | `avion.user.profile.*` | DeliverAll | Explicit |
+| `search-message-consumer` | MESSAGE | `avion.message.message.*` | DeliverAll | Explicit |
+| `search-community-consumer` | COMMUNITY | `avion.community.group.*` | DeliverAll | Explicit |
 | `activitypub-drop-consumer` | DROP | `avion.drop.>` | DeliverAll | Explicit |
 | `activitypub-user-consumer` | USER | `avion.user.>` | DeliverAll | Explicit |
+| `activitypub-moderation-consumer` | MODERATION | `avion.moderation.instance_policy.*` | DeliverAll | Explicit |
+| `activitypub-community-consumer` | COMMUNITY | `avion.community.>` | DeliverAll | Explicit |
 | `gateway-auth-consumer` | AUTH | `avion.auth.>` | DeliverNew | Explicit |
+| `gateway-system-consumer` | SYSTEM | `avion.system.>` | DeliverNew | Explicit |
+| `user-drop-consumer` | DROP | `avion.drop.>` | DeliverAll | Explicit |
+| `user-moderation-consumer` | MODERATION | `avion.moderation.action.*` | DeliverAll | Explicit |
+| `drop-media-consumer` | MEDIA | `avion.media.upload.*` | DeliverAll | Explicit |
+| `drop-user-consumer` | USER | `avion.user.profile.deleted` | DeliverAll | Explicit |
+| `drop-moderation-consumer` | MODERATION | `avion.moderation.action.*` | DeliverAll | Explicit |
+| `media-drop-consumer` | DROP | `avion.drop.drop.deleted` | DeliverAll | Explicit |
+| `moderation-drop-consumer` | DROP | `avion.drop.drop.created` | DeliverAll | Explicit |
+| `moderation-user-consumer` | USER | `avion.user.profile.created` | DeliverAll | Explicit |
+
+> **注**: ActivityPub サービスが受信するリモートサーバーからのイベント（`avion.activitypub.*`）は NATS Core（JetStream 非使用）で配信されます。リモートサーバーからの受信処理はリアルタイム性を優先し、永続化よりも低レイテンシを重視するためです。これらのイベントを購読する avion-user、avion-drop、avion-timeline 等のサービスは、NATS Core の Subscribe を使用します。将来的に配信信頼性の要件が高まった場合、ACTIVITYPUB Stream の導入を検討します。
 
 ### 4.2 Consumer 設定例
 

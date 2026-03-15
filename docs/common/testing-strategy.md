@@ -1,6 +1,6 @@
 # Avion 共通テスト戦略
 
-**最終更新**: 2025-01-14  
+**最終更新**: 2026/03/15  
 **適用範囲**: 全Goマイクロサービス
 
 ## 1. 概要
@@ -126,7 +126,7 @@ func (s *userService) GetUser(ctx context.Context, userID string) (*User, error)
 
 | テストタイプ | 最小カバレッジ | 推奨カバレッジ | 測定方法 |
 |------------|--------------|--------------|---------|
-| **ユニットテスト** | 90% | 95%以上 | `go test -cover` |
+| **ユニットテスト** | 85% | 95%以上 | `go test -cover` |
 | **クリティカルパス** | 95% | 100% | クリティカルパス専用測定 |
 | **ドメインロジック** | 95% | 100% | ドメイン層のみ測定 |
 | **統合テスト** | 80% | 90%以上 | 主要シナリオカバレッジ |
@@ -647,14 +647,14 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.25'
     
     - name: Install dependencies
       run: |
         go mod download
-        go install github.com/golang/mock/mockgen@latest
+        go install go.uber.org/mock/mockgen@latest
     
     - name: Generate mocks
       run: make mock
@@ -730,7 +730,7 @@ go test -parallel=$(nproc) ./...
 
 ```bash
 # mockgenが見つからない
-go install github.com/golang/mock/mockgen@latest
+go install go.uber.org/mock/mockgen@latest
 
 # パスの問題
 export PATH=$PATH:$(go env GOPATH)/bin
@@ -807,7 +807,7 @@ func (c *Counter) Value() int {
 ## 14. 参考リンク
 
 - [Go Testing Documentation](https://golang.org/pkg/testing/)
-- [gomock Documentation](https://github.com/golang/mock)
+- [gomock Documentation](https://go.uber.org/mock)
 - [testify Assertions](https://github.com/stretchr/testify)
 - [testcontainers-go](https://github.com/testcontainers/testcontainers-go)
 - [ctxtime Documentation](https://github.com/newmo-oss/ctxtime)

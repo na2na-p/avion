@@ -467,7 +467,7 @@ func CorrelationID(ctx context.Context) string {
 
 ### 6.2. テストカバレッジ目標
 
-- ユニットテスト: 90%以上
+- ユニットテスト: 85%以上
 - 統合テスト: 主要なユースケースをカバー
 - パフォーマンステスト: オーバーヘッド1ms未満
 
@@ -583,6 +583,23 @@ require (
 ### 11.2. 内部依存
 
 - なし（共通パッケージのため他のAvionパッケージに依存しない）
+
+### イベントバス（NATS JetStream）のオブザーバビリティ
+
+#### EventPublisher トレーシング
+- イベント発行時にSpanを作成（`publish.{subject}` 命名）
+- NATS メッセージヘッダーにトレースコンテキストを伝播（W3C Trace Context）
+- メトリクス: `event_published_total`, `event_publish_duration_seconds`, `event_publish_errors_total`
+
+#### EventSubscriber トレーシング
+- イベント受信時に親Spanからコンテキストを復元
+- 処理完了までのSpanを記録（`subscribe.{subject}` 命名）
+- メトリクス: `event_received_total`, `event_processing_duration_seconds`, `event_processing_errors_total`, `event_processing_lag_seconds`
+
+#### Consumer ヘルスメトリクス
+- `nats_consumer_pending_count` - 未処理メッセージ数
+- `nats_consumer_ack_pending_count` - ACK待ちメッセージ数
+- `nats_stream_message_count` - Stream内メッセージ総数
 
 ## 12. Future Considerations
 

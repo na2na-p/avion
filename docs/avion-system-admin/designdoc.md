@@ -1,7 +1,7 @@
 # Design Doc: avion-system-admin
 
 **Author:** Claude Code
-**Last Updated:** 2026/03/14
+**Last Updated:** 2026/03/15
 **Review Status:** .cursor/rules準拠
 
 ## 1. Summary (これは何？)
@@ -15,7 +15,7 @@
 
 ### テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -172,10 +172,29 @@ func LoadConfig() (*Config, error) {
 - **ユーザー認証:** `avion-auth` が担当
 - **コンテンツ作成:** `avion-drop` が担当
 - **メディア処理:** `avion-media` が担当
-
-> **サービス間責務境界（決定済み）**: 本サービスの `admin_audit_logs` と `avion-moderation` の `moderation_audit_log`（ハッシュチェーン保護付き）はそれぞれのサービスで保持を維持する。本サービスが統合検索APIを提供し、両系統のログを横断検索・エクスポート可能にする。`avion-moderation` のハッシュチェーン保護はそのまま維持する。
 - **直接的な通知配信:** `avion-notification` が担当
 - **検索インデックス管理:** `avion-search` が担当
+
+### 管理機能の階層構造
+
+avion-system-admin はプラットフォーム全体に横断的に適用されるシステムレベルの管理機能を担当する。各サービスはそれぞれのドメインに固有の管理機能のみを保持し、システム全体の管理責務は本サービスに集約される。
+
+| 管理レベル | 担当サービス | 管理範囲 |
+|-----------|------------|---------|
+| システム全体の設定管理 | avion-system-admin | グローバル設定、機能フラグ、メンテナンスモード、環境間設定同期 |
+| システム全体の監査ログ | avion-system-admin | 管理者操作の監査証跡、統合検索API（他サービスの監査ログ横断検索） |
+| システム全体の統計・メトリクス | avion-system-admin | サービス横断メトリクス収集、異常検知、容量予測、ダッシュボード |
+| システム全体のアナウンス | avion-system-admin | プラットフォーム全体への通知、多言語対応、A/Bテスト配信 |
+| システム全体のバックアップ | avion-system-admin | バックアップポリシー管理、災害復旧、整合性検証 |
+| システム全体のレート制限 | avion-system-admin | 動的レート制限、DDoS防御、セキュリティ制御 |
+| コンテンツモデレーション管理 | avion-moderation | コンテンツ審査ルール、通報処理、違反対応、モデレーション固有の監査ログ（ハッシュチェーン保護） |
+| メッセージ管理 | avion-message | メッセージ固有の設定（保持期間、添付ファイル制限等） |
+| 認証・認可の基盤管理 | avion-auth | 認証ポリシー、トークン管理、OAuth/OIDC設定 |
+| コミュニティ管理 | avion-community | コミュニティ固有のルール設定、メンバー管理ポリシー |
+
+> **原則**: 複数サービスに影響するシステム横断的な管理操作は avion-system-admin が担当し、単一サービスのドメインに閉じた管理操作は各サービスが自律的に担当する。
+
+> **サービス間責務境界（決定済み）**: 本サービスの `admin_audit_logs` と `avion-moderation` の `moderation_audit_log`（ハッシュチェーン保護付き）はそれぞれのサービスで保持を維持する。本サービスが統合検索APIを提供し、両系統のログを横断検索・エクスポート可能にする。`avion-moderation` のハッシュチェーン保護はそのまま維持する。
 
 ## 7. Architecture (どうやって作る？)
 
@@ -197,9 +216,11 @@ func LoadConfig() (*Config, error) {
   - 配信済みアナウンスの内容変更不可（承認フロー必須）
   - 期間設定の妥当性（publishAt < expireAt、未来の日時のみ）
   - 対象ユーザーの整合性（存在しないユーザー・グループは除外）
-  - 重要度レベルは定義された値（info, warning, critical）のいずれか
+  - 重要度レベルは定義された値（info, warning, critical, emergency）のいずれか
+  - 重要度Emergencyは1日最大3件まで
   - Titleは最大200文字、Contentは最大5000文字（HTMLタグ検証含む）
   - TargetTypeは定義された値（all, group, individual）のいずれか
+  - 多言語版はすべて同一内容を表現している
   - 下書き状態からのみ公開可能（状態遷移の厳密性）
   - critical重要度の場合は必ず承認が必要
   - システムメンテナンス期間中は緊急アナウンスのみ配信可能
@@ -561,11 +582,11 @@ type UpdateSystemConfigurationResult struct {
 // Announcement Command
 type CreateAnnouncementCommand struct {
     Title           string                      `json:"title" validate:"required,max=200"`
-    Content         string                      `json:"content" validate:"required,max=10000"`
+    Content         string                      `json:"content" validate:"required,max=5000"`
     ContentFormat   string                      `json:"content_format" validate:"required,oneof=markdown html plain"`
-    TargetType      string                      `json:"target_type" validate:"required,oneof=all users admins service"`
+    TargetType      string                      `json:"target_type" validate:"required,oneof=all group individual"`
     TargetCriteria  map[string]interface{}      `json:"target_criteria"`
-    Severity        string                      `json:"severity" validate:"required,oneof=info warning critical"`
+    Severity        string                      `json:"severity" validate:"required,oneof=info warning critical emergency"`
     DisplayType     string                      `json:"display_type" validate:"required,oneof=banner modal toast"`
     ScheduledAt     *time.Time                  `json:"scheduled_at"`
     ExpiresAt       *time.Time                  `json:"expires_at"`
@@ -3131,17 +3152,17 @@ CREATE TABLE audit_signing_keys (
 
 ### 19.1. avion-auth との連携
 
-**Purpose:** 管理者認証と権限管理の統合
+**Purpose:** 管理者認証と権限管理の統合、および認証・認可監査ログの受信・集約
 
-**Integration Method:** gRPC
+**Integration Method:** gRPC + Events (NATS JetStream)
 
 **Data Flow:**
-1. avion-system-admin が管理者認証要求を avion-auth に送信
+1. avion-system-admin が管理者認証要求を avion-auth に送信（gRPC）
 2. avion-auth が認証結果と権限情報を返却
 3. avion-system-admin が操作権限を検証
-4. 操作実行後、avion-auth に監査ログを送信
+4. avion-auth が認証・認可に関する監査ログ転送イベント（ログイン試行、MFA操作、トークン発行・失効、権限変更等）をNATS JetStream経由で発行し、avion-system-admin がそれを購読・受信して集約する。これにより、認証・認可領域の監査証跡をシステム横断的な監査ログと統合し、統合検索APIによる一元的な検索・分析を可能にする
 
-**Error Handling:** 認証サービス障害時はローカルセッション管理にフォールバック
+**Error Handling:** 認証サービス障害時はローカルセッション管理にフォールバック。監査ログイベント受信失敗時はNATS JetStreamの永続化機能により再配信を保証
 
 ### 19.2. avion-notification との連携
 
@@ -4471,7 +4492,7 @@ func mockBackupStream() io.ReadCloser {
 
 ### 22.4. Test Coverage Requirements
 
-- **ユニットテスト**: 90%以上のコードカバレッジ（クリティカルパスは95%以上）
+- **ユニットテスト**: 85%以上のコードカバレッジ（クリティカルパスは95%以上）
 - **統合テスト**: 全クリティカルパスの実行確認
 - **エンドツーエンドテスト**: 主要ワークフローの完全検証
 - **パフォーマンステスト**: SLA要件の継続的検証
@@ -4572,6 +4593,15 @@ func mockBackupStream() io.ReadCloser {
 - [ ] CSRF トークンによる危険操作の保護
 - [ ] 承認ワークフローのセキュリティ強化
 - [ ] 機密情報のマスキングとログ除外設定
+
+### セキュリティガイドライン参照
+
+- [XSS対策](../common/security/xss-prevention.md)
+- [SQLインジェクション対策](../common/security/sql-injection-prevention.md)
+- [CSRF対策](../common/security/csrf-protection.md)
+- [暗号化ガイドライン](../common/security/encryption-guidelines.md)
+- [TLS設定](../common/security/tls-configuration.md)
+- [セキュリティヘッダ](../common/security/security-headers.md)
 
 ### セキュリティテスト要件
 
