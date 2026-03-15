@@ -1,6 +1,6 @@
 # ID生成ガイドライン
 
-**Last Updated:** 2025/08/31  
+**Last Updated:** 2026/03/15  
 **Compliance:** Backend採番によるID生成戦略
 
 ## 概要
@@ -743,7 +743,7 @@ import (
     "context"
     "testing"
     
-    "github.com/golang/mock/gomock"
+    "go.uber.org/mock/gomock"
     "github.com/stretchr/testify/assert"
     
     "github.com/avion/avion-user/internal/domain/value"

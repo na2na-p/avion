@@ -1,7 +1,16 @@
 # Design Doc: avion-message
 
 **Author:** Claude
-**Last Updated:** 2026/03/14
+**Last Updated:** 2026/03/15
+
+## 関連ドキュメント
+
+- [designdoc-encryption.md](./designdoc-encryption.md) - E2E暗号化、Signal Protocol、鍵管理、暗号化フロー、デバイス同期、セキュリティ考慮事項
+- [designdoc-infra-testing.md](./designdoc-infra-testing.md) - インフラ層実装（エラーハンドリング、構造化ログ、エラー復旧パターン）、テスト戦略
+- [PRD: avion-message](./prd.md)
+- [エラーカタログ](./error-catalog.md)
+
+---
 
 ## 1. Summary (これは何？)
 
@@ -410,121 +419,58 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
 service MessageService {
-  // メッセージ送信
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
-  
-  // メッセージ取得
   rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
-  
-  // メッセージ編集
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
-  
-  // メッセージ削除
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
-  
-  // 既読マーク
   rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
-  
-  // リアクション追加
   rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
-  
-  // リアクション削除
   rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
 }
 
 service ConversationService {
-  // 会話作成
   rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
-  
-  // 会話取得
   rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
-  
-  // 会話リスト取得
   rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
-  
-  // 参加者追加
   rpc AddParticipant(AddParticipantRequest) returns (AddParticipantResponse);
-  
-  // 参加者削除
   rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
-  
-  // 会話設定更新
   rpc UpdateConversationSettings(UpdateConversationSettingsRequest) returns (UpdateConversationSettingsResponse);
-  
-  // 会話アーカイブ
   rpc ArchiveConversation(ArchiveConversationRequest) returns (ArchiveConversationResponse);
 }
 
 service EncryptionService {
-  // 公開鍵登録
   rpc RegisterPublicKey(RegisterPublicKeyRequest) returns (RegisterPublicKeyResponse);
-  
-  // 公開鍵取得
   rpc GetPublicKeys(GetPublicKeysRequest) returns (GetPublicKeysResponse);
-  
-  // 鍵ローテーション
   rpc RotateKeys(RotateKeysRequest) returns (RotateKeysResponse);
 }
 
 service ScheduledMessageService {
-  // スケジュールメッセージ作成
   rpc ScheduleMessage(ScheduleMessageRequest) returns (ScheduleMessageResponse);
-  
-  // スケジュールメッセージ更新
   rpc UpdateScheduledMessage(UpdateScheduledMessageRequest) returns (UpdateScheduledMessageResponse);
-  
-  // スケジュールメッセージキャンセル
   rpc CancelScheduledMessage(CancelScheduledMessageRequest) returns (CancelScheduledMessageResponse);
-  
-  // スケジュールメッセージ一覧取得
   rpc ListScheduledMessages(ListScheduledMessagesRequest) returns (ListScheduledMessagesResponse);
 }
 
 service AdminService {
-  // メッセージ強制削除
   rpc ForceDeleteMessage(ForceDeleteMessageRequest) returns (ForceDeleteMessageResponse);
-
-  // メッセージメタデータ調査（E2E暗号化有効時: メタデータのみ）
   rpc InvestigateMessages(InvestigateMessagesRequest) returns (InvestigateMessagesResponse);
-
-  // ユーザー通報によるメッセージ内容調査（Signal方式: クライアントから復号済みメッセージ添付）
   rpc HandleReportWithDecryptedContent(HandleReportWithDecryptedContentRequest) returns (HandleReportWithDecryptedContentResponse);
-
-  // 監査ログ取得
   rpc GetAuditLogs(GetAuditLogsRequest) returns (GetAuditLogsResponse);
-
-  // ユーザー報告対応
   rpc HandleUserReport(HandleUserReportRequest) returns (HandleUserReportResponse);
 }
 
 service BulkOperationService {
-  // 一括削除
   rpc BulkDeleteMessages(BulkDeleteMessagesRequest) returns (BulkDeleteMessagesResponse);
-  
-  // 一括アーカイブ
   rpc BulkArchiveConversations(BulkArchiveConversationsRequest) returns (BulkArchiveConversationsResponse);
-  
-  // 一括既読
   rpc BulkMarkAsRead(BulkMarkAsReadRequest) returns (BulkMarkAsReadResponse);
-  
-  // 一括転送
   rpc BulkForwardMessages(BulkForwardMessagesRequest) returns (BulkForwardMessagesResponse);
 }
 
 service DeviceSyncService {
-  // デバイス登録
   rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
-  
-  // デバイス一覧取得
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
-  
-  // デバイス削除
   rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
-  
-  // 同期状態取得
   rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
-  
-  // 下書き同期
   rpc SyncDraft(SyncDraftRequest) returns (SyncDraftResponse);
 }
 
@@ -569,7 +515,6 @@ enum DeliveryStatus {
 ```typescript
 // クライアント → サーバー
 interface ClientEvents {
-  // メッセージ送信
   "message:send": {
     conversationId: string;
     content: string;
@@ -577,57 +522,40 @@ interface ClientEvents {
     attachments?: Attachment[];
     replyToId?: string;
   };
-  
-  // タイピング通知
   "typing:start": {
     conversationId: string;
   };
-  
-  // タイピング停止
   "typing:stop": {
     conversationId: string;
   };
-  
-  // 既読通知
   "message:read": {
     conversationId: string;
     messageIds: string[];
   };
 }
 
-// サーバー → クライアント  
+// サーバー → クライアント
 interface ServerEvents {
-  // 新着メッセージ
   "message:new": {
     message: Message;
   };
-  
-  // メッセージ更新
   "message:updated": {
     message: Message;
   };
-  
-  // メッセージ削除
   "message:deleted": {
     messageId: string;
     conversationId: string;
   };
-  
-  // タイピング通知
   "typing:update": {
     conversationId: string;
     userId: string;
     isTyping: boolean;
   };
-  
-  // 既読通知
   "message:read:update": {
     conversationId: string;
     userId: string;
     lastReadMessageId: string;
   };
-  
-  // プレゼンス更新
   "presence:update": {
     userId: string;
     status: "online" | "offline" | "away";
@@ -638,179 +566,7 @@ interface ServerEvents {
 
 ### 5.4. E2E暗号化実装
 
-#### libsignal (Rust) + CGo バインディング
-
-E2E暗号化の実装には、Signal公式のRust製ライブラリ `libsignal` をCGoバインディング経由で利用します。Go向けの純粋な実装（`libsignal-protocol-go`）はメンテナンスが不十分であるため、Rust製の公式ライブラリを採用します。
-
-**ビルド要件:**
-- Rust toolchain (1.75+): libsignal-ffiのビルドに必要
-- CGO_ENABLED=1: CGoバインディングのためGo側でCGoを有効化
-- libsignal-ffiの共有ライブラリ (.so / .dylib): ランタイム依存
-
-**Dockerマルチステージビルド:**
-
-```dockerfile
-# Stage 1: Rust - libsignal ビルド
-FROM rust:1.75 AS signal-builder
-WORKDIR /libsignal
-RUN git clone --depth 1 --branch v0.x.x https://github.com/nicegram/nicegram-libsignal.git .
-RUN cargo build --release -p libsignal-ffi
-
-# Stage 2: Go - アプリケーションビルド
-FROM golang:1.25 AS go-builder
-WORKDIR /app
-COPY --from=signal-builder /libsignal/target/release/libsignal_ffi.so /usr/lib/
-COPY --from=signal-builder /libsignal/rust/bridge/ffi/src/signal_ffi.h /usr/include/
-COPY . .
-RUN CGO_ENABLED=1 go build -o /avion-message ./cmd/server
-
-# Stage 3: ランタイム
-FROM debian:bookworm-slim
-COPY --from=signal-builder /libsignal/target/release/libsignal_ffi.so /usr/lib/
-COPY --from=go-builder /avion-message /usr/local/bin/
-RUN ldconfig
-CMD ["/usr/local/bin/avion-message"]
-```
-
-**CGo依存パターン（avion-mediaのbimg/libvipsと同様）:**
-- ビルド時: Rustツールチェーンでlibsignal-ffiをコンパイルし、共有ライブラリを生成
-- リンク時: CGoを通じてGoバイナリに動的リンク
-- ランタイム: 共有ライブラリをコンテナに含めて配布
-
-**参考実装:**
-- [gwillem/signal-go](https://github.com/gwillem/signal-go): Go + libsignal FFIバインディングの実装例
-- [Beeper Signal bridge (mautrix/signal)](https://github.com/mautrix/signal): GoアプリケーションからlibsignalをCGo経由で呼び出すブリッジパターン
-
-#### Signal Protocol実装概要
-
-```go
-// 鍵交換（X3DH）
-type KeyExchange struct {
-    IdentityKey    PublicKey
-    SignedPreKey   SignedPreKey
-    OneTimePreKey  PublicKey
-    EphemeralKey   PublicKey
-}
-
-// Double Ratchetアルゴリズム
-type DoubleRatchet struct {
-    RootKey        SymmetricKey
-    SendChainKey   ChainKey
-    ReceiveChainKey ChainKey
-    SendMessageKey  MessageKey
-    ReceiveMessageKey MessageKey
-}
-
-// メッセージ暗号化
-func (e *EncryptionService) EncryptMessage(
-    plaintext []byte,
-    recipientKeys []PublicKey,
-) ([]byte, error) {
-    // 1. セッション鍵の導出
-    sessionKey := e.deriveSessionKey(recipientKeys)
-    
-    // 2. AES-GCMで暗号化
-    ciphertext, nonce := e.encryptAESGCM(plaintext, sessionKey)
-    
-    // 3. HMACで認証タグ生成
-    authTag := e.generateHMAC(ciphertext, sessionKey)
-    
-    // 4. Double Ratchetで鍵を更新
-    e.ratchetKeys()
-    
-    return e.packMessage(ciphertext, nonce, authTag), nil
-}
-```
-
-#### マルチデバイス鍵同期
-
-libsignalのSender Key Distribution Messageパターンを採用し、マルチデバイス環境での鍵管理を実現します。
-
-**デバイスごとの独立した鍵ペア:**
-
-各デバイスは独立したIdentity Key Pair、Signed Pre Key、One-Time Pre Keysを生成・管理します。サーバーは各デバイスの公開鍵のみを保持し、秘密鍵はデバイスローカルに保管されます。
-
-```
-デバイス鍵構成:
-
-Device A (iPhone)
-├── Identity Key Pair (IK_A)
-├── Signed Pre Key (SPK_A)
-└── One-Time Pre Keys [OPK_A1, OPK_A2, ...]
-
-Device B (Desktop)
-├── Identity Key Pair (IK_B)
-├── Signed Pre Key (SPK_B)
-└── One-Time Pre Keys [OPK_B1, OPK_B2, ...]
-
-サーバーが保持するのは各デバイスの公開鍵のみ。
-秘密鍵は各デバイスのローカルストレージに保管。
-```
-
-**Sender Key: グループメッセージ用の対称鍵配布:**
-
-グループメッセージでは、送信者が Sender Key を生成し、Sender Key Distribution Message (SKDM) を各参加者の全デバイスに個別に暗号化して配布します。これにより、グループメッセージの暗号化が O(1) で実行可能になります。
-
-```go
-// Sender Key配布フロー
-type SenderKeyDistribution struct {
-    GroupID       string
-    SenderID      string
-    SenderKey     []byte  // グループメッセージ暗号化用の対称鍵
-    ChainID       uint32
-    Iteration     uint32
-}
-
-// グループメッセージ送信時のSender Key配布
-func (e *EncryptionService) DistributeSenderKey(
-    ctx context.Context,
-    groupID string,
-    senderDeviceID string,
-    participants []Participant,
-) error {
-    // 1. Sender Keyを生成
-    senderKey := e.generateSenderKey()
-
-    // 2. Sender Key Distribution Message (SKDM) を作成
-    skdm := &SenderKeyDistributionMessage{
-        GroupID:   groupID,
-        SenderKey: senderKey,
-        ChainID:   e.nextChainID(),
-        Iteration: 0,
-    }
-
-    // 3. 各参加者の全デバイスにSKDMを個別暗号化して配布
-    for _, participant := range participants {
-        devices, _ := e.getDeviceKeys(ctx, participant.UserID)
-        for _, device := range devices {
-            // デバイスごとのセッションを使って個別に暗号化
-            encryptedSKDM := e.encryptForDevice(skdm, device)
-            e.deliverSKDM(ctx, participant.UserID, device.DeviceID, encryptedSKDM)
-        }
-    }
-    return nil
-}
-```
-
-**新デバイス追加時の鍵転送フロー:**
-
-```
-新デバイス追加時のフロー:
-
-1. 新デバイスが Identity Key Pair, Signed Pre Key, One-Time Pre Keys を生成
-2. 新デバイスが公開鍵をサーバーに登録
-3. サーバーが既存デバイスに「新デバイス追加」通知を送信
-4. 既存デバイスが新デバイスとX3DH鍵交換を実行
-5. 既存デバイスが保有する各グループのSender Keyを
-   新デバイス宛に個別暗号化して送信（SKDM経由）
-6. 新デバイスがSender Keyを受信し、グループメッセージの復号が可能に
-
-注意:
-- 過去のメッセージは新デバイスでは復号不可（Forward Secrecyの原則）
-- 新デバイス追加以降のメッセージのみ復号可能
-- ユーザーが明示的に「メッセージ履歴の転送」を選択した場合のみ、
-  既存デバイスから暗号化された履歴を転送（デバイス間直接通信）
-```
+> **詳細は [designdoc-encryption.md](./designdoc-encryption.md) を参照してください。**
 
 ### 5.5. スケジュール送信のバッチ処理アーキテクチャ
 
@@ -829,41 +585,41 @@ func (p *ScheduledMessageProcessor) ProcessScheduledMessages(ctx context.Context
     if err != nil {
         return err
     }
-    
+
     // 2. 並列処理で送信
     var wg sync.WaitGroup
     semaphore := make(chan struct{}, 10) // 同時実行数制限
-    
+
     for _, msg := range messages {
         wg.Add(1)
         semaphore <- struct{}{}
-        
+
         go func(scheduled *ScheduledMessage) {
             defer wg.Done()
             defer func() { <-semaphore }()
-            
+
             // タイムゾーン考慮
             loc, _ := time.LoadLocation(scheduled.Timezone)
             if !p.shouldSendNow(scheduled.ScheduledAt, loc) {
                 return
             }
-            
+
             // メッセージ送信
             if err := p.sendScheduledMessage(ctx, scheduled); err != nil {
                 p.handleError(scheduled, err)
                 return
             }
-            
+
             // ステータス更新
             p.repo.UpdateStatus(ctx, scheduled.ID, "sent")
-            
+
             // 定期送信の場合は次回をスケジュール
             if scheduled.RecurrenceRule != "" {
                 p.scheduleNext(ctx, scheduled)
             }
         }(msg)
     }
-    
+
     wg.Wait()
     return nil
 }
@@ -899,40 +655,40 @@ type WebSocketManager struct {
 func (m *WebSocketManager) DeliverMessage(msg *Message) error {
     // 1. 配信対象の取得
     recipients := m.getRecipients(msg.ConversationID)
-    
+
     // 2. 並列配信
     var wg sync.WaitGroup
     errors := make(chan error, len(recipients))
-    
+
     for _, recipientID := range recipients {
         wg.Add(1)
         go func(userID string) {
             defer wg.Done()
-            
+
             conn := m.getConnection(userID)
             if conn == nil {
                 // オフライン: キューに保存
                 m.queueOfflineMessage(userID, msg)
                 return
             }
-            
+
             // WebSocket送信
             if err := conn.Send(msg); err != nil {
                 errors <- err
             }
         }(recipientID)
     }
-    
+
     wg.Wait()
     close(errors)
-    
+
     // エラー処理
     for err := range errors {
         if err != nil {
             return err
         }
     }
-    
+
     return nil
 }
 ```
@@ -1050,138 +806,7 @@ spec:
 
 ### 5.8. デバイス同期メカニズム
 
-```go
-// デバイス同期マネージャー
-type DeviceSyncManager struct {
-    deviceRepo  DeviceRepository
-    messageRepo MessageRepository
-    draftRepo   DraftRepository
-    syncQueue   *SyncQueue
-}
-
-// 新規デバイス登録と初期同期
-func (m *DeviceSyncManager) RegisterAndSync(ctx context.Context, userID, deviceID string) error {
-    // 1. デバイス登録
-    device := &Device{
-        UserID:     userID,
-        DeviceID:   deviceID,
-        DeviceType: m.detectDeviceType(ctx),
-        Platform:   m.detectPlatform(ctx),
-    }
-    if err := m.deviceRepo.Register(ctx, device); err != nil {
-        return err
-    }
-    
-    // 2. 既存会話の同期対象選定
-    conversations, err := m.getRecentConversations(ctx, userID, 30) // 直近30日
-    if err != nil {
-        return err
-    }
-    
-    // 3. バッチ同期ジョブをキューに追加
-    for _, conv := range conversations {
-        job := &SyncJob{
-            DeviceID:       deviceID,
-            ConversationID: conv.ID,
-            SyncType:       "initial",
-            Priority:       m.calculatePriority(conv),
-        }
-        m.syncQueue.Enqueue(job)
-    }
-    
-    // 4. 設定の同期
-    return m.syncUserSettings(ctx, userID, deviceID)
-}
-
-// リアルタイム同期
-func (m *DeviceSyncManager) SyncMessage(ctx context.Context, msg *Message) error {
-    // 1. ユーザーの全デバイス取得
-    devices, err := m.deviceRepo.GetActiveDevices(ctx, msg.SenderID)
-    if err != nil {
-        return err
-    }
-    
-    // 2. 送信元デバイス以外に同期
-    var wg sync.WaitGroup
-    for _, device := range devices {
-        if device.ID == msg.DeviceID {
-            continue // 送信元はスキップ
-        }
-        
-        wg.Add(1)
-        go func(d *Device) {
-            defer wg.Done()
-            
-            // E2E暗号化の場合はデバイス固有の鍵で再暗号化
-            if msg.IsEncrypted {
-                msg = m.reencryptForDevice(msg, d)
-            }
-            
-            // デバイスに配信
-            m.deliverToDevice(ctx, d, msg)
-            
-            // 同期状態更新
-            m.updateSyncState(ctx, d.ID, msg.ConversationID, msg.ID)
-        }(device)
-    }
-    
-    wg.Wait()
-    return nil
-}
-
-// 下書き同期
-func (m *DeviceSyncManager) SyncDraft(ctx context.Context, draft *Draft) error {
-    devices, err := m.deviceRepo.GetActiveDevices(ctx, draft.UserID)
-    if err != nil {
-        return err
-    }
-    
-    // 全デバイスに下書きを配信
-    for _, device := range devices {
-        if device.ID == draft.DeviceID {
-            continue
-        }
-        
-        // 下書きをデバイスローカルストレージに保存
-        if err := m.draftRepo.SaveForDevice(ctx, device.ID, draft); err != nil {
-            continue // エラーは無視して続行
-        }
-        
-        // リアルタイム通知
-        m.notifyDraftUpdate(ctx, device.ID, draft)
-    }
-    
-    return nil
-}
-
-// 設定同期
-type DeviceSettings struct {
-    NotificationSettings map[string]interface{}
-    MuteSettings        []MutedConversation
-    CustomSounds        map[string]string
-    Theme              string
-    Language           string
-}
-
-func (m *DeviceSyncManager) SyncSettings(ctx context.Context, userID string, settings *DeviceSettings) error {
-    devices, err := m.deviceRepo.GetActiveDevices(ctx, userID)
-    if err != nil {
-        return err
-    }
-    
-    // 設定をマスターに保存
-    if err := m.saveSettingsToMaster(ctx, userID, settings); err != nil {
-        return err
-    }
-    
-    // 全デバイスに配信
-    for _, device := range devices {
-        m.pushSettingsToDevice(ctx, device, settings)
-    }
-    
-    return nil
-}
-```
+> **詳細は [designdoc-encryption.md](./designdoc-encryption.md) を参照してください。**
 
 ### 5.9. 管理者APIのエンドポイント設計
 
@@ -1195,10 +820,10 @@ func AdminAuthMiddleware(next http.Handler) http.Handler {
             http.Error(w, "Forbidden", http.StatusForbidden)
             return
         }
-        
+
         // 監査ログ記録
         LogAdminAccess(r, claims.UserID)
-        
+
         next.ServeHTTP(w, r)
     })
 }
@@ -1216,20 +841,20 @@ func (h *AdminHandler) ForceDeleteMessage(w http.ResponseWriter, r *http.Request
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    
+
     // 削除理由の必須チェック
     if req.Reason == "" || req.LegalReference == "" {
         http.Error(w, "Reason and legal reference required", http.StatusBadRequest)
         return
     }
-    
+
     // 削除実行
     adminID := r.Context().Value("userID").(string)
     if err := h.messageUC.ForceDelete(r.Context(), req.MessageID, adminID, req.Reason); err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-    
+
     // 監査ログ記録
     h.auditUC.LogAction(r.Context(), &AuditLog{
         AdminID:        adminID,
@@ -1239,7 +864,7 @@ func (h *AdminHandler) ForceDeleteMessage(w http.ResponseWriter, r *http.Request
         Reason:         req.Reason,
         LegalReference: req.LegalReference,
     })
-    
+
     w.WriteHeader(http.StatusNoContent)
 }
 ```
@@ -1270,512 +895,22 @@ func (h *AdminHandler) ForceDeleteMessage(w http.ResponseWriter, r *http.Request
 
 ## 7. セキュリティ考慮事項
 
-### 7.1. 暗号化
+> **暗号化関連の詳細は [designdoc-encryption.md](./designdoc-encryption.md) を参照してください。**
 
-- **E2E暗号化**: Signal Protocolの完全実装
-- **鍵管理**: 秘密鍵はクライアントのみ保持
-- **Forward Secrecy**: メッセージごとの鍵更新
-- **暗号化アルゴリズム**: AES-256-GCM + HMAC-SHA256
+### セキュリティガイドライン参照
 
-### 7.2. アクセス制御
-
-- **認証**: JWT認証（avion-authと連携）
-- **認可**: 会話参加者のみアクセス可能
-- **レート制限**: ユーザー単位での送信制限
-- **IPホワイトリスト**: 管理APIへのアクセス制限
-
-### 7.3. データ保護
-
-- **保存時暗号化**: PostgreSQLのTransparent Data Encryption
-- **通信暗号化**: TLS 1.3による通信路暗号化
-- **ログマスキング**: 個人情報のログ出力禁止
-- **監査ログ**: アクセスログの完全記録
-
-### 7.4. スパム対策
-
-- **メッセージリクエスト**: 未承認ユーザーからの隔離
-- **スパムスコアリング**: 機械学習によるスパム検出
-- **ブロックリスト**: 既知のスパマーのブロック
-- **レポート機能**: ユーザー通報システム
+- [SQLインジェクション対策](../common/security/sql-injection-prevention.md)
+- [暗号化ガイドライン](../common/security/encryption-guidelines.md)
+- [TLS設定](../common/security/tls-configuration.md)
+- [XSS対策](../common/security/xss-prevention.md)
 
 ## 8. エラーハンドリング戦略
 
-> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `MSG` を使用します。
-
-### エラーコード体系
-
-本サービスは、Avionプラットフォーム標準のエラーコード体系に準拠します。
-
-- **命名規則**: `[SERVICE]_[LAYER]_[ERROR_TYPE]`形式
-- **エラーカタログ**: [error-catalog.md](./error-catalog.md)
-- **実装ガイド**: [共通エラー実装ガイド](../common/errors/implementation-guide.md)
-- **標準仕様**: [エラーコード標準化ガイドライン](../common/errors/error-standards.md)
-
-### ドメインエラーの定義
-
-```go
-// domain/error/errors.go
-package error
-
-import "errors"
-
-// 会話関連エラー
-var (
-    ErrConversationNotFound     = errors.New("conversation not found")
-    ErrConversationAlreadyExists = errors.New("conversation already exists")
-    ErrConversationDeleted      = errors.New("conversation has been deleted")
-    ErrConversationArchived     = errors.New("conversation is archived")
-    ErrInvalidConversationType  = errors.New("invalid conversation type")
-    ErrParticipantLimitExceeded = errors.New("participant limit exceeded")
-    ErrDirectConversationFull   = errors.New("direct conversation cannot have more participants")
-)
-
-// メッセージ関連エラー
-var (
-    ErrMessageNotFound       = errors.New("message not found")
-    ErrMessageTooLong        = errors.New("message text exceeds maximum length")
-    ErrMessageEditExpired    = errors.New("message edit window has expired")
-    ErrMessageAlreadyDeleted = errors.New("message has already been deleted")
-    ErrEmptyMessageContent   = errors.New("message content cannot be empty")
-    ErrInvalidMessageType    = errors.New("invalid message type")
-    ErrMessageSendFailed     = errors.New("message send failed")
-)
-
-// 参加者関連エラー
-var (
-    ErrParticipantNotFound    = errors.New("participant not found")
-    ErrAlreadyParticipant     = errors.New("user is already a participant")
-    ErrNotParticipant         = errors.New("user is not a participant of this conversation")
-    ErrCannotRemoveSelf       = errors.New("cannot remove yourself from conversation")
-    ErrInsufficientPermission = errors.New("insufficient permission for this action")
-    ErrLastAdmin              = errors.New("cannot remove the last admin")
-)
-
-// 暗号化関連エラー
-var (
-    ErrEncryptionKeyNotFound  = errors.New("encryption key not found")
-    ErrKeyExpired             = errors.New("encryption key has expired")
-    ErrKeyRevoked             = errors.New("encryption key has been revoked")
-    ErrDecryptionFailed       = errors.New("message decryption failed")
-    ErrKeyExchangeFailed      = errors.New("key exchange failed")
-    ErrInvalidKeyFingerprint  = errors.New("invalid key fingerprint")
-)
-
-// 配信関連エラー
-var (
-    ErrDeliveryFailed         = errors.New("message delivery failed")
-    ErrWebSocketDisconnected  = errors.New("WebSocket connection disconnected")
-    ErrDeliveryTimeout        = errors.New("message delivery timed out")
-    ErrDuplicateDelivery      = errors.New("duplicate message delivery")
-)
-
-// メッセージリクエスト関連エラー
-var (
-    ErrRequestNotFound        = errors.New("message request not found")
-    ErrRequestAlreadyHandled  = errors.New("message request already handled")
-    ErrRequestExpired         = errors.New("message request has expired")
-    ErrSpamDetected           = errors.New("message flagged as spam")
-    ErrUserBlocked            = errors.New("user has been blocked")
-)
-
-// スケジュール送信関連エラー
-var (
-    ErrScheduledMessageNotFound = errors.New("scheduled message not found")
-    ErrScheduleInPast           = errors.New("cannot schedule message in the past")
-    ErrScheduleTooFarAhead      = errors.New("schedule time exceeds maximum allowed")
-    ErrScheduledAlreadySent     = errors.New("scheduled message has already been sent")
-)
-
-// 一括操作関連エラー
-var (
-    ErrBulkOperationFailed    = errors.New("bulk operation failed")
-    ErrBulkLimitExceeded      = errors.New("bulk operation item limit exceeded")
-)
-
-// デバイス関連エラー
-var (
-    ErrDeviceNotFound         = errors.New("device not found")
-    ErrDeviceAlreadyRegistered = errors.New("device already registered")
-    ErrDeviceRevoked          = errors.New("device has been revoked")
-    ErrSyncFailed             = errors.New("device sync failed")
-)
-
-// 認可関連エラー
-var (
-    ErrUnauthorizedAccess     = errors.New("unauthorized access")
-    ErrPermissionDenied       = errors.New("permission denied")
-    ErrAdminActionDenied      = errors.New("admin action denied")
-)
-```
-
-### gRPCステータスマッピング
-
-```go
-func (h *SendMessageCommandHandler) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb.SendMessageResponse, error) {
-    output, err := h.useCase.Execute(ctx, input)
-    if err != nil {
-        switch {
-        // InvalidArgument (400)
-        case errors.Is(err, domain.ErrEmptyMessageContent):
-            return nil, status.Error(codes.InvalidArgument, "message content cannot be empty")
-        case errors.Is(err, domain.ErrMessageTooLong):
-            return nil, status.Error(codes.InvalidArgument, "message text exceeds maximum length")
-        case errors.Is(err, domain.ErrInvalidMessageType):
-            return nil, status.Error(codes.InvalidArgument, "invalid message type")
-
-        // NotFound (404)
-        case errors.Is(err, domain.ErrConversationNotFound):
-            return nil, status.Error(codes.NotFound, "conversation not found")
-        case errors.Is(err, domain.ErrParticipantNotFound):
-            return nil, status.Error(codes.NotFound, "participant not found")
-
-        // PermissionDenied (403)
-        case errors.Is(err, domain.ErrNotParticipant):
-            return nil, status.Error(codes.PermissionDenied, "not a participant of this conversation")
-        case errors.Is(err, domain.ErrUserBlocked):
-            return nil, status.Error(codes.PermissionDenied, "user has been blocked")
-        case errors.Is(err, domain.ErrInsufficientPermission):
-            return nil, status.Error(codes.PermissionDenied, "insufficient permission")
-
-        // FailedPrecondition (412)
-        case errors.Is(err, domain.ErrConversationDeleted):
-            return nil, status.Error(codes.FailedPrecondition, "conversation has been deleted")
-        case errors.Is(err, domain.ErrMessageEditExpired):
-            return nil, status.Error(codes.FailedPrecondition, "edit window has expired")
-        case errors.Is(err, domain.ErrKeyExpired):
-            return nil, status.Error(codes.FailedPrecondition, "encryption key has expired")
-
-        // ResourceExhausted (429)
-        case errors.Is(err, domain.ErrSpamDetected):
-            return nil, status.Error(codes.ResourceExhausted, "message flagged as spam")
-
-        // Unavailable (503)
-        case errors.Is(err, domain.ErrDeliveryFailed):
-            return nil, status.Error(codes.Unavailable, "message delivery failed, please retry")
-
-        // Internal (500)
-        default:
-            return nil, status.Error(codes.Internal, "internal server error")
-        }
-    }
-    return response, nil
-}
-```
-
-### ログレベル使い分け基準
-
-| ログレベル | 用途 | メッセージサービス固有の例 |
-|:--|:--|:--|
-| **Debug** | 開発・デバッグ用の詳細情報 | WebSocket接続のハンドシェイク詳細、暗号化鍵導出の中間ステップ |
-| **Info** | 正常な業務処理の記録 | メッセージ送信成功、会話作成、鍵ローテーション完了 |
-| **Warn** | 異常だが自動回復可能な事象 | WebSocket再接続、メッセージ再送トリガー、スパムスコア高め |
-| **Error** | 処理失敗で手動対応が必要な事象 | メッセージ配信最終失敗、鍵交換失敗、DB接続断 |
-| **CRITICAL** | データ整合性の致命的破壊、即座の対応が必要 | メッセージ喪失検出、暗号化鍵の不整合、配信状態DB不整合 |
-
-```go
-// CRITICAL: メッセージ喪失が検出された場合（panicにして処理を停止）
-logger.Error("CRITICAL: message loss detected",
-    slog.String("trace_id", traceID),
-    slog.String("conversation_id", conversationID),
-    slog.String("message_id", messageID),
-    slog.String("error_code", "MSG_INFRA_MESSAGE_LOSS"),
-    slog.String("layer", "infra"),
-    slog.Int("expected_count", expectedCount),
-    slog.Int("actual_count", actualCount),
-)
-
-// Error: メッセージ配信が最大リトライ回数に達して失敗
-logger.Error("message delivery permanently failed after max retries",
-    slog.String("trace_id", traceID),
-    slog.String("message_id", messageID),
-    slog.String("recipient_id", recipientID),
-    slog.Int("retry_count", maxRetries),
-    slog.String("error_code", "MSG_INFRA_DELIVERY_EXHAUSTED"),
-    slog.String("layer", "infra"),
-)
-
-// Warn: WebSocket再接続が発生
-logger.Warn("WebSocket reconnection triggered",
-    slog.String("trace_id", traceID),
-    slog.String("user_id", userID),
-    slog.String("device_id", deviceID),
-    slog.String("reason", disconnectReason),
-    slog.String("layer", "infra"),
-)
-
-// Info: メッセージ送信成功
-logger.Info("message sent successfully",
-    slog.String("trace_id", traceID),
-    slog.String("conversation_id", conversationID),
-    slog.String("sender_id", senderID),
-    slog.String("message_type", messageType),
-    slog.Bool("encrypted", isEncrypted),
-    slog.Int64("duration_ms", durationMs),
-    slog.String("layer", "usecase"),
-)
-```
-
-### PIIマスク方針
-
-avion-messageは暗号化メッセージを扱うため、メッセージ内容はログに一切出力しません。マスク対象はメタデータが中心です。
-
-| データ種別 | マスク方針 | 例 |
-|:--|:--|:--|
-| メッセージ本文 | **絶対にログ出力しない** | - |
-| 暗号化コンテンツ | **絶対にログ出力しない** | - |
-| 暗号化鍵・秘密鍵 | **絶対にログ出力しない** | - |
-| ユーザーID | そのまま出力（内部識別子） | `user_id: "550e8400-..."` |
-| メッセージID | そのまま出力（内部識別子） | `message_id: "01234567-..."` |
-| IPアドレス | 最後のオクテットをマスク | `192.168.1.xxx` |
-| デバイス情報 | デバイスタイプのみ出力 | `device_type: "mobile"` |
-| ファイル名 | ハッシュ化 | `file_hash: "sha256:abc..."` |
-| 添付ファイルサイズ | そのまま出力 | `file_size: 1048576` |
-
-### エラー復旧パターン
-
-#### WebSocket再接続
-
-```go
-// WebSocket再接続のExponential Backoff
-type WebSocketReconnectPolicy struct {
-    InitialDelay    time.Duration // 1秒
-    MaxDelay        time.Duration // 30秒
-    BackoffFactor   float64       // 2.0
-    MaxRetries      int           // 10
-    JitterFactor    float64       // 0.1
-}
-
-func (p *WebSocketReconnectPolicy) NextDelay(attempt int) time.Duration {
-    if attempt >= p.MaxRetries {
-        return 0 // 再接続断念
-    }
-    delay := float64(p.InitialDelay) * math.Pow(p.BackoffFactor, float64(attempt))
-    if delay > float64(p.MaxDelay) {
-        delay = float64(p.MaxDelay)
-    }
-    // Jitter追加
-    jitter := delay * p.JitterFactor * (rand.Float64()*2 - 1)
-    return time.Duration(delay + jitter)
-}
-```
-
-#### メッセージ再送
-
-```go
-// メッセージ再送ポリシー
-type MessageRetryPolicy struct {
-    MaxRetries    int           // 5
-    InitialDelay  time.Duration // 500ms
-    MaxDelay      time.Duration // 30秒
-    BackoffFactor float64       // 2.0
-}
-
-// 再送フロー:
-// 1. 送信失敗検出
-// 2. 指数バックオフで再送（最大5回）
-// 3. 全リトライ失敗時 → DLQ（Dead Letter Queue）に移動
-// 4. DLQのメッセージは手動確認 or 定期バッチで再処理
-```
-
-#### Dead Letter Queue (DLQ) 処理
-
-```go
-// DLQ処理フロー
-// 1. 最大リトライ回数超過のメッセージをDLQに移動
-// 2. アラート発報（Error レベル）
-// 3. オペレーターが手動確認
-// 4. 原因特定後、再処理 or メッセージ破棄
-// 5. 送信者に配信失敗通知
-
-type DeadLetterMessage struct {
-    OriginalMessageID string
-    ConversationID    string
-    SenderID          string
-    FailureReason     string
-    RetryCount        int
-    FirstFailedAt     time.Time
-    LastFailedAt      time.Time
-    Metadata          map[string]interface{}
-}
-```
-
-### 構造化ログ形式
-
-```json
-{
-  "timestamp": "2026-01-15T10:30:00Z",
-  "level": "ERROR",
-  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
-  "span_id": "00f067aa0ba902b7",
-  "service": "avion-message",
-  "layer": "infra",
-  "error_code": "MSG_INFRA_DELIVERY_EXHAUSTED",
-  "message": "message delivery permanently failed",
-  "details": {
-    "message_id": "01234567-89ab-cdef-0123-456789abcdef",
-    "conversation_id": "fedcba98-7654-3210-fedc-ba9876543210",
-    "recipient_id": "aabbccdd-eeff-1122-3344-556677889900",
-    "retry_count": 5,
-    "last_error": "connection timeout",
-    "duration_ms": 30500
-  }
-}
-```
+> **詳細は [designdoc-infra-testing.md](./designdoc-infra-testing.md) を参照してください。**
 
 ## 9. Operations & Monitoring
 
-### メトリクス (Prometheus形式)
-
-```
-# WebSocket接続
-ws_active_connections_gauge{node="node-1"}
-ws_connections_total{result="success|failure|timeout"}
-ws_reconnections_total{reason="client_disconnect|server_error|heartbeat_timeout"}
-
-# メッセージ配信
-msg_sent_total{type="text|image|file|audio|video|location", encrypted="true|false"}
-msg_delivery_duration_seconds{quantile="0.5|0.9|0.99"}
-msg_delivery_status_total{status="delivered|failed|timeout|dlq"}
-
-# E2E暗号化
-e2e_key_exchange_total{result="success|failure"}
-e2e_key_exchange_duration_seconds{quantile="0.5|0.9|0.99"}
-e2e_key_rotation_total{result="success|failure"}
-e2e_encryption_duration_seconds{quantile="0.5|0.9|0.99"}
-
-# 会話管理
-conversation_created_total{type="direct|group"}
-conversation_participants_gauge{conversation_id="..."}
-
-# メッセージリクエスト・スパム
-msg_requests_total{status="approved|rejected|expired"}
-spam_detected_total{action="quarantine|reject|review"}
-
-# スケジュール送信
-scheduled_messages_total{status="pending|sent|cancelled|failed"}
-scheduled_message_delay_seconds{quantile="0.5|0.9|0.99"}
-
-# 一括操作
-bulk_operations_total{type="delete|archive|mark_read|forward", status="success|failure"}
-bulk_operation_duration_seconds{quantile="0.5|0.9|0.99"}
-
-# デバイス同期
-device_sync_total{status="success|failure"}
-device_sync_duration_seconds{quantile="0.5|0.9|0.99"}
-active_devices_gauge{user_id="..."}
-
-# エラー関連
-errors_total{type="domain|infra|handler", code="MSG_*"}
-dlq_messages_gauge
-```
-
-### アラート閾値
-
-| メトリクス | WARN閾値 | CRITICAL閾値 | 対応アクション |
-|:--|:--|:--|:--|
-| メッセージ配信レイテンシ (p99) | > 500ms | > 2s | スケールアウト、配信キュー確認 |
-| WebSocket接続エラー率 | > 1% (5分間) | > 5% (5分間) | ノード健全性確認、LB設定確認 |
-| メッセージ配信失敗率 | > 0.1% (5分間) | > 1% (5分間) | DLQ確認、DB接続確認 |
-| E2E鍵交換失敗率 | > 2% (5分間) | > 10% (5分間) | 鍵サーバー確認、クライアント互換性 |
-| DLQメッセージ数 | > 100 | > 1000 | 手動確認、配信パイプライン調査 |
-| WebSocket同時接続数 | > 80% キャパシティ | > 95% キャパシティ | 自動スケールアウト |
-| DB接続プール使用率 | > 70% | > 90% | 接続プール拡張、スロークエリ調査 |
-| スパム検出率 | > 5% (1時間) | > 15% (1時間) | スパムフィルタ調整、IP制限強化 |
-| 暗号化処理時間 (p99) | > 50ms | > 200ms | 暗号化ライブラリ・ハードウェア確認 |
-| スケジュール送信遅延 | > 60s | > 300s | バッチプロセッサ確認、リソース増強 |
-
-### インシデント対応フロー
-
-```
-1. アラート検知
-   └─ PagerDuty/Slack通知
-       ├─ CRITICAL → オンコールエンジニアに即座にページ（5分以内に応答必須）
-       └─ WARN → Slackチャンネルに通知、営業時間内に対応
-
-2. 初動対応（5分以内）
-   ├─ ダッシュボード確認（Grafana）
-   ├─ 影響範囲の特定
-   │   ├─ 影響ユーザー数
-   │   ├─ 影響会話数
-   │   └─ エラー種別の特定
-   └─ ステータスページ更新（影響あり）
-
-3. 障害切り分け
-   ├─ WebSocket層の問題 → ノード再起動、LB再設定
-   ├─ メッセージ配信の問題 → DLQ確認、キュー再処理
-   ├─ DB層の問題 → コネクション確認、フェイルオーバー
-   ├─ 暗号化層の問題 → 鍵サーバー確認、フォールバック
-   └─ 外部サービスの問題 → サーキットブレーカー確認
-
-4. 復旧作業
-   ├─ 自動復旧：サーキットブレーカー、自動スケーリング
-   ├─ 手動復旧：下記「手動回復手順」参照
-   └─ DLQ再処理：未配信メッセージの再送
-
-5. 事後対応
-   ├─ ポストモーテム作成（24時間以内）
-   ├─ 再発防止策の策定
-   └─ モニタリング強化
-```
-
-### 手動回復手順
-
-#### WebSocket接続の大量切断時
-
-```bash
-# 1. 影響ノードの特定
-kubectl get pods -l app=avion-message -o wide
-
-# 2. 問題ノードのdrainとrolling restart
-kubectl rollout restart deployment/avion-message
-
-# 3. WebSocket接続数の回復確認
-kubectl exec -it <pod> -- curl localhost:9090/metrics | grep ws_active_connections
-
-# 4. クライアント側の再接続確認（メトリクス監視）
-```
-
-#### DLQ (Dead Letter Queue) メッセージの再処理
-
-```bash
-# 1. DLQのメッセージ数確認
-nats stream info MSG_DLQ
-
-# 2. DLQメッセージの内容確認（メタデータのみ、本文は暗号化済み）
-nats consumer next MSG_DLQ review --count=10
-
-# 3. 原因特定後、再処理可能なメッセージを再送
-# （専用CLIツールを使用）
-avion-message-cli dlq reprocess --stream=MSG_DLQ --filter="delivery_timeout" --dry-run
-avion-message-cli dlq reprocess --stream=MSG_DLQ --filter="delivery_timeout"
-
-# 4. 復旧不可能なメッセージの処理
-avion-message-cli dlq discard --stream=MSG_DLQ --filter="permanent_failure" --notify-senders
-```
-
-#### 暗号化鍵の不整合修復
-
-```bash
-# 1. 不整合検出
-avion-message-cli keys verify --user=<user_id>
-
-# 2. 影響を受ける会話の特定
-avion-message-cli keys affected-conversations --user=<user_id>
-
-# 3. 鍵の再同期（ユーザーのデバイスに鍵再生成をリクエスト）
-avion-message-cli keys request-rekey --user=<user_id> --conversation=<conv_id>
-```
-
-#### メッセージ配信状態の整合性修復
-
-```bash
-# 1. 不整合の検出
-avion-message-cli delivery audit --conversation=<conv_id> --since=24h
-
-# 2. 配信状態の修正
-avion-message-cli delivery fix --conversation=<conv_id> --dry-run
-avion-message-cli delivery fix --conversation=<conv_id>
-```
+> **詳細は [designdoc-infra-testing.md](./designdoc-infra-testing.md) を参照してください。**
 
 ## 10. Release Plan
 
@@ -1926,40 +1061,7 @@ message HandleReportWithDecryptedContentResponse {
 
 ## 12. テスト計画
 
-### 12.1. ユニットテスト
-
-- ドメインロジックのテスト（90%カバレッジ必須、クリティカルパスは95%）
-- 暗号化機能のテスト
-- バリデーションロジックのテスト
-- リポジトリ層のテスト
-
-### 12.2. 統合テスト
-
-- API エンドポイントのテスト
-- WebSocket通信のテスト
-- データベース連携テスト
-- 外部サービス連携テスト
-
-### 12.3. E2Eテスト
-
-- メッセージ送受信の完全フロー
-- グループチャット作成から削除まで
-- 暗号化メッセージの送受信
-- オフライン/オンライン切り替え
-
-### 12.4. パフォーマンステスト
-
-- 10,000メッセージ/秒の負荷テスト
-- 100万同時WebSocket接続テスト
-- メッセージ検索のレスポンステスト
-- 暗号化処理のベンチマーク
-
-### 12.5. セキュリティテスト
-
-- ペネトレーションテスト
-- 暗号化強度の検証
-- SQLインジェクション対策確認
-- XSS/CSRF対策確認
+> **詳細は [designdoc-infra-testing.md](./designdoc-infra-testing.md) を参照してください。**
 
 ## 13. その他の検討事項
 

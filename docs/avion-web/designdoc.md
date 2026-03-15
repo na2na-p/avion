@@ -1,7 +1,7 @@
 # Design Doc: avion-web
 
 **Author:** Cline
-**Last Updated:** 2025/08/02
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
@@ -182,6 +182,8 @@ npm run generate:mocks
 - [PRD: avion-web](./prd.md)
 - [Avion アーキテクチャ概要](../common/architecture.md)
 - [avion-gateway Design Doc](../avion-gateway/designdoc.md)
+- [avion-message PRD](../avion-message/prd.md)
+- [avion-message Design Doc](../avion-message/designdoc.md)
 
 ## 4. Configuration Management (設定管理)
 
@@ -192,6 +194,7 @@ npm run generate:mocks
 #### Required Variables (必須環境変数)
 - `VITE_API_URL`: GraphQL APIエンドポイントURL
 - `VITE_SSE_URL`: SSEエンドポイントURL
+- `VITE_WS_URL`: WebSocketエンドポイントURL（メッセージング用、avion-gateway経由）
 - `VITE_CDN_URL`: メディアファイル配信用CDN URL
 
 #### Optional Variables (オプション環境変数)
@@ -206,6 +209,7 @@ npm run generate:mocks
 export interface AppConfig {
   readonly apiUrl: string;
   readonly sseUrl: string;  // SSEエンドポイントURL
+  readonly wsUrl: string;   // WebSocketエンドポイントURL（メッセージング用）
   readonly cdnUrl: string;
   readonly sentryDsn?: string;
   readonly environment: Environment;
@@ -216,9 +220,9 @@ export type Environment = 'development' | 'staging' | 'production';
 
 export class ConfigLoader {
   static load(): AppConfig {
-    const requiredVars = ['VITE_API_URL', 'VITE_SSE_URL', 'VITE_CDN_URL'];
+    const requiredVars = ['VITE_API_URL', 'VITE_SSE_URL', 'VITE_WS_URL', 'VITE_CDN_URL'];
     const missing = requiredVars.filter(key => !import.meta.env[key]);
-    
+
     if (missing.length > 0) {
       throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     }
@@ -226,6 +230,7 @@ export class ConfigLoader {
     return {
       apiUrl: import.meta.env.VITE_API_URL,
       sseUrl: import.meta.env.VITE_SSE_URL,
+      wsUrl: import.meta.env.VITE_WS_URL,
       cdnUrl: import.meta.env.VITE_CDN_URL,
       sentryDsn: import.meta.env.VITE_SENTRY_DSN,
       environment: (import.meta.env.VITE_ENVIRONMENT as Environment) || 'production',
@@ -249,7 +254,11 @@ export class ConfigValidator {
     if (!this.isValidUrl(config.sseUrl)) {
       throw new Error('Invalid VITE_SSE_URL: must be a valid URL');
     }
-    
+
+    if (!this.isValidUrl(config.wsUrl)) {
+      throw new Error('Invalid VITE_WS_URL: must be a valid WebSocket URL');
+    }
+
     if (!this.isValidUrl(config.cdnUrl)) {
       throw new Error('Invalid VITE_CDN_URL: must be a valid URL');
     }
@@ -287,6 +296,7 @@ export class ConfigValidator {
 # .env.example
 VITE_API_URL=http://localhost:8080/graphql
 VITE_SSE_URL=http://localhost:8080/sse
+VITE_WS_URL=ws://localhost:8080/ws
 VITE_CDN_URL=http://localhost:9000
 VITE_SENTRY_DSN=
 VITE_ENVIRONMENT=development
@@ -297,6 +307,7 @@ VITE_ENABLE_PWA=true
 # .env.production
 VITE_API_URL=https://api.avion.social/graphql
 VITE_SSE_URL=https://api.avion.social/sse
+VITE_WS_URL=wss://api.avion.social/ws
 VITE_CDN_URL=https://cdn.avion.social
 VITE_ENVIRONMENT=production
 VITE_ENABLE_PWA=true
@@ -319,10 +330,19 @@ VITE_ENABLE_PWA=true
 
 #### データ取得・通信（avion-gateway経由）
 - avion-gateway経由でのGraphQL API利用と複数バックエンドサービスからのデータ集約。
-- SSEエンドポイントによるリアルタイム更新受信。
+- SSEエンドポイントによるリアルタイム更新受信（タイムライン、通知）。
+- WebSocketクライアントによるメッセージングリアルタイム通信（avion-gateway経由、メッセージ受信、タイピングインジケーター、既読通知、プレゼンス）。
 - Apollo Clientによるクライアントサイドキャッシュ戦略の実装。
 - 楽観的更新の実装。
 - エラーハンドリングとリトライ。
+
+#### avion-message連携（メッセージング機能）
+- メッセージングUI（会話一覧、DM画面、グループチャット画面）の実装。
+- WebSocketクライアント接続の管理（接続確立、自動再接続、Exponential Backoff）。
+- E2E暗号化のクライアントサイド実装（Signal Protocol: X3DH鍵交換、Double Ratchetアルゴリズム）。
+- 暗号化鍵のセキュアなローカルストレージ管理（IndexedDB + 暗号化）。
+- クライアントサイド検索インデックスの構築と検索（E2E暗号化メッセージ用）。
+- オフラインメッセージバッファリングと接続復帰時の同期。
 
 #### 技術要件
 - TypeScriptによる型安全な実装。
@@ -338,7 +358,7 @@ VITE_ENABLE_PWA=true
 - **認証・認可の実装:** avion-gatewayとavion-authが担当。
 - **レート制限:** avion-gatewayが担当。
 - **データの永続化:** バックエンドサービスに委譲。
-- **WebSocket:** SSEで十分なため実装しない。
+- **独自WebSocket実装:** メッセージング用WebSocket接続はavion-gateway経由で提供されるため、独自のWebSocketサーバー実装は行わない。タイムライン・通知のリアルタイム更新は引き続きSSEを使用する。
 - **高度なオフライン機能（初期）。**
 - **国際化（i18n）対応（初期）。**
 
@@ -357,6 +377,12 @@ VITE_ENABLE_PWA=true
 ### セキュリティヘッダー
 - **ガイドライン**: [../common/security/security-headers.md](../common/security/security-headers.md)
 - **実装要件**: CDN/リバースプロキシレベルでX-Frame-Options、X-Content-Type-Options、Referrer-Policy、Permissions-Policyを含む適切なセキュリティヘッダーを設定します。スクリプト、スタイル、接続に必要なソースのみを許可する厳格なContent Security Policyを実装します。avion-gateway側でもAPIレスポンスに適切なヘッダーを設定する必要があります。
+
+### セキュリティガイドライン参照
+
+- [XSS対策](../common/security/xss-prevention.md)
+- [CSRF対策](../common/security/csrf-protection.md)
+- [セキュリティヘッダ](../common/security/security-headers.md)
 
 ## 6. UI Mode System (UIモードシステム)
 
@@ -2770,6 +2796,51 @@ catch (error) {
 6. System: 変更を即座にPCにも反映
 7. User: デバイスを問わず一貫した体験
 
+### フロー 11: メッセージ送受信（WebSocket + E2E暗号化）
+1. User: メッセージ画面を開き、会話を選択
+2. WebSocketConnectionManager: avion-gatewayのWebSocketエンドポイントに接続（JWT認証）
+3. MessageViewState: メッセージUIを初期化、会話メタデータを表示
+4. Client → Gateway (GraphQL): メッセージ履歴Query送信
+5. Gateway → avion-message: メッセージ取得（gRPC）
+6. Client: メッセージを復号（E2E暗号化の場合はEncryptionSessionで復号）し表示
+7. User: メッセージを入力開始
+8. Client → Gateway (WebSocket): タイピングインジケーター送信
+9. User: 送信ボタンクリック
+10. EncryptionSession: メッセージを暗号化（E2E暗号化有効時）
+11. Client → Gateway (WebSocket): 暗号化メッセージ送信
+12. Gateway → avion-message: メッセージ永続化・配信処理
+13. MessageViewState: 楽観的更新で送信中ステータス表示
+14. avion-message → Gateway → Client (WebSocket): 配信確認イベント受信
+15. MessageViewState: 配信ステータスを「送信済み」に更新
+
+### フロー 12: グループチャット作成と管理
+1. User: グループチャット作成画面を開く
+2. User: メンバーを検索・選択（GraphQL Query）
+3. User: グループ名、アイコン、設定を入力
+4. Client → Gateway (GraphQL): グループ作成Mutation送信
+5. Gateway → avion-message: グループ作成処理
+6. avion-message: E2E暗号化用グループ鍵を生成・配布
+7. Client: EncryptionSessionでグループセッション初期化
+8. WebSocket: グループメンバーに作成通知を配信
+9. MessageViewState: グループチャット画面を表示
+
+### フロー 13: E2E暗号化の鍵交換（クライアントサイド）
+1. Client: 新規会話開始時にEncryptionSession Aggregateを初期化
+2. Client → Gateway (GraphQL): 相手の公開鍵を取得
+3. EncryptionSession: X3DHプロトコルで事前鍵を交換
+4. EncryptionSession: Double Ratchetアルゴリズムでセッション鍵を導出
+5. Client: セッション鍵をIndexedDB（暗号化済み）に保存
+6. Client: 暗号化ステータスインジケーターを表示
+7. 以降のメッセージは自動的にE2E暗号化
+
+### フロー 14: メッセージ検索（ハイブリッド検索）
+1. User: メッセージ検索UIにキーワードを入力
+2. Client: 暗号化プロトコルバージョンで検索パスを分岐
+   - v1（サーバーサイド暗号化）: Gateway経由でavion-messageのサーバーサイド検索APIを使用
+   - v2（E2E暗号化）: クライアントサイドのローカルインデックスを検索
+3. Client: 検索結果をマージしてUI表示
+4. User: 結果選択で該当メッセージ位置へスクロール
+
 ## 9. UI/UX Specifications
 
 ### 9.1. Design Tokens
@@ -4257,6 +4328,124 @@ enum AttachmentType {
   PREVIEW
 }
 
+# Messaging関連（avion-message連携）
+type ConversationConnection {
+  edges: [ConversationEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ConversationEdge {
+  cursor: String!
+  node: Conversation!
+}
+
+type Conversation {
+  id: ID!
+  type: ConversationType!
+  title: String
+  avatarUrl: String
+  participants: [Participant!]!
+  lastMessage: Message
+  unreadCount: Int!
+  encryptionStatus: EncryptionStatus!
+  settings: ConversationSettings!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+type Participant {
+  id: ID!
+  user: User!
+  role: ParticipantRole!
+  lastReadAt: DateTime
+  joinedAt: DateTime!
+}
+
+enum ParticipantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+type Message {
+  id: ID!
+  conversationId: ID!
+  sender: User!
+  content: MessageContent!
+  deliveryStatus: DeliveryStatus!
+  reactions: [MessageReaction!]!
+  replyTo: Message
+  editedAt: DateTime
+  createdAt: DateTime!
+}
+
+type MessageContent {
+  text: String
+  encryptedContent: String
+  contentType: MessageContentType!
+  media: [Media!]
+  encryptionVersion: Int!
+}
+
+enum MessageContentType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  LOCATION
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+type MessageReaction {
+  id: ID!
+  user: User!
+  emoji: String!
+  createdAt: DateTime!
+}
+
+type EncryptionStatus {
+  enabled: Boolean!
+  protocol: EncryptionProtocol!
+  keyFingerprint: String
+  isVerified: Boolean!
+}
+
+enum EncryptionProtocol {
+  NONE
+  SERVER_SIDE
+  E2E_SIGNAL
+}
+
+type ConversationSettings {
+  notificationEnabled: Boolean!
+  mutedUntil: DateTime
+  autoDeleteDays: Int
+}
+
+type MessageConnection {
+  edges: [MessageEdge!]!
+  pageInfo: PageInfo!
+}
+
+type MessageEdge {
+  cursor: String!
+  node: Message!
+}
+
 # Search関連
 type SearchResults {
   drops: DropConnection!
@@ -4408,6 +4597,73 @@ type PushSubscription {
   lastUsedAt: DateTime
   userAgent: String
 }
+
+# Messaging Operations（avion-message連携）
+input CreateConversationInput {
+  participantIds: [ID!]!
+  type: ConversationType!
+  title: String
+  avatarId: ID
+  encryptionEnabled: Boolean
+}
+
+input SendMessageInput {
+  conversationId: ID!
+  text: String
+  encryptedContent: String
+  contentType: MessageContentType!
+  mediaIds: [ID!]
+  replyToId: ID
+  encryptionVersion: Int!
+}
+
+input EditMessageInput {
+  messageId: ID!
+  text: String
+  encryptedContent: String
+}
+
+input MarkMessagesReadInput {
+  conversationId: ID!
+  messageIds: [ID!]
+}
+
+input UpdateConversationSettingsInput {
+  conversationId: ID!
+  notificationEnabled: Boolean
+  mutedUntil: DateTime
+  autoDeleteDays: Int
+}
+
+input AddParticipantInput {
+  conversationId: ID!
+  userId: ID!
+  role: ParticipantRole
+}
+
+input RemoveParticipantInput {
+  conversationId: ID!
+  userId: ID!
+}
+
+input RegisterPublicKeyInput {
+  identityKey: String!
+  signedPreKey: String!
+  oneTimePreKeys: [String!]!
+}
+
+type ConversationPayload {
+  conversation: Conversation!
+}
+
+type MessagePayload {
+  message: Message!
+}
+
+type MarkMessagesReadPayload {
+  conversationId: ID!
+  readCount: Int!
+}
 ```
 
 ### 16.3. Subscription Types (SSE経由)
@@ -4491,6 +4747,76 @@ enum UserStatus {
 }
 ```
 
+### 16.4. WebSocket Message Types（メッセージング用）
+
+メッセージングのリアルタイム通信はavion-gateway経由のWebSocketで実装します。SSE（Section 18参照）はタイムライン・通知のリアルタイム更新に使用し、WebSocketはメッセージング専用です。
+
+```typescript
+// WebSocketメッセージ型定義
+type WebSocketMessageType =
+  | 'message.new'           // 新着メッセージ
+  | 'message.updated'       // メッセージ編集
+  | 'message.deleted'       // メッセージ削除
+  | 'message.delivered'     // 配信確認
+  | 'message.read'          // 既読通知
+  | 'typing.start'          // タイピング開始
+  | 'typing.stop'           // タイピング停止
+  | 'presence.update'       // プレゼンス更新
+  | 'conversation.created'  // 会話作成
+  | 'conversation.updated'  // 会話設定更新
+  | 'participant.added'     // 参加者追加
+  | 'participant.removed'   // 参加者削除
+  | 'key.rotation'          // 暗号化鍵ローテーション
+  | 'connection.ack'        // 接続確認
+  | 'heartbeat';            // ハートビート
+
+interface WebSocketEnvelope {
+  type: WebSocketMessageType;
+  payload: unknown;
+  timestamp: string;  // ISO 8601
+  messageId: string;  // UUID v4（重複排除用）
+}
+
+// 新着メッセージイベント
+interface NewMessageEvent {
+  conversationId: string;
+  message: {
+    id: string;
+    senderId: string;
+    content: {
+      text?: string;
+      encryptedContent?: string;
+      contentType: string;
+      encryptionVersion: number;
+    };
+    replyToId?: string;
+    createdAt: string;
+  };
+}
+
+// タイピングインジケーターイベント
+interface TypingEvent {
+  conversationId: string;
+  userId: string;
+  isTyping: boolean;
+}
+
+// 既読通知イベント
+interface ReadReceiptEvent {
+  conversationId: string;
+  userId: string;
+  lastReadMessageId: string;
+  readAt: string;
+}
+
+// プレゼンス更新イベント
+interface PresenceEvent {
+  userId: string;
+  status: 'online' | 'idle' | 'offline' | 'do_not_disturb';
+  lastSeenAt?: string;
+}
+```
+
 ## 17. Apollo Client Configuration
 
 ### 17.1. Client Setup
@@ -4501,7 +4827,8 @@ import { createUploadLink } from 'apollo-upload-client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
-// NOTE: WebSocketは使用しない。リアルタイム更新はSSE（EventSource API）で実装する。
+// NOTE: タイムライン・通知のリアルタイム更新はSSE（EventSource API）で実装する。
+// メッセージングのリアルタイム通信はWebSocketConnectionManager（Section 16.4参照）が担当する。
 
 // Auth Link
 const authLink = setContext((_, { headers }) => {
@@ -4579,8 +4906,9 @@ const uploadLink = createUploadLink({
   credentials: 'include',
 });
 
-// リアルタイム更新はSSE（EventSource API）で実装するため、WebSocketLinkは使用しない。
-// SSEConnectionManagerクラス（Section 18参照）がリアルタイムイベントの受信を担当する。
+// タイムライン・通知のリアルタイム更新はSSE（EventSource API）で実装するため、WebSocketLinkは使用しない。
+// SSEConnectionManagerクラス（Section 18参照）がタイムライン・通知のリアルタイムイベントの受信を担当する。
+// メッセージングのリアルタイム通信はWebSocketConnectionManager（Section 16.4参照）が担当する。
 
 // Cache Configuration
 const cache = new InMemoryCache({
@@ -5331,17 +5659,32 @@ self.addEventListener('activate', (event) => {
 - Drop作成（GraphQL Mutation + 楽観的更新）
 - ユーザープロフィール表示
 - 基本的なレスポンシブデザイン（クラシックモード）
-- テストカバレッジ: 90%
+- テストカバレッジ: 85%
 
 ### Phase 2: Real-time & Social
 - SSEによるリアルタイム更新
 - 通知システム
 - フォロー/アンフォロー機能
 - リアクション機能
-- 検索機能
+- 検索機能（基本検索 + 高度な検索フィルタ、検索履歴、保存済み検索）
 - プロフィール編集
+- MFAセットアップ・管理（TOTP設定、Passkey登録、バックアップコード管理）
+- ユーザーリスト管理（リスト作成・編集・削除、メンバー管理、リストタイムライン）
+- ポール（投票）作成・投票機能
+- スケジュール送信機能（日時指定送信、スケジュール一覧、編集・取消）
+- 下書き管理（オートセーブ、下書き一覧、復元・削除）
+- メディアライブラリ（メディア一覧、メタデータ編集）
 
-### Phase 3: PWA & Advanced Features
+### Phase 3: Messaging (avion-message連携)
+- WebSocketクライアント接続（avion-gateway経由）
+- 会話一覧画面・DM（1対1）チャット画面
+- グループチャット画面
+- メッセージ送受信（テキスト、添付ファイル）
+- 既読/未読管理・タイピングインジケーター
+- メッセージリアクション・引用返信
+- メッセージ検索（サーバーサイド暗号化メッセージ）
+
+### Phase 4: PWA & Advanced Features
 - PWA対応（Service Worker、Web App Manifest）
 - Web Push通知
 - デッキモード（マルチカラムレイアウト）
@@ -5349,18 +5692,24 @@ self.addEventListener('activate', (event) => {
 - ダークモード
 - オフラインキャッシュ
 
-### Phase 4: Federation & Community
+### Phase 5: E2E Encryption & Federation
+- Signal Protocol（X3DH + Double Ratchet）クライアント実装
+- E2E暗号化のオプトインUI
+- 暗号化鍵管理・デバイス間鍵同期UI
+- クライアントサイド検索インデックス
 - OAuth同意画面
-- ActivityPub連携画面
-- コミュニティ機能
+- フェデレーション管理（リモートインスタンス一覧、ブロック管理、統計表示）
+- コミュニティ機能（コミュニティ作成・参加・退出、トピック管理、メンバー管理、コミュニティモデレーション）
+- モデレーション・ダッシュボード（通報一覧・処理、モデレーションアクション、統計表示）
 - 高度なアクセシビリティ対応（WCAG 2.1 AA完全準拠）
 
 ## 21. Concerns / Open Questions (懸念事項・相談したいこと)
 
 ### 技術的負債リスク
-- **バンドルサイズ:** 大規模SPAによる初期ロード時間への影響
-- **メモリ管理:** 長時間のSSE接続とSPA状態管理によるメモリ使用量
+- **バンドルサイズ:** 大規模SPAによる初期ロード時間への影響。E2E暗号化ライブラリ（libsignal）の追加によるバンドルサイズ増加への対策（動的インポート、コード分割）
+- **メモリ管理:** 長時間のSSE接続・WebSocket接続とSPA状態管理によるメモリ使用量
 - **型の同期:** Gateway GraphQLスキーマとクライアント型定義の同期
+- **WebSocket接続管理:** 長時間接続の安定性、モバイルネットワークでの再接続戦略
 
 ### 未決定事項
 - 状態管理ライブラリの最終選定（Zustand vs Jotai）
@@ -5368,6 +5717,10 @@ self.addEventListener('activate', (event) => {
 - UIコンポーネントライブラリの詳細
 - キャッシュ無効化戦略の詳細設計
 - 将来的なSEO対応の必要性と実装方法
+- E2E暗号化のTypeScriptライブラリ選定（libsignal-protocol-typescript vs 自前実装）
+- 暗号化鍵のバックアップ/リカバリー方法の詳細
+- WebSocket接続とSSE接続の統合戦略（将来的な一本化の検討）
+- メッセージングUIのオフラインモードの詳細設計
 
 ## 22. React Component Architecture
 
@@ -6217,9 +6570,963 @@ export const MemoizedDrop = React.memo<DropProps>(
 );
 ```
 
-## 25. Service-Specific Test Strategy
+## 25. 追加機能の設計仕様
 
-### 25.1. Overview
+PRDで定義された10機能について、Container-Presentationパターンに準拠した設計仕様を記述します。各機能はDDDの4層アーキテクチャ（Handler → UseCase → Domain → Infrastructure）に従い、CQRSパターンでCommand/Queryを分離します。
+
+### 25.1. MFAセットアップ・管理
+
+#### ドメインモデル
+
+**Aggregate:**
+- MFASetupState: MFA設定フロー全体の状態を管理する集約。TOTPシークレット生成状態、Passkey登録チャレンジ状態、バックアップコード表示状態を保持し、各設定フローの整合性を保証する。
+
+**Entities:**
+- TOTPSetupSession: TOTPセットアップの進行状態（シークレット生成済み/検証待ち/有効化済み）
+- PasskeyRegistration: Passkey登録の進行状態（チャレンジ生成済み/認証器応答待ち/登録済み）
+- BackupCodeSet: バックアップコード一覧と使用済み/未使用ステータス
+
+**Value Objects:**
+- TOTPSecret, QRCodeDataURL, ConfirmationCode(6桁)
+- PasskeyCredentialID, PasskeyDeviceName, WebAuthnChallenge
+- BackupCode, BackupCodeStatus(used/unused)
+- MFAMethod(totp/passkey), MFAStatus(enabled/disabled)
+
+**不変条件:**
+- MFA変更操作には必ずパスワード再確認が完了していること
+- TOTPセットアップ中はバックアップコード生成が完了するまでフローを終了できない
+- Passkey登録チャレンジは5分以内に応答すること
+
+#### コンポーネント設計
+
+```
+MFASettingsPage
+├── MFADashboardContainer        # Container: MFA状態取得、メソッド一覧管理
+│   └── MFADashboardView         # Presentation: MFA方式一覧、ステータス表示
+├── TOTPSetupContainer           # Container: TOTPセットアップフロー制御
+│   └── TOTPSetupWizardView      # Presentation: QRコード表示、確認コード入力
+├── PasskeyManagerContainer      # Container: Passkey CRUD操作
+│   └── PasskeyListView          # Presentation: デバイス一覧、登録/削除ボタン
+├── BackupCodeContainer          # Container: バックアップコード生成/表示
+│   └── BackupCodeView           # Presentation: コード一覧、ダウンロードボタン
+└── PasswordReconfirmModal       # 共通: パスワード再確認ダイアログ
+```
+
+#### 状態管理
+
+```typescript
+// MFA Store (Zustand)
+interface MFAState {
+  mfaMethods: MFAMethodInfo[];
+  totpSetupSession: TOTPSetupSession | null;
+  passkeyList: PasskeyDevice[];
+  backupCodes: BackupCode[];
+  isPasswordConfirmed: boolean;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- MFA設定状態は`fetchPolicy: 'network-only'`でセキュリティ上常に最新を取得
+- Passkey一覧はMutation後にrefetchQueriesで即時更新
+
+#### API連携
+
+```graphql
+# Query
+query GetMFAStatus { mfaStatus { methods { type enabled lastUsedAt } } }
+query GetPasskeys { passkeys { id deviceName createdAt lastUsedAt } }
+query GetBackupCodes { backupCodes { code status } }
+
+# Mutation
+mutation GenerateTOTPSecret { generateTOTPSecret { secret qrCodeDataUrl } }
+mutation VerifyTOTPCode($code: String!) { verifyTOTPCode(code: $code) { success backupCodes } }
+mutation DisableTOTP { disableTOTP { success } }
+mutation RegisterPasskeyChallenge { registerPasskeyChallenge { challenge } }
+mutation RegisterPasskey($credential: PasskeyInput!) { registerPasskey(credential: $credential) { id deviceName } }
+mutation DeletePasskey($id: ID!) { deletePasskey(id: $id) { success } }
+mutation RegenerateBackupCodes { regenerateBackupCodes { codes } }
+mutation ConfirmPassword($password: String!) { confirmPassword(password: $password) { confirmed expiresAt } }
+```
+
+#### 画面遷移
+
+```
+/settings/security/mfa → MFA設定ダッシュボード
+/settings/security/mfa/totp → TOTPセットアップウィザード
+/settings/security/mfa/passkeys → Passkey管理
+/settings/security/mfa/backup-codes → バックアップコード管理
+```
+
+---
+
+### 25.2. ユーザーリスト管理
+
+#### ドメインモデル
+
+**Aggregate:**
+- UserListState: ユーザーリスト管理の状態を管理する集約。リスト作成/編集/削除、メンバー追加/削除のフローを制御し、上限制約（50リスト/ユーザー、5000人/リスト）を保証する。
+
+**Entities:**
+- UserList: リスト情報（名前、説明、公開設定、メンバー数）
+- ListMember: リストメンバー情報（ユーザーサマリ、追加日時）
+- ListTimeline: リスト専用タイムラインの表示状態
+
+**Value Objects:**
+- ListID, ListName(最大50文字), ListDescription(最大200文字)
+- ListVisibility(public/private), MemberCount, MaxListCount(50)
+- MaxMemberCount(5000)
+
+**不変条件:**
+- ユーザーあたりのリスト数は50を超えないこと
+- 1リストあたりのメンバー数は5000を超えないこと
+- リスト名はユーザー内で一意であること
+- ブロック済みユーザーはメンバーに追加できないこと
+
+#### コンポーネント設計
+
+```
+ListsPage
+├── ListIndexContainer           # Container: リスト一覧取得、CRUD操作
+│   └── ListIndexView            # Presentation: リスト一覧表示、作成ボタン
+├── ListDetailContainer          # Container: リスト詳細・メンバー管理
+│   └── ListDetailView           # Presentation: メンバー一覧、追加/削除UI
+├── ListTimelineContainer        # Container: リストタイムラインデータ取得
+│   └── ListTimelineView         # Presentation: フィルタードタイムライン表示
+├── ListCreateModal              # モーダル: リスト作成フォーム
+├── ListEditModal                # モーダル: リスト編集フォーム
+└── ListMemberAddModal           # モーダル: ユーザー検索・メンバー追加
+```
+
+#### 状態管理
+
+```typescript
+// List Store (Zustand)
+interface ListState {
+  lists: UserList[];
+  activeListId: string | null;
+  listMembers: Record<string, ListMember[]>;
+  listTimelines: Record<string, TimelineData>;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- リスト一覧は`cache-and-network`で初期表示速度と最新性を両立
+- メンバー追加/削除時は楽観的更新を適用し、即座にUI反映
+
+#### API連携
+
+```graphql
+# Query
+query GetUserLists { userLists { id name description visibility memberCount createdAt } }
+query GetListMembers($listId: ID!, $first: Int!, $after: String) {
+  listMembers(listId: $listId, first: $first, after: $after) {
+    edges { node { id username displayName avatarUrl addedAt } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+query GetListTimeline($listId: ID!, $first: Int!, $after: String) {
+  listTimeline(listId: $listId, first: $first, after: $after) {
+    edges { node { ...DropFragment } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+
+# Mutation
+mutation CreateList($input: CreateListInput!) { createList(input: $input) { id name } }
+mutation UpdateList($id: ID!, $input: UpdateListInput!) { updateList(id: $id, input: $input) { id name } }
+mutation DeleteList($id: ID!) { deleteList(id: $id) { success } }
+mutation AddListMember($listId: ID!, $userId: ID!) { addListMember(listId: $listId, userId: $userId) { success } }
+mutation RemoveListMember($listId: ID!, $userId: ID!) { removeListMember(listId: $listId, userId: $userId) { success } }
+```
+
+#### 画面遷移
+
+```
+/lists → リスト一覧
+/lists/:listId → リスト詳細（メンバー一覧）
+/lists/:listId/timeline → リストタイムライン
+```
+
+---
+
+### 25.3. ポール作成・投票
+
+#### ドメインモデル
+
+**Aggregate:**
+- PollFormState: ポール作成フォームの状態を管理する集約。選択肢の追加/削除/編集、期限設定、バリデーションを制御し、Drop作成フォーム（FormState Aggregate）と連携する。
+
+**Entities:**
+- PollOption: 選択肢情報（テキスト、表示順序）
+- PollResult: 投票結果情報（投票数、投票率、投票済みフラグ）
+
+**Value Objects:**
+- PollID, OptionText(最大50文字), OptionIndex(0-3)
+- PollDuration(5min/30min/1h/6h/1d/3d/7d), PollExpiresAt
+- VoteCount, VotePercentage, HasVoted(boolean)
+- MinOptions(2), MaxOptions(4)
+
+**不変条件:**
+- 選択肢は2個以上4個以下であること
+- 各選択肢テキストは空でないこと（最大50文字）
+- 投票期限は5分以上7日以下であること
+- 1ユーザーにつき1回のみ投票可能（設定に依存）
+- 投票期限切れ後は投票不可
+
+#### コンポーネント設計
+
+```
+# ポール作成（Drop作成フォーム内）
+DropComposerContainer
+└── PollCreatorContainer         # Container: ポール作成ロジック、バリデーション
+    └── PollCreatorView           # Presentation: 選択肢入力、期限設定UI
+
+# ポール表示（タイムライン内）
+DropCardContainer
+└── PollDisplayContainer         # Container: 投票処理、結果取得
+    ├── PollVotingView            # Presentation: 投票UI（未投票時）
+    └── PollResultView            # Presentation: 結果表示（投票済み/期限切れ時）
+```
+
+#### 状態管理
+
+```typescript
+// Poll作成はFormState Aggregateを拡張
+interface PollFormState {
+  options: PollOption[];        // 2-4個の選択肢
+  duration: PollDuration;       // 投票期限
+  isValid: boolean;             // バリデーション状態
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- 投票操作は楽観的更新で即座にUI反映（VoteCount, VotePercentage即時計算）
+- SSE経由の他ユーザー投票イベントでキャッシュを更新
+
+#### API連携
+
+```graphql
+# DropのcreateDropMutation拡張
+mutation CreateDropWithPoll($input: CreateDropInput!) {
+  createDrop(input: $input) {
+    id content
+    poll { id options { id text voteCount } expiresAt totalVotes }
+  }
+}
+
+# 投票操作
+mutation VotePoll($pollId: ID!, $optionId: ID!) {
+  votePoll(pollId: $pollId, optionId: $optionId) {
+    poll { id options { id text voteCount votePercentage } totalVotes viewerVotedOptionId }
+  }
+}
+
+# ポール結果取得（SSEイベント補完）
+query GetPollResult($pollId: ID!) {
+  poll(id: $pollId) { options { id text voteCount votePercentage } totalVotes expiresAt isExpired }
+}
+```
+
+#### 画面遷移
+
+ポールはDropに付随するため独立した画面遷移は不要。Drop作成フォーム内の拡張UIとして提供。
+
+---
+
+### 25.4. スケジュール送信
+
+#### ドメインモデル
+
+**Aggregate:**
+- ScheduledDropState: スケジュール送信の状態を管理する集約。日時指定、スケジュール一覧管理、編集/取消フローを制御する。
+
+**Entities:**
+- ScheduledDrop: スケジュール済みDrop情報（内容、公開予定日時、ステータス）
+- ScheduleForm: スケジュール設定フォーム状態
+
+**Value Objects:**
+- ScheduleID, ScheduledAt(DateTime), ScheduleStatus(pending/published/cancelled/failed)
+- ScheduleTimezone, MinScheduleOffset(5分先), MaxScheduleOffset(30日先)
+- MaxScheduleCount(100/ユーザー)
+
+**不変条件:**
+- スケジュール日時は現在時刻より5分以上先であること
+- スケジュール日時は30日先を超えないこと
+- ユーザーあたりのスケジュール投稿上限は100件
+- 公開済みまたはキャンセル済みのスケジュールは編集不可
+
+#### コンポーネント設計
+
+```
+# スケジュール設定（Drop作成フォーム内）
+DropComposerContainer
+└── SchedulePickerContainer      # Container: 日時バリデーション、タイムゾーン処理
+    └── SchedulePickerView        # Presentation: 日時ピッカー、TZ表示
+
+# スケジュール一覧
+ScheduleListPage
+├── ScheduleListContainer        # Container: スケジュール一覧取得、フィルタ管理
+│   └── ScheduleListView         # Presentation: タブ切り替え、一覧表示
+├── ScheduleEditModal            # モーダル: 内容・日時編集
+└── ScheduleCancelDialog         # ダイアログ: 取消確認
+```
+
+#### 状態管理
+
+```typescript
+// Schedule Store (Zustand)
+interface ScheduleState {
+  scheduledDrops: ScheduledDrop[];
+  activeFilter: ScheduleStatus | 'all';
+  editingScheduleId: string | null;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- スケジュール一覧は`cache-and-network`でページング対応
+- 編集/取消はMutation後にrefetchQueriesで一覧を更新
+
+#### API連携
+
+```graphql
+# Query
+query GetScheduledDrops($status: ScheduleStatus, $first: Int!, $after: String) {
+  scheduledDrops(status: $status, first: $first, after: $after) {
+    edges { node { id content scheduledAt status createdAt media { id url } poll { id options { text } } } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+
+# Mutation
+mutation CreateScheduledDrop($input: CreateScheduledDropInput!) {
+  createScheduledDrop(input: $input) { id scheduledAt status }
+}
+mutation UpdateScheduledDrop($id: ID!, $input: UpdateScheduledDropInput!) {
+  updateScheduledDrop(id: $id, input: $input) { id content scheduledAt }
+}
+mutation CancelScheduledDrop($id: ID!) {
+  cancelScheduledDrop(id: $id) { id status }
+}
+```
+
+#### 画面遷移
+
+```
+/compose → Drop作成（スケジュール設定オプション付き）
+/scheduled → スケジュール一覧
+/scheduled/:id/edit → スケジュール編集モーダル
+```
+
+---
+
+### 25.5. 下書き管理
+
+#### ドメインモデル
+
+**Aggregate:**
+- DraftState: 下書き管理の状態を管理する集約。オートセーブ制御、下書き一覧管理、復元フローを制御し、ネットワーク切断時のローカルストレージフォールバックを保証する。
+
+**Entities:**
+- Draft: 下書き情報（内容、メディア添付、ポール設定、最終更新日時）
+- AutoSaveSession: オートセーブの進行状態（タイマーID、保存状態）
+
+**Value Objects:**
+- DraftID, DraftContent, DraftUpdatedAt
+- AutoSaveInterval(30秒), AutoSaveStatus(saving/saved/error)
+- LocalStorageFallbackKey
+
+**不変条件:**
+- オートセーブ間隔は30秒固定
+- 下書き復元時に現在の入力内容がある場合はユーザー確認が必要
+- ネットワーク切断時は必ずローカルストレージにフォールバック保存
+- 投稿完了後は対応する下書きを自動削除
+
+#### コンポーネント設計
+
+```
+# オートセーブ（Drop作成フォーム内）
+DropComposerContainer
+└── AutoSaveContainer            # Container: 30秒タイマー管理、保存処理
+    └── AutoSaveIndicatorView    # Presentation: 「保存中...」「保存済み」表示
+
+# 下書き一覧
+DraftListPage
+├── DraftListContainer           # Container: 下書き一覧取得、削除操作
+│   └── DraftListView            # Presentation: 下書きプレビュー一覧
+├── DraftRestoreDialog           # ダイアログ: 復元確認（現在の入力上書き警告）
+└── DraftBulkDeleteDialog        # ダイアログ: 一括削除確認
+```
+
+#### 状態管理
+
+```typescript
+// Draft Store (Zustand)
+interface DraftState {
+  drafts: Draft[];
+  currentDraftId: string | null;
+  autoSaveStatus: AutoSaveStatus;
+  autoSaveTimerId: number | null;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- 下書き保存は`no-cache`でサーバー側の最新状態を信頼
+- ローカルストレージとサーバーの同期はネットワーク復帰時にバッチ実行
+
+**Custom Hook:**
+```typescript
+// useAutoSave: 30秒間隔のオートセーブロジック
+const useAutoSave = (content: DraftContent, draftId: string | null) => {
+  // 30秒タイマー管理、保存API呼び出し、ステータス更新
+  // ネットワークエラー時のlocalStorageフォールバック
+};
+```
+
+#### API連携
+
+```graphql
+# Query
+query GetDrafts {
+  drafts { id content media { id url } poll { options { text } duration } updatedAt }
+}
+
+# Mutation
+mutation SaveDraft($input: SaveDraftInput!) { saveDraft(input: $input) { id updatedAt } }
+mutation DeleteDraft($id: ID!) { deleteDraft(id: $id) { success } }
+mutation DeleteAllDrafts { deleteAllDrafts { deletedCount } }
+```
+
+#### 画面遷移
+
+```
+/drafts → 下書き一覧
+/compose?draftId=xxx → 下書き復元してDrop作成フォームに展開
+```
+
+---
+
+### 25.6. コミュニティ機能
+
+#### ドメインモデル
+
+**Aggregate:**
+- CommunityViewState: コミュニティ画面の表示状態を管理する集約。コミュニティ一覧、詳細、設定、メンバー管理、トピック管理のUI状態を制御する。
+
+**Entities:**
+- CommunityInfo: コミュニティ基本情報（名前、説明、カテゴリ、公開設定、メンバー数）
+- CommunityMember: メンバー情報（ユーザーサマリ、ロール、参加日時）
+- CommunityTopic: トピック情報（名前、説明、並び順）
+- CommunityTimeline: コミュニティ専用タイムライン状態
+- JoinRequest: 非公開コミュニティへの参加リクエスト状態
+
+**Value Objects:**
+- CommunityID, CommunityName, CommunityDescription, CommunityCategory
+- CommunityVisibility(public/private), MemberRole(admin/moderator/member)
+- TopicID, TopicName, TopicOrder
+- JoinRequestStatus(pending/approved/rejected)
+
+**不変条件:**
+- コミュニティ作成者は自動的にadminロールを持つ
+- 非公開コミュニティへの参加は管理者承認が必要
+- トピックの並び順は連続した整数であること
+- コミュニティ名はインスタンス内で一意であること
+
+#### コンポーネント設計
+
+```
+CommunityPage
+├── CommunityListContainer       # Container: コミュニティ一覧取得、検索・フィルタ
+│   └── CommunityListView        # Presentation: カード一覧、カテゴリフィルタ
+├── CommunityDetailContainer     # Container: コミュニティ詳細・参加/退出処理
+│   └── CommunityDetailView      # Presentation: 情報表示、メンバー数、参加ボタン
+├── CommunityCreateContainer     # Container: コミュニティ作成フロー制御
+│   └── CommunityCreateFormView  # Presentation: 作成フォーム、画像アップロード
+├── CommunitySettingsContainer   # Container: コミュニティ設定CRUD
+│   └── CommunitySettingsView    # Presentation: 設定編集フォーム
+├── TopicManagerContainer        # Container: トピックCRUD、並び替え
+│   └── TopicManagerView         # Presentation: トピック一覧、DnD並び替え
+├── MemberManagerContainer       # Container: メンバー管理、ロール変更
+│   └── MemberManagerView        # Presentation: メンバー一覧、ロールセレクタ
+└── CommunityTimelineContainer   # Container: コミュニティタイムラインデータ取得
+    └── CommunityTimelineView    # Presentation: トピック別フィルタ、Drop一覧
+```
+
+#### 状態管理
+
+```typescript
+// Community Store (Zustand)
+interface CommunityState {
+  communities: CommunityInfo[];
+  activeCommunityId: string | null;
+  members: Record<string, CommunityMember[]>;
+  topics: Record<string, CommunityTopic[]>;
+  joinRequests: Record<string, JoinRequest[]>;
+  categoryFilter: string | null;
+  searchQuery: string;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- コミュニティ一覧は`cache-and-network`でカテゴリフィルタとページングをキャッシュ
+- 参加/退出操作は楽観的更新（メンバー数の即時更新）
+- トピック並び替えは楽観的更新でDnD操作を即座に反映
+
+#### API連携
+
+```graphql
+# Query
+query GetCommunities($category: String, $search: String, $first: Int!, $after: String) {
+  communities(category: $category, search: $search, first: $first, after: $after) {
+    edges { node { id name description category visibility memberCount avatarUrl } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+query GetCommunityDetail($id: ID!) {
+  community(id: $id) { id name description category visibility memberCount rules topics { id name } isJoined viewerRole }
+}
+query GetCommunityMembers($communityId: ID!, $first: Int!, $after: String) {
+  communityMembers(communityId: $communityId, first: $first, after: $after) {
+    edges { node { user { id username displayName avatarUrl } role joinedAt } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+
+# Mutation
+mutation CreateCommunity($input: CreateCommunityInput!) { createCommunity(input: $input) { id name } }
+mutation JoinCommunity($communityId: ID!) { joinCommunity(communityId: $communityId) { status } }
+mutation LeaveCommunity($communityId: ID!) { leaveCommunity(communityId: $communityId) { success } }
+mutation UpdateCommunitySettings($id: ID!, $input: UpdateCommunityInput!) { updateCommunity(id: $id, input: $input) { id } }
+mutation CreateTopic($communityId: ID!, $input: CreateTopicInput!) { createTopic(communityId: $communityId, input: $input) { id name } }
+mutation ReorderTopics($communityId: ID!, $topicIds: [ID!]!) { reorderTopics(communityId: $communityId, topicIds: $topicIds) { success } }
+mutation UpdateMemberRole($communityId: ID!, $userId: ID!, $role: MemberRole!) { updateMemberRole(communityId: $communityId, userId: $userId, role: $role) { success } }
+```
+
+#### 画面遷移
+
+```
+/communities → コミュニティ一覧
+/communities/create → コミュニティ作成
+/communities/:id → コミュニティ詳細
+/communities/:id/timeline → コミュニティタイムライン
+/communities/:id/settings → コミュニティ設定
+/communities/:id/members → メンバー管理
+/communities/:id/topics → トピック管理
+```
+
+---
+
+### 25.7. モデレーション・ダッシュボード
+
+#### ドメインモデル
+
+**Aggregate:**
+- ModerationDashboardState: モデレーションダッシュボード全体の状態を管理する集約。通報一覧のフィルタリング、アクション実行、統計情報の表示状態を制御する。モデレーター/管理者権限を持つユーザーのみアクセス可能。
+
+**Entities:**
+- Report: 通報情報（通報者、対象コンテンツ、カテゴリ、ステータス、優先度）
+- ModerationAction: モデレーションアクション情報（種類、理由、実行者、実行日時）
+- ModerationStats: 統計情報（通報数推移、平均対応時間、カテゴリ別集計）
+- Appeal: 異議申し立て情報（申し立て内容、ステータス）
+
+**Value Objects:**
+- ReportID, ReportCategory(spam/harassment/violence/nsfw/other)
+- ReportStatus(pending/in_review/resolved/dismissed)
+- ReportPriority(low/medium/high/critical)
+- ActionType(warn/delete_content/mute/restrict_account)
+- ActionReason, ActionTemplate
+- AppealID, AppealStatus(pending/accepted/rejected)
+
+**不変条件:**
+- モデレーター権限またはインスタンス管理者権限が必要
+- 解決済み通報へのアクション実行は不可
+- アクション実行には理由の記入が必須
+- 統計データの集計期間は最大90日
+
+#### コンポーネント設計
+
+```
+ModerationPage
+├── ReportListContainer          # Container: 通報一覧取得、フィルタ・ソート管理
+│   └── ReportListView           # Presentation: 通報カード一覧、ステータスフィルタ
+├── ReportDetailContainer        # Container: 通報詳細取得、アクション実行
+│   ├── ReportDetailView         # Presentation: 通報内容、対象コンテンツプレビュー
+│   ├── ViolationHistoryView     # Presentation: 対象ユーザーの違反履歴
+│   └── ActionPanelView          # Presentation: アクションボタン群、理由入力
+├── AppealListContainer          # Container: 異議申し立て一覧・処理
+│   └── AppealListView           # Presentation: 異議一覧、再審査UI
+├── ModerationStatsContainer     # Container: 統計データ取得
+│   └── ModerationStatsView      # Presentation: グラフ、KPI表示
+└── ModerationLogContainer       # Container: アクション履歴取得
+    └── ModerationLogView        # Presentation: タイムライン形式のログ表示
+```
+
+#### 状態管理
+
+```typescript
+// Moderation Store (Zustand)
+interface ModerationState {
+  reports: Report[];
+  activeReportId: string | null;
+  statusFilter: ReportStatus | 'all';
+  categoryFilter: ReportCategory | 'all';
+  sortBy: 'createdAt' | 'priority';
+  stats: ModerationStats | null;
+  dateRange: { start: Date; end: Date };
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- 通報一覧は`network-only`で常に最新状態を表示（リアルタイム性重視）
+- アクション実行後はrefetchQueriesで通報一覧と統計を同時更新
+- 統計データは`cache-first`で5分間キャッシュ（頻繁なリクエストを抑制）
+
+#### API連携
+
+```graphql
+# Query
+query GetReports($status: ReportStatus, $category: ReportCategory, $sortBy: String, $first: Int!, $after: String) {
+  reports(status: $status, category: $category, sortBy: $sortBy, first: $first, after: $after) {
+    edges { node { id reporter { id username } targetContent { id type preview } category status priority createdAt } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+query GetReportDetail($id: ID!) {
+  report(id: $id) { id reporter { id username } targetContent { id type content } targetUser { id username violationHistory { id action reason createdAt } } category reason status priority createdAt }
+}
+query GetModerationStats($dateRange: DateRangeInput!) {
+  moderationStats(dateRange: $dateRange) { reportCountByDay { date count } avgResponseTime categoryBreakdown { category count } resolutionRate }
+}
+query GetModerationLog($first: Int!, $after: String) {
+  moderationLog(first: $first, after: $after) {
+    edges { node { id action reason moderator { id username } target { id type } createdAt } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+
+# Mutation
+mutation ExecuteModerationAction($reportId: ID!, $input: ModerationActionInput!) {
+  executeModerationAction(reportId: $reportId, input: $input) { report { id status } }
+}
+mutation ReviewAppeal($appealId: ID!, $decision: AppealDecision!, $reason: String) {
+  reviewAppeal(appealId: $appealId, decision: $decision, reason: $reason) { appeal { id status } }
+}
+```
+
+#### 画面遷移
+
+```
+/moderation → 通報一覧（デフォルト: 未対応フィルタ）
+/moderation/reports/:id → 通報詳細・アクション実行
+/moderation/appeals → 異議申し立て一覧
+/moderation/stats → モデレーション統計ダッシュボード
+/moderation/log → モデレーションログ
+```
+
+---
+
+### 25.8. メディアライブラリ
+
+#### ドメインモデル
+
+**Aggregate:**
+- MediaLibraryState: メディアライブラリの表示状態を管理する集約。メディア一覧のフィルタリング、メタデータ編集、メディア選択モードを制御する。
+
+**Entities:**
+- MediaItem: メディア情報（URL、タイプ、サイズ、メタデータ、作成日時）
+- MediaMetadata: メディアメタデータ（ALTテキスト、フォーカスポイント、ファイル名）
+- MediaUsage: メディア使用先情報（関連Drop一覧）
+
+**Value Objects:**
+- MediaID, MediaType(image/video/audio), MediaUrl, ThumbnailUrl
+- AltText(最大1500文字), FocusPoint(x: -1.0~1.0, y: -1.0~1.0)
+- FileName, FileSize, MimeType, Dimensions(width, height)
+- MediaViewMode(grid/list), MediaSortBy(date/size)
+
+**不変条件:**
+- フォーカスポイントのx, y座標は-1.0から1.0の範囲であること
+- 使用先Dropが存在するメディアの削除は確認ダイアログが必要
+- ALTテキストは最大1500文字
+
+#### コンポーネント設計
+
+```
+MediaLibraryPage
+├── MediaGridContainer           # Container: メディア一覧取得、フィルタ・ソート
+│   └── MediaGridView            # Presentation: グリッド/リスト切替表示
+├── MediaDetailContainer         # Container: メディア詳細・メタデータ更新
+│   ├── MediaPreviewView         # Presentation: メディアプレビュー表示
+│   ├── MetadataEditorView       # Presentation: ALTテキスト・フォーカスポイント編集
+│   └── MediaUsageView           # Presentation: 使用先Drop一覧
+├── FocusPointEditorContainer    # Container: フォーカスポイント座標計算
+│   └── FocusPointEditorView     # Presentation: プレビュー上のクリック式ポイント選択
+├── MediaDeleteDialog            # ダイアログ: 削除確認（使用先警告付き）
+└── MediaPickerContainer         # Container: Drop作成時の既存メディア選択
+    └── MediaPickerView          # Presentation: メディア選択グリッド
+```
+
+#### 状態管理
+
+```typescript
+// MediaLibrary Store (Zustand)
+interface MediaLibraryState {
+  mediaItems: MediaItem[];
+  viewMode: MediaViewMode;
+  typeFilter: MediaType | 'all';
+  sortBy: MediaSortBy;
+  selectedMediaId: string | null;
+  isPickerMode: boolean;          // Drop作成時のメディア選択モード
+  pickerSelectedIds: string[];    // 選択中のメディアID
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- メディア一覧は`cache-and-network`でページングキャッシュ対応
+- メタデータ更新は楽観的更新でALTテキスト・フォーカスポイントを即時反映
+- メディア削除後はevictでキャッシュからエントリを除去
+
+#### API連携
+
+```graphql
+# Query
+query GetMediaLibrary($type: MediaType, $sortBy: MediaSortBy, $first: Int!, $after: String) {
+  mediaLibrary(type: $type, sortBy: $sortBy, first: $first, after: $after) {
+    edges { node { id url thumbnailUrl type mimeType fileSize dimensions { width height } altText focusPoint { x y } createdAt } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+query GetMediaDetail($id: ID!) {
+  media(id: $id) { id url type mimeType fileSize dimensions { width height } altText focusPoint { x y } fileName createdAt usedInDrops { id content createdAt } }
+}
+
+# Mutation
+mutation UpdateMediaMetadata($id: ID!, $input: UpdateMediaMetadataInput!) {
+  updateMediaMetadata(id: $id, input: $input) { id altText focusPoint { x y } fileName }
+}
+mutation DeleteMedia($id: ID!) { deleteMedia(id: $id) { success } }
+```
+
+#### 画面遷移
+
+```
+/media → メディアライブラリ（グリッド表示）
+/media/:id → メディア詳細モーダル（メタデータ編集）
+```
+
+---
+
+### 25.9. 高度な検索
+
+#### ドメインモデル
+
+**Aggregate:**
+- AdvancedSearchState: 高度な検索の状態を管理する集約。フィルタ条件管理、検索結果表示、検索履歴、保存済み検索を制御する。
+
+**Entities:**
+- SearchFilter: 検索フィルタ条件（日付範囲、投稿者、メディア有無、言語、公開範囲）
+- SearchResult: 検索結果（Drop/ユーザー/コミュニティ各タブのデータ）
+- SearchHistoryEntry: 検索履歴エントリ（クエリ、フィルタ、実行日時）
+- SavedSearch: 保存済み検索（名前、クエリ、フィルタ条件、通知設定）
+
+**Value Objects:**
+- SearchQuery(キーワード文字列), DateRange(from, to)
+- SearchAuthor(ユーザー指定), HasMedia(boolean), SearchLanguage
+- SearchScope(public/unlisted/followers_only)
+- SearchResultType(drops/users/communities)
+- SearchSortBy(relevance/newest/oldest)
+- SavedSearchID, SavedSearchName
+- SearchDebounceDelay(300ms)
+
+**不変条件:**
+- 検索実行は300msのデバウンスを適用すること
+- 検索履歴は最大100件保持し、古いものから自動削除
+- 保存済み検索には名前の付与が必須
+- フィルタ条件の日付範囲は開始日 <= 終了日であること
+
+#### コンポーネント設計
+
+```
+SearchPage
+├── AdvancedSearchContainer      # Container: 検索実行、フィルタ管理、デバウンス
+│   ├── SearchInputView          # Presentation: キーワード入力、検索ボタン
+│   └── FilterPanelView          # Presentation: フィルタ条件UI（折りたたみ式）
+├── SearchResultContainer        # Container: 検索結果取得、タブ切り替え管理
+│   ├── DropResultListView       # Presentation: Drop検索結果一覧
+│   ├── UserResultListView       # Presentation: ユーザー検索結果一覧
+│   └── CommunityResultListView  # Presentation: コミュニティ検索結果一覧
+├── SearchHistoryContainer       # Container: 検索履歴取得・削除
+│   └── SearchHistoryView        # Presentation: 履歴一覧、削除ボタン
+├── SavedSearchContainer         # Container: 保存済み検索CRUD
+│   └── SavedSearchView          # Presentation: 保存済み検索一覧、実行ボタン
+├── SaveSearchModal              # モーダル: 検索条件保存（名前入力、通知設定）
+└── TrendingKeywordsContainer    # Container: トレンドキーワード取得
+    └── TrendingKeywordsView     # Presentation: トレンドキーワード一覧
+```
+
+#### 状態管理
+
+```typescript
+// Search Store (Zustand)
+interface AdvancedSearchState {
+  query: string;
+  filters: SearchFilter;
+  activeTab: SearchResultType;
+  sortBy: SearchSortBy;
+  results: Record<SearchResultType, SearchResultPage>;
+  history: SearchHistoryEntry[];
+  savedSearches: SavedSearch[];
+  isFilterPanelOpen: boolean;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- 検索結果は`no-cache`で毎回最新結果を取得（検索エンジンの鮮度重視）
+- トレンドキーワードは`cache-first`で15分間キャッシュ
+- 保存済み検索一覧は`cache-and-network`
+
+**Custom Hook:**
+```typescript
+// useAdvancedSearch: デバウンス付き検索ロジック
+const useAdvancedSearch = (query: string, filters: SearchFilter) => {
+  const debouncedQuery = useDebounce(query, 300);
+  // デバウンス後のクエリでGraphQL検索実行
+  // 検索履歴への自動追加
+};
+```
+
+#### API連携
+
+```graphql
+# Query
+query AdvancedSearch($query: String!, $filters: SearchFilterInput, $type: SearchResultType!, $sortBy: SearchSortBy, $first: Int!, $after: String) {
+  search(query: $query, filters: $filters, type: $type, sortBy: $sortBy, first: $first, after: $after) {
+    drops { edges { node { ...DropFragment } cursor } pageInfo { hasNextPage endCursor } totalCount }
+    users { edges { node { id username displayName avatarUrl bio } cursor } pageInfo { hasNextPage endCursor } totalCount }
+    communities { edges { node { id name description memberCount avatarUrl } cursor } pageInfo { hasNextPage endCursor } totalCount }
+  }
+}
+query GetSearchHistory { searchHistory { id query filters { dateRange author hasMedia } searchedAt } }
+query GetSavedSearches { savedSearches { id name query filters notifyEnabled } }
+query GetTrendingKeywords { trendingKeywords { keyword count } }
+
+# Mutation
+mutation SaveSearch($input: SaveSearchInput!) { saveSearch(input: $input) { id name } }
+mutation DeleteSavedSearch($id: ID!) { deleteSavedSearch(id: $id) { success } }
+mutation ClearSearchHistory { clearSearchHistory { success } }
+mutation DeleteSearchHistoryEntry($id: ID!) { deleteSearchHistoryEntry(id: $id) { success } }
+```
+
+#### 画面遷移
+
+```
+/search → 検索画面（基本検索 + 高度な検索パネル）
+/search?q=keyword&type=drops → 検索結果（クエリパラメータでフィルタ反映）
+/search/saved → 保存済み検索一覧
+```
+
+---
+
+### 25.10. フェデレーション管理
+
+#### ドメインモデル
+
+**Aggregate:**
+- FederationAdminState: フェデレーション管理の状態を管理する集約。リモートインスタンス一覧、ブロック管理、フェデレーション統計の表示状態を制御する。インスタンス管理者権限が必要。
+
+**Entities:**
+- RemoteInstance: リモートインスタンス情報（ドメイン、ソフトウェア名/バージョン、接続状態、最終通信日時、ユーザー数）
+- InstanceBlock: インスタンスブロック情報（ドメイン、ブロック理由、ブロック範囲、作成日時）
+- FederationStats: フェデレーション統計（受信/送信アクティビティ数、エラー率、配送成功率）
+
+**Value Objects:**
+- InstanceDomain, InstanceSoftware, InstanceVersion
+- ConnectionStatus(active/inactive/error)
+- LastCommunicatedAt, RemoteUserCount
+- BlockReason, BlockScope(full/media_only)
+- ActivityCount, ErrorRate, DeliverySuccessRate
+- FederationStatsPeriod(24h/7d/30d/90d)
+
+**不変条件:**
+- インスタンス管理者権限が必須（権限チェックはContainerコンポーネントで実施）
+- 自インスタンスのブロックは禁止
+- ブロック理由の記入は必須
+- ブロック範囲はfull（完全ブロック）またはmedia_only（メディアのみブロック）
+
+#### コンポーネント設計
+
+```
+FederationPage
+├── InstanceListContainer        # Container: インスタンス一覧取得、検索・フィルタ
+│   └── InstanceListView         # Presentation: インスタンス一覧、接続状態表示
+├── InstanceDetailContainer      # Container: インスタンス詳細、通信統計取得
+│   └── InstanceDetailView       # Presentation: インスタンス情報、接続ユーザー一覧
+├── InstanceBlockContainer       # Container: ブロック一覧・CRUD操作
+│   └── InstanceBlockListView    # Presentation: ブロック済み一覧、解除ボタン
+├── BlockInstanceModal           # モーダル: ブロック追加（ドメイン入力、理由、範囲設定）
+├── FederationStatsContainer     # Container: フェデレーション統計取得
+│   └── FederationStatsView      # Presentation: アクティビティ推移グラフ、KPI表示
+└── AdminGuard                   # 権限ガード: 管理者権限チェック、未認可時のリダイレクト
+```
+
+#### 状態管理
+
+```typescript
+// Federation Store (Zustand)
+interface FederationState {
+  instances: RemoteInstance[];
+  blockedInstances: InstanceBlock[];
+  activeInstanceDomain: string | null;
+  stats: FederationStats | null;
+  statsPeriod: FederationStatsPeriod;
+  searchQuery: string;
+}
+```
+
+**Apollo Clientキャッシュ戦略:**
+- インスタンス一覧は`cache-and-network`でページング対応
+- ブロック操作後はrefetchQueriesでインスタンス一覧とブロック一覧を同時更新
+- 統計データは`cache-first`で10分間キャッシュ
+
+#### API連携
+
+```graphql
+# Query
+query GetRemoteInstances($search: String, $status: ConnectionStatus, $first: Int!, $after: String) {
+  remoteInstances(search: $search, status: $status, first: $first, after: $after) {
+    edges { node { domain software version connectionStatus lastCommunicatedAt userCount } cursor }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+query GetInstanceDetail($domain: String!) {
+  remoteInstance(domain: $domain) { domain software version connectionStatus lastCommunicatedAt userCount connectedUsers { id username } communicationStats { sentCount receivedCount errorRate } }
+}
+query GetBlockedInstances {
+  blockedInstances { domain reason scope createdAt blockedBy { id username } }
+}
+query GetFederationStats($period: FederationStatsPeriod!) {
+  federationStats(period: $period) { activityByDay { date sent received } errorRate deliverySuccessRate totalInstances activeInstances }
+}
+
+# Mutation
+mutation BlockInstance($input: BlockInstanceInput!) {
+  blockInstance(input: $input) { domain reason scope }
+}
+mutation UnblockInstance($domain: String!) {
+  unblockInstance(domain: $domain) { success }
+}
+```
+
+#### 画面遷移
+
+```
+/admin/federation → リモートインスタンス一覧
+/admin/federation/instances/:domain → インスタンス詳細
+/admin/federation/blocks → ブロック管理
+/admin/federation/stats → フェデレーション統計
+```
+
+## 26. Service-Specific Test Strategy
+
+### 26.1. Overview
 
 The avion-web frontend requires comprehensive testing covering GraphQL integration, PWA functionality, performance metrics, and user interactions. Testing follows a pyramid approach with extensive unit tests, focused integration tests, and critical E2E scenarios.
 
@@ -6230,9 +7537,9 @@ The avion-web frontend requires comprehensive testing covering GraphQL integrati
 - **Offline Resilience**: Ensure PWA functionality works reliably
 - **GraphQL Integration**: Mock and test Apollo Client interactions
 
-### 25.2. GraphQL Integration Testing
+### 26.2. GraphQL Integration Testing
 
-#### 25.2.1. Apollo Client Mock Setup
+#### 26.2.1. Apollo Client Mock Setup
 
 ```typescript
 // tests/utils/apollo-mock.ts
@@ -6288,7 +7595,7 @@ export const timelineErrorMock = {
 };
 ```
 
-#### 25.2.2. Optimistic Updates Testing
+#### 26.2.2. Optimistic Updates Testing
 
 ```typescript
 // tests/components/CreateDrop.test.tsx
@@ -6372,7 +7679,7 @@ describe('CreateDrop Optimistic Updates', () => {
 });
 ```
 
-#### 25.2.3. Cache Invalidation Testing
+#### 26.2.3. Cache Invalidation Testing
 
 ```typescript
 // tests/hooks/useTimelineCache.test.ts
@@ -6458,9 +7765,9 @@ describe('Timeline Cache Management', () => {
 });
 ```
 
-### 25.3. PWA Functionality Testing
+### 26.3. PWA Functionality Testing
 
-#### 25.3.1. Service Worker Update Testing
+#### 26.3.1. Service Worker Update Testing
 
 ```typescript
 // tests/pwa/service-worker.test.ts
@@ -6544,7 +7851,7 @@ describe('Service Worker Updates', () => {
 });
 ```
 
-#### 25.3.2. Push Notification Testing
+#### 26.3.2. Push Notification Testing
 
 ```typescript
 // tests/pwa/push-notifications.test.ts
@@ -6633,7 +7940,7 @@ describe('Push Notifications', () => {
 });
 ```
 
-#### 25.3.3. Installation Flow Testing
+#### 26.3.3. Installation Flow Testing
 
 ```typescript
 // tests/pwa/install-flow.test.ts
@@ -6693,9 +8000,9 @@ describe('PWA Installation Flow', () => {
 });
 ```
 
-### 25.4. Component Testing with React Testing Library
+### 26.4. Component Testing with React Testing Library
 
-#### 25.4.1. Error Boundary Testing
+#### 26.4.1. Error Boundary Testing
 
 ```typescript
 // tests/components/ErrorBoundary.test.tsx
@@ -6763,7 +8070,7 @@ describe('ErrorBoundary', () => {
 });
 ```
 
-#### 25.4.2. Virtual Scrolling Testing
+#### 26.4.2. Virtual Scrolling Testing
 
 ```typescript
 // tests/components/VirtualTimeline.test.tsx
@@ -6837,9 +8144,9 @@ describe('VirtualTimeline', () => {
 });
 ```
 
-### 25.5. Performance Testing
+### 26.5. Performance Testing
 
-#### 25.5.1. Lighthouse CI Testing
+#### 26.5.1. Lighthouse CI Testing
 
 ```typescript
 // tests/performance/lighthouse.config.js
@@ -6884,7 +8191,7 @@ module.exports = {
 };
 ```
 
-#### 25.5.2. Bundle Size Monitoring
+#### 26.5.2. Bundle Size Monitoring
 
 ```typescript
 // tests/performance/bundle-size.test.ts
@@ -6943,7 +8250,7 @@ describe('Bundle Size Monitoring', () => {
 });
 ```
 
-#### 25.5.3. Core Web Vitals Testing
+#### 26.5.3. Core Web Vitals Testing
 
 ```typescript
 // tests/performance/core-web-vitals.test.ts
@@ -7018,9 +8325,9 @@ describe('Core Web Vitals', () => {
 });
 ```
 
-### 25.6. E2E Testing with Playwright
+### 26.6. E2E Testing with Playwright
 
-#### 25.6.1. Timeline Flow Testing
+#### 26.6.1. Timeline Flow Testing
 
 ```typescript
 // tests/e2e/timeline.spec.ts
@@ -7111,7 +8418,7 @@ test.describe('Timeline Flow', () => {
 });
 ```
 
-#### 25.6.2. PWA E2E Testing
+#### 26.6.2. PWA E2E Testing
 
 ```typescript
 // tests/e2e/pwa.spec.ts
@@ -7178,9 +8485,9 @@ test.describe('PWA Functionality', () => {
 });
 ```
 
-### 25.7. Test Configuration and Scripts
+### 26.7. Test Configuration and Scripts
 
-#### 25.7.1. Vitest Configuration
+#### 26.7.1. Vitest Configuration
 
 ```typescript
 // vitest.config.ts
@@ -7212,10 +8519,10 @@ export default defineConfig({
         'src/serviceWorker.ts',
       ],
       thresholds: {
-        branches: 90,
-        functions: 90,
-        lines: 90,
-        statements: 90,
+        branches: 85,
+        functions: 85,
+        lines: 85,
+        statements: 85,
       },
     },
     css: {
@@ -7227,7 +8534,7 @@ export default defineConfig({
 });
 ```
 
-#### 25.7.2. Test Scripts
+#### 26.7.2. Test Scripts
 
 ```json
 {

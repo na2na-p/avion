@@ -1,5 +1,7 @@
 # Avion 環境変数管理設計ガイドライン
 
+**最終更新**: 2026/03/15
+
 ## 概要
 
 すべてのAvionマイクロサービスにおいて、環境変数管理を統一的に実装するためのガイドラインです。
@@ -387,7 +389,7 @@ package config_test
 import (
     "testing"
     
-    "github.com/golang/mock/gomock"
+    "go.uber.org/mock/gomock"
     "github.com/stretchr/testify/assert"
     
     "github.com/avion/avion-auth/internal/infrastructure/config"

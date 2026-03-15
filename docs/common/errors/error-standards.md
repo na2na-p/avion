@@ -18,19 +18,20 @@ Avionプラットフォーム全体で統一されたエラーハンドリング
 ### 構成要素
 
 #### SERVICE（サービス識別子）
-- `AUTH`: 認証サービス (avion-auth)
-- `IAM`: アイデンティティ管理 (avion-iam)  
-- `USER`: ユーザー管理 (avion-user)
-- `DROP`: 投稿管理 (avion-drop)
-- `TIMELINE`: タイムライン (avion-timeline)
-- `MEDIA`: メディア管理 (avion-media)
-- `NOTIFICATION`: 通知 (avion-notification)
-- `GATEWAY`: APIゲートウェイ (avion-gateway)
-- `MODERATION`: モデレーション (avion-moderation)
-- `ADMIN`: システム管理 (avion-system-admin)
 - `ACTIVITYPUB`: ActivityPub連携 (avion-activitypub)
-- `SEARCH`: 検索 (avion-search)
+- `ADMIN`: システム管理 (avion-system-admin)
+- `AUTH`: 認証サービス (avion-auth)
 - `COMMUNITY`: コミュニティ管理 (avion-community)
+- `DROP`: 投稿管理 (avion-drop)
+- `GATEWAY`: APIゲートウェイ (avion-gateway)
+- `MEDIA`: メディア管理 (avion-media)
+- `MESSAGE`: メッセージング (avion-message)
+- `MODERATION`: モデレーション (avion-moderation)
+- `NOTIFICATION`: 通知 (avion-notification)
+- `SEARCH`: 検索 (avion-search)
+- `TIMELINE`: タイムライン (avion-timeline)
+- `USER`: ユーザー管理 (avion-user)
+- `WEB`: Webフロントエンド (avion-web)
 
 #### LAYER（レイヤー識別子）
 - `DOMAIN`: ドメイン層のエラー

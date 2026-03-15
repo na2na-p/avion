@@ -1,6 +1,6 @@
 # Avion データベースマイグレーション戦略
 
-**Last Updated:** 2025/01/13  
+**Last Updated:** 2026/03/15  
 **Status:** 必須実装項目  
 **Compliance:** `.cursor/rules`準拠
 
@@ -105,7 +105,7 @@ avion-drop:
 go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # Docker環境（各サービスのDockerfile）
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 
 FROM alpine:latest
@@ -502,7 +502,7 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.21'
     

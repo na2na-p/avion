@@ -1,7 +1,7 @@
 # Design Doc: avion-community
 
 **Author:** Claude Code
-**Last Updated:** 2026/03/14
+**Last Updated:** 2026/03/15
 
 ## 1. Summary (これは何？)
 
@@ -14,7 +14,7 @@
 
 ### 2.1. テスト方針
 - **TDD必須**: インターフェース定義 → テスト作成 → 実装の順序を厳守
-- **カバレッジ目標**: ユニットテスト90%以上、クリティカルパス95%以上
+- **カバレッジ目標**: ユニットテスト85%以上、クリティカルパス95%以上
 - **テーブル駆動テスト**: 全テストで必須
 - **モック生成**: `go.uber.org/mock/gomock`使用
 
@@ -25,7 +25,7 @@
 #### 主要なE2Eテストシナリオ
 - コミュニティ作成から設定完了までの完全フロー
 - メンバー招待・承認・除名機能の管理サイクル
-- チャンネル作成とトピック管理機能
+- トピック作成とトピック管理機能
 - コミュニティ内でのドロップ投稿と表示制御
 - イベント作成・参加・管理機能の完全テスト
 - ロール・権限設定とアクセス制御の確認
@@ -50,9 +50,9 @@
 - **標準仕様**: [エラーコード標準化ガイドライン](../common/errors/error-standards.md)
 
 詳細なエラーコード定義とマッピングについては、上記のドキュメントを参照してください。
-- サービスプレフィックス: `CMT`
-- 命名規則: `[CMT]_[LAYER]_[ERROR_TYPE]`
-- 例: `CMT_DOMAIN_NOT_FOUND`, `CMT_USECASE_UNAUTHORIZED`
+- サービスプレフィックス: `COMMUNITY`
+- 命名規則: `[COMMUNITY]_[LAYER]_[ERROR_TYPE]`
+- 例: `COMMUNITY_DOMAIN_NOT_FOUND`, `COMMUNITY_USECASE_UNAUTHORIZED`
 
 ### 3.2. エラーカタログ
 
@@ -60,17 +60,17 @@
 ```go
 // Domain層エラー定義
 var (
-    ErrCommunityNotFound      = errors.New("CMT_DOMAIN_NOT_FOUND")
-    ErrCommunityAlreadyExists = errors.New("CMT_DOMAIN_ALREADY_EXISTS")
-    ErrMemberLimitExceeded    = errors.New("CMT_DOMAIN_MEMBER_LIMIT")
-    ErrInvalidCommunityState  = errors.New("CMT_DOMAIN_INVALID_STATE")
-    ErrEventConflict          = errors.New("CMT_DOMAIN_EVENT_CONFLICT")
-    ErrMemberAlreadyExists    = errors.New("CMT_DOMAIN_MEMBER_EXISTS")
-    ErrNotMember              = errors.New("CMT_DOMAIN_NOT_MEMBER")
-    ErrPermissionDenied       = errors.New("CMT_DOMAIN_PERMISSION_DENIED")
-    ErrInviteExpired          = errors.New("CMT_DOMAIN_INVITE_EXPIRED")
-    ErrChannelLimitExceeded   = errors.New("CMT_DOMAIN_CHANNEL_LIMIT")
-    ErrInvalidRole            = errors.New("CMT_DOMAIN_INVALID_ROLE")
+    ErrCommunityNotFound      = errors.New("COMMUNITY_DOMAIN_NOT_FOUND")
+    ErrCommunityAlreadyExists = errors.New("COMMUNITY_DOMAIN_ALREADY_EXISTS")
+    ErrMemberLimitExceeded    = errors.New("COMMUNITY_DOMAIN_MEMBER_LIMIT")
+    ErrInvalidCommunityState  = errors.New("COMMUNITY_DOMAIN_INVALID_STATE")
+    ErrEventConflict          = errors.New("COMMUNITY_DOMAIN_EVENT_CONFLICT")
+    ErrMemberAlreadyExists    = errors.New("COMMUNITY_DOMAIN_MEMBER_EXISTS")
+    ErrNotMember              = errors.New("COMMUNITY_DOMAIN_NOT_MEMBER")
+    ErrPermissionDenied       = errors.New("COMMUNITY_DOMAIN_PERMISSION_DENIED")
+    ErrInviteExpired          = errors.New("COMMUNITY_DOMAIN_INVITE_EXPIRED")
+    ErrTopicLimitExceeded     = errors.New("COMMUNITY_DOMAIN_TOPIC_LIMIT_EXCEEDED")
+    ErrInvalidRole            = errors.New("COMMUNITY_DOMAIN_INVALID_ROLE")
 )
 ```
 
@@ -78,12 +78,12 @@ var (
 ```go
 // UseCase層エラー定義
 var (
-    ErrUnauthorizedAccess = errors.New("CMT_USECASE_UNAUTHORIZED")
-    ErrInvalidInput       = errors.New("CMT_USECASE_INVALID_INPUT")
-    ErrQuotaExceeded      = errors.New("CMT_USECASE_QUOTA_EXCEEDED")
-    ErrConflict           = errors.New("CMT_USECASE_CONFLICT")
-    ErrPreconditionFailed = errors.New("CMT_USECASE_PRECONDITION_FAILED")
-    ErrRateLimitExceeded  = errors.New("CMT_USECASE_RATE_LIMIT")
+    ErrUnauthorizedAccess = errors.New("COMMUNITY_USECASE_UNAUTHORIZED")
+    ErrInvalidInput       = errors.New("COMMUNITY_USECASE_INVALID_INPUT")
+    ErrQuotaExceeded      = errors.New("COMMUNITY_USECASE_QUOTA_EXCEEDED")
+    ErrConflict           = errors.New("COMMUNITY_USECASE_CONFLICT")
+    ErrPreconditionFailed = errors.New("COMMUNITY_USECASE_PRECONDITION_FAILED")
+    ErrRateLimitExceeded  = errors.New("COMMUNITY_USECASE_RATE_LIMIT")
 )
 ```
 
@@ -91,23 +91,23 @@ var (
 
 | エラーコード | gRPCステータス | 説明 | 対処法 |
 |------------|--------------|------|--------|
-| CMT_DOMAIN_NOT_FOUND | codes.NotFound | コミュニティが見つからない | コミュニティIDを確認してください |
-| CMT_DOMAIN_ALREADY_EXISTS | codes.AlreadyExists | コミュニティが既に存在 | 別の名前を使用してください |
-| CMT_DOMAIN_MEMBER_LIMIT | codes.ResourceExhausted | メンバー数上限到達 | コミュニティプランのアップグレードを検討してください |
-| CMT_DOMAIN_INVALID_STATE | codes.FailedPrecondition | 不正な状態遷移 | 現在の状態を確認してください |
-| CMT_DOMAIN_EVENT_CONFLICT | codes.Aborted | イベントスケジュールの競合 | 異なる時間帯を選択してください |
-| CMT_DOMAIN_MEMBER_EXISTS | codes.AlreadyExists | 既にメンバーである | 既存のメンバーシップを確認してください |
-| CMT_DOMAIN_NOT_MEMBER | codes.PermissionDenied | メンバーではない | コミュニティへの参加が必要です |
-| CMT_DOMAIN_PERMISSION_DENIED | codes.PermissionDenied | 権限がない | 必要なロールを確認してください |
-| CMT_DOMAIN_INVITE_EXPIRED | codes.DeadlineExceeded | 招待の有効期限切れ | 新しい招待をリクエストしてください |
-| CMT_DOMAIN_CHANNEL_LIMIT | codes.ResourceExhausted | チャンネル数上限到達 | 不要なチャンネルを削除してください |
-| CMT_DOMAIN_INVALID_ROLE | codes.InvalidArgument | 無効なロール指定 | 有効なロールを指定してください |
-| CMT_USECASE_UNAUTHORIZED | codes.Unauthenticated | 認証エラー | ログインしてください |
-| CMT_USECASE_INVALID_INPUT | codes.InvalidArgument | 入力値が不正 | リクエストパラメータを確認してください |
-| CMT_USECASE_QUOTA_EXCEEDED | codes.ResourceExhausted | クォータ制限超過 | しばらく待ってから再試行してください |
-| CMT_USECASE_CONFLICT | codes.Aborted | 競合状態 | 操作を再試行してください |
-| CMT_USECASE_PRECONDITION_FAILED | codes.FailedPrecondition | 事前条件違反 | 必要な前提条件を満たしてください |
-| CMT_USECASE_RATE_LIMIT | codes.ResourceExhausted | レート制限超過 | しばらく待ってから再試行してください |
+| COMMUNITY_DOMAIN_NOT_FOUND | codes.NotFound | コミュニティが見つからない | コミュニティIDを確認してください |
+| COMMUNITY_DOMAIN_ALREADY_EXISTS | codes.AlreadyExists | コミュニティが既に存在 | 別の名前を使用してください |
+| COMMUNITY_DOMAIN_MEMBER_LIMIT | codes.ResourceExhausted | メンバー数上限到達 | コミュニティプランのアップグレードを検討してください |
+| COMMUNITY_DOMAIN_INVALID_STATE | codes.FailedPrecondition | 不正な状態遷移 | 現在の状態を確認してください |
+| COMMUNITY_DOMAIN_EVENT_CONFLICT | codes.Aborted | イベントスケジュールの競合 | 異なる時間帯を選択してください |
+| COMMUNITY_DOMAIN_MEMBER_EXISTS | codes.AlreadyExists | 既にメンバーである | 既存のメンバーシップを確認してください |
+| COMMUNITY_DOMAIN_NOT_MEMBER | codes.PermissionDenied | メンバーではない | コミュニティへの参加が必要です |
+| COMMUNITY_DOMAIN_PERMISSION_DENIED | codes.PermissionDenied | 権限がない | 必要なロールを確認してください |
+| COMMUNITY_DOMAIN_INVITE_EXPIRED | codes.DeadlineExceeded | 招待の有効期限切れ | 新しい招待をリクエストしてください |
+| COMMUNITY_DOMAIN_TOPIC_LIMIT_EXCEEDED | codes.ResourceExhausted | トピック数上限到達 | 不要なトピックをアーカイブしてください |
+| COMMUNITY_DOMAIN_INVALID_ROLE | codes.InvalidArgument | 無効なロール指定 | 有効なロールを指定してください |
+| COMMUNITY_USECASE_UNAUTHORIZED | codes.Unauthenticated | 認証エラー | ログインしてください |
+| COMMUNITY_USECASE_INVALID_INPUT | codes.InvalidArgument | 入力値が不正 | リクエストパラメータを確認してください |
+| COMMUNITY_USECASE_QUOTA_EXCEEDED | codes.ResourceExhausted | クォータ制限超過 | しばらく待ってから再試行してください |
+| COMMUNITY_USECASE_CONFLICT | codes.Aborted | 競合状態 | 操作を再試行してください |
+| COMMUNITY_USECASE_PRECONDITION_FAILED | codes.FailedPrecondition | 事前条件違反 | 必要な前提条件を満たしてください |
+| COMMUNITY_USECASE_RATE_LIMIT | codes.ResourceExhausted | レート制限超過 | しばらく待ってから再試行してください |
 
 詳細は[共通エラー標準化ガイドライン](../common/errors/error-standards.md)を参照してください。
 
@@ -172,7 +172,7 @@ var (
 - `GRPC_PORT`: gRPCサーバーポート (default: 9101)
 - `MAX_COMMUNITY_SIZE`: コミュニティの最大メンバー数 (default: 10000)
 - `MAX_EVENT_PARTICIPANTS`: イベントの最大参加者数 (default: 1000)
-- `CHANNEL_MESSAGE_RETENTION`: チャンネルメッセージの保持期間 (default: 30d)
+- `TOPIC_POST_RETENTION`: トピック内投稿の保持期間 (default: 30d)
 
 ### 6.2. Config Struct Implementation (設定構造体実装)
 
@@ -206,7 +206,7 @@ type RedisConfig struct {
 type CommunityConfig struct {
     MaxCommunitySize      int           `env:"MAX_COMMUNITY_SIZE" required:"false" default:"10000"`
     MaxEventParticipants  int           `env:"MAX_EVENT_PARTICIPANTS" required:"false" default:"1000"`
-    ChannelMessageRetention time.Duration `env:"CHANNEL_MESSAGE_RETENTION" required:"false" default:"720h"` // 30 days
+    TopicPostRetention time.Duration `env:"TOPIC_POST_RETENTION" required:"false" default:"720h"` // 30 days
 }
 
 type LoggingConfig struct {
@@ -241,8 +241,8 @@ func ValidateConfig(config *Config) error {
     if config.Community.MaxEventParticipants <= 0 {
         return ErrInvalidMaxEventParticipants
     }
-    if config.Community.ChannelMessageRetention <= 0 {
-        return ErrInvalidChannelMessageRetention
+    if config.Community.TopicPostRetention <= 0 {
+        return ErrInvalidTopicPostRetention
     }
     return nil
 }
@@ -279,7 +279,7 @@ func ValidateConfig(config *Config) error {
 
 - コミュニティのCRUD操作を行うgRPC APIの実装
 - メンバーシップ管理（参加・退会・役割変更・モデレーション）のgRPC API実装
-- トピック（チャンネル）管理のgRPC API実装
+- トピック管理のgRPC API実装
 - コミュニティルール・モデレーション機能のAPI実装
 - イベント機能のCRUD API実装
 - 招待システム（招待コード生成・使用）のAPI実装
@@ -365,7 +365,7 @@ func ValidateConfig(config *Config) error {
 - **Aggregates:**
   - Community: コミュニティのライフサイクルと基本設定を管理
   - Membership: コミュニティへの参加状態と役割を管理
-  - Topic: コミュニティ内のトピック（チャンネル）を管理
+  - Topic: コミュニティ内のトピックを管理
   - CommunityRule: コミュニティのルールとモデレーションポリシーを管理
   - CommunityInvitation: コミュニティへの招待を管理
   - CommunityEvent: コミュニティイベントとスケジュールを管理
@@ -374,7 +374,7 @@ func ValidateConfig(config *Config) error {
   - Community: コミュニティの主体
   - Membership: メンバーシップ情報
   - MembershipRole: カスタム役割定義
-  - Topic: トピック・チャンネル
+  - Topic: トピック
   - CommunityRule: コミュニティルール
   - CommunityModerationLog: モデレーションログ
   - CommunityInvitation: 招待情報
@@ -456,6 +456,7 @@ func ValidateConfig(config *Config) error {
   - gRPCUserServiceClient
   - gRPCNotificationServiceClient
   - gRPCMediaServiceClient
+  - gRPCModerationServiceClient（エスカレーション用）
 - **Event Publishers:**
   - NATSEventPublisher
 - **Cache Services:**
@@ -912,7 +913,7 @@ ZSET trending:communities:{category}
 
 ### avion-community固有の考慮事項
 
-- **コミュニティメンバー関係**: グループ・イベント・チャンネルのメンバーシップデータを正確に移行
+- **コミュニティメンバー関係**: グループ・イベント・トピックのメンバーシップデータを正確に移行
 - **権限継承**: コミュニティ内の管理者・モデレータ権限を適切に継承
 - **イベントスケジュール保持**: 予定されているイベントの日時・参加者情報を保護
 - **コミュニティ設定維持**: プライベート設定やカスタムルールを完全に移行
@@ -1133,6 +1134,7 @@ enum MembershipRole {
   MEMBERSHIP_ROLE_MEMBER = 1;
   MEMBERSHIP_ROLE_MODERATOR = 2;
   MEMBERSHIP_ROLE_OWNER = 3;
+  MEMBERSHIP_ROLE_CUSTOM = 4; // カスタムロール（custom_role_idで詳細権限を参照）
 }
 
 enum TopicType {
@@ -1598,7 +1600,7 @@ kubectl rollout status deployment/avion-community -n avion
 ### 14.6. リリース前チェックリスト
 
 - [ ] 全テストがパス（ユニット + 統合）
-- [ ] カバレッジ目標達成（90%以上）
+- [ ] カバレッジ目標達成（85%以上）
 - [ ] DBマイグレーションスクリプト準備完了
 - [ ] 環境変数の追加/変更がドキュメント化済み
 - [ ] ロールバック手順のリハーサル完了
@@ -1623,7 +1625,7 @@ kubectl rollout status deployment/avion-community -n avion
 
 テスト実装の詳細は[共通テスト戦略](../common/testing-strategy.md)を参照してください。
 
-> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `CMT` を使用します。
+> **注意:** エラーコードは[共通エラーコード標準](../common/errors/error-codes.md)に準拠します。このサービスではプレフィックス `COMMUNITY` を使用します。
 
 ## 16. Operations & Monitoring (運用と監視)
 
@@ -1712,7 +1714,7 @@ logger.Error("gRPC request failed",
     slog.String("trace_id", traceID),
     slog.String("user_id", userID),
     slog.String("error", err.Error()),
-    slog.String("error_code", "CMT_DOMAIN_ALREADY_EXISTS"),
+    slog.String("error_code", "COMMUNITY_DOMAIN_ALREADY_EXISTS"),
     slog.String("layer", "handler"),
 )
 ```

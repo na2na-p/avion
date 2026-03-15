@@ -33,8 +33,9 @@ graph TD
         TimelineService["avion-timeline<br/>Timeline Service<br/>(ハイブリッドFan-out)"]
         ActivityPubService["avion-activitypub<br/>ActivityPub Service<br/>(Federation)"]
         NotificationService["avion-notification<br/>Notification Service<br/>(Push/SSE)"]
+        MessageService["avion-message<br/>Message Service<br/>(DM/GroupChat/E2E)"]
         MediaService["avion-media<br/>Media Service<br/>(Upload/Serving)"]
-        SearchService["avion-search<br/>Search Service<br/>(MeiliSearch/PostgreSQL FTS)"]
+        SearchService["avion-search<br/>Search Service<br/>(MeiliSearch)"]
     end
 
     %% Data Stores & External Systems
@@ -43,6 +44,7 @@ graph TD
         Redis[("Redis Cache/Queue")]
         S3[("S3互換 Object Storage")]
         MeiliSearch[("MeiliSearch")]
+        NATS[("NATS JetStream")]
         RemoteServers["他のActivityPubサーバー"]
     end
 
@@ -71,60 +73,66 @@ graph TD
     Gateway -- "gRPC" --> NotificationService
     Gateway -- "gRPC" --> MediaService
     Gateway -- "gRPC" --> SearchService
+    Gateway -- "gRPC/WebSocket" --> MessageService
     Gateway -- "HTTP" --> ActivityPubService
-    Gateway -- "Redis Pub/Sub" --> Redis
+    Gateway -- "SSE Event Bus" --> NATS
 
     %% Service Dependencies
     AuthService -- "Auth/JWT/Policy" --> Postgres
     AuthService -- "JWT Cache/Session" --> Redis
-    AuthService -- "Publishes Events" --> Redis
+    AuthService -- "Publishes Events" --> NATS
     
     UserService -- "Users/Follow/Settings" --> Postgres
     UserService -- "Profile Cache" --> Redis
-    UserService -- "Publishes Events" --> Redis
+    UserService -- "Publishes Events" --> NATS
     
     SystemAdminService -- "System Config/Audit" --> Postgres
     SystemAdminService -- "Config Cache" --> Redis
-    SystemAdminService -- "Publishes Events" --> Redis
+    SystemAdminService -- "Publishes Events" --> NATS
     
     ModerationService -- "Reports/Actions" --> Postgres
     ModerationService -- "Filter Cache" --> Redis
-    ModerationService -- "Publishes Events" --> Redis
+    ModerationService -- "Publishes Events" --> NATS
     
     CommunityService -- "Communities/Events" --> Postgres
     CommunityService -- "Community Cache" --> Redis
-    CommunityService -- "Publishes Events" --> Redis
+    CommunityService -- "Publishes Events" --> NATS
 
     DropService -- "Drops/Reactions" --> Postgres
     DropService -- "Reaction Cache" --> Redis
-    DropService -- "Publishes Events" --> Redis
+    DropService -- "Publishes Events" --> NATS
     DropService -- "Media Attachment" --> MediaService
 
     TimelineService -- "Timeline Cache" --> Redis
-    TimelineService -- "Listen Events" --> Redis
+    TimelineService -- "Listen Events" --> NATS
     TimelineService -- "gRPC" --> UserService
     TimelineService -- "gRPC" --> DropService
-    TimelineService -- "Events via Redis" --> Gateway
+    TimelineService -- "SSE via Gateway" --> Gateway
 
     ActivityPubService -- "Remote Actors/Objects" --> Postgres
-    ActivityPubService -- "Delivery Queue" --> Redis
+    ActivityPubService -- "Delivery Queue" --> NATS
     ActivityPubService -- "HTTP" --> RemoteServers
     ActivityPubService -- "gRPC" --> UserService
     ActivityPubService -- "gRPC" --> DropService
     ActivityPubService -- "Media Proxy" --> MediaService
 
+    MessageService -- "Messages/Conversations" --> Postgres
+    MessageService -- "Message Cache/Presence" --> Redis
+    MessageService -- "Publishes Events" --> NATS
+    MessageService -- "File Attachments" --> MediaService
+
     NotificationService -- "Notifications/WebPush" --> Postgres
-    NotificationService -- "Listen Events" --> Redis
+    NotificationService -- "Listen Events" --> NATS
     NotificationService -- "gRPC" --> UserService
     NotificationService -- "Web Push" --> User
-    NotificationService -- "Events via Redis" --> Gateway
+    NotificationService -- "SSE via Gateway" --> Gateway
 
     MediaService -- "Media Metadata" --> Postgres
     MediaService -- "Upload/Serve" --> S3
-    MediaService -- "Processing Queue" --> Redis
+    MediaService -- "Processing Queue" --> NATS
     MediaService -- "Serve via CDN" --> CDN
 
-    SearchService -- "Listen Events" --> Redis
+    SearchService -- "Listen Events" --> NATS
     SearchService -- "Index/Search" --> MeiliSearch
     SearchService -- "Fallback Search" --> Postgres
     SearchService -- "gRPC" --> DropService
@@ -202,6 +210,11 @@ graph TD
 - **機能**: フェデレーション、Activity送受信、リモートアクター管理
 - **技術**: Go、PostgreSQL、HTTP Signatures
 
+### avion-message
+- **役割**: メッセージング（DM・グループチャット）
+- **機能**: 1対1DM、グループメッセージ、E2Eエンドツーエンド暗号化、ファイル添付、既読管理
+- **技術**: Go、PostgreSQL、Redis、WebSocket、Signal Protocol
+
 ### avion-notification
 - **役割**: 通知管理・配信
 - **機能**: 通知生成、Web Push配信、SSE配信
@@ -215,7 +228,7 @@ graph TD
 ### avion-search
 - **役割**: 検索機能
 - **機能**: Drop検索、ユーザー検索、インデックス管理
-- **技術**: Go、MeiliSearch、PostgreSQL FTS
+- **技術**: Go、MeiliSearch
 
 ### avion-web
 - **役割**: 純粋なWebフロントエンドSPA
@@ -245,7 +258,22 @@ graph TD
 ## 技術スタック
 
 - **言語**: Go (バックエンド), TypeScript/React (フロントエンド)
-- **プロトコル**: gRPC (サービス間), GraphQL/REST (API), SSE (リアルタイム)
+- **プロトコル**: gRPC (サービス間), GraphQL/REST (API), SSE (リアルタイム), NATS JetStream (イベントバス)
 - **データストア**: PostgreSQL, Redis, S3互換, MeiliSearch
 - **インフラ**: Kubernetes, Docker
 - **監視**: OpenTelemetry, Prometheus, Jaeger/Tempo, Loki
+
+## サービス間通信プロトコル
+
+| 通信パターン | プロトコル | 使用箇所 |
+|:--|:--|:--|
+| 同期リクエスト（サービス間） | gRPC (ConnectRPC) | Gateway→各サービス、サービス間問い合わせ |
+| 非同期イベント配信 | NATS JetStream | ドメインイベント発行・購読 |
+| リアルタイム配信（クライアント向け） | SSE | 通知、タイムライン更新 |
+| リアルタイム双方向（メッセージ） | WebSocket | DM・グループチャット配信 |
+| 外部API（クライアント向け） | GraphQL / REST | Gateway経由のクライアントAPI |
+| フェデレーション | HTTP (ActivityPub) | リモートActivityPubサーバー間通信 |
+| キャッシュ/セッション | Redis | ホットデータキャッシュ、JWTセッション |
+
+詳細なイベントバス設計: [NATS JetStream設計](../infrastructure/nats-jetstream-design.md)
+詳細なイベントスキーマ: [イベントスキーマ定義](../events/event-schemas.md)

@@ -1,5 +1,7 @@
 # PRD: avion-activitypub
 
+**Last Updated:** 2026/03/15
+
 ## 概要
 
 AvionをActivityPubプロトコルに対応させ、他の互換サーバー（Misskey、Mastodon、Pleroma等）との連合（Federation）を実現するマイクロサービスを実装する。ActivityPubアクティビティの送受信（Inbox/Outbox）、Actor情報の提供（WebFinger含む）、HTTP Signaturesによる認証・検証、リモート情報の管理・キャッシュを行う。
@@ -13,7 +15,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 ## Scientific Merits
 
 * **Federation Performance**: ActivityPub標準プロトコルへの準拠により、10,000 deliveries/min以上の配送処理能力でMastodon、Misskey、Pleroma等との相互運用性を確保し、ユーザーベースの拡大を実現する
-* **Protocol Compliance**: W3C ActivityPub勧告100%準拠により、既存Fediverseエコシステムとの完全互換性を保証し、即座に100万規模のネットワーク効果を活用できる
+* **Protocol Compliance**: W3C ActivityPub勧告に実質的に準拠（プラットフォーム互換性のための適応あり）し、既存Fediverseエコシステムとの高い互換性を確保することで、100万規模のネットワーク効果を活用できる
 * **Scalable Federation**: NATS JetStreamを活用した非同期処理により、水平スケーリングで1,000並行配送タスクを処理し、連合ネットワークの成長に対応する
 * **Security Excellence**: HTTP Signaturesによる厳格な認証機構（99%検証成功率）により、なりすましや不正なアクティビティを防止し、分散環境でのセキュリティを確保する
 * **High Availability**: 99.9%以上のサービス可用性と95%以上の配送成功率により、安定した連合機能を提供し、ユーザー体験を向上させる
@@ -36,7 +38,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 
 ## 製品原則
 
-* **オープンスタンダード準拠**: W3C ActivityPub仕様に忠実に準拠し、他のサーバーとの完全な相互運用性を保証すること。
+* **オープンスタンダード準拠**: W3C ActivityPub仕様に実質的に準拠し、他のサーバーとの高い相互運用性を確保すること。
 * **堅牢なセキュリティ**: HTTP Signaturesによる厳格な認証とアクティビティ検証により、分散環境でのセキュリティを確保すること。
 * **高い可用性**: 連合機能の障害が他のサービスに影響しないよう、独立性を保ちながら高可用性を実現すること。
 * **効率的な配送**: Outbox配送における適切なリトライ機構とサーキットブレーカーにより、ネットワーク障害時でも安定した配送を保証すること。
@@ -68,10 +70,10 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   * Actor情報の定期更新と古い情報のクリーンアップ
   * リモートメディアのキャッシュ依頼（`avion-media` へ）
 * **セキュリティ機能**:
-  * Actor/インスタンスレベルのブロック機能
+  * Actor/インスタンスレベルのブロック実行機能（avion-moderationのポリシー決定に基づく技術的遮断の実行）
   * コンテンツ通報（Flag アクティビティ）の送受信
   * アクティビティ検証とスパムフィルタリング
-  * ドメインレベルのアクセス制御
+  * ドメインレベルのアクセス制御実行（avion-moderationのInstancePolicyに基づく）
 * **移行機能**:
   * アカウント移行（Move アクティビティ）の送受信
   * フォロー関係の移行処理
@@ -200,7 +202,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - `needsModeration()`: モデレーション必要性の判定
 
 #### BlockedDomain Aggregate
-**責務**: ドメインレベルのブロック制御とポリシー管理を行う集約
+**責務**: avion-moderationが決定したドメインレベルのブロックポリシーの技術的実行とActivityPubプロトコル上の遮断管理
 - **集約ルート**: BlockedDomain
 - **不変条件**:
   - DomainNameは有効なDNS名（RFC 1035準拠）
@@ -211,6 +213,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - 同一ドメインの重複ブロックは不可
   - Expirationはブロック開始時刻以降（永続ブロックの場合はnull）
 - **ドメインロジック**:
+  - `syncFromModerationPolicy(policy InstancePolicy)`: avion-moderationのInstancePolicyからブロック状態を同期
   - `isBlocked(checkType)`: ドメインブロック状態の確認（タイプ別）
   - `shouldRejectActivity(activityType)`: アクティビティタイプ別拒否判定
   - `canUnblock()`: ブロック解除可能かの判定（権限・条件チェック）
@@ -219,8 +222,6 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   - `isExpired()`: ブロック期限切れの確認
   - `autoExpire()`: 自動期限切れ処理
   - `recordViolation(violationType)`: 違反記録の追加
-  - `calculateRiskScore()`: リスクスコアの算出
-  - `shouldEscalate()`: エスカレーション必要性の判定
 
 ### Entities (エンティティ)
 
@@ -733,10 +734,15 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 ### ドメインロジック要求
 
 * **ActivityPub標準準拠**:
-  * W3C ActivityPub勧告およびActivityStreams 2.0仕様への完全準拠
+  * W3C ActivityPub勧告およびActivityStreams 2.0仕様に実質的に準拠（プラットフォーム互換性のための適応あり）
   * JSON-LD形式でのアクティビティ・オブジェクト表現
   * Actor、Activity、Object の正確なスキーマ実装
   * Content-Type、Accept ヘッダーの適切な処理
+  * **既知の非準拠項目（プラットフォーム互換性のための適応）**:
+    - Group Actor未対応プラットフォーム（Mastodon等）へのPerson Actorフォールバック: コミュニティ連合時にGroup Actorをサポートしないプラットフォームに対してはPerson Actorとして公開し、互換性を維持する
+    - HTTP Signaturesのプラットフォーム別対応: draft-cavage-http-signatures-12を基本とするが、Mastodon/Misskey等のプラットフォーム固有の署名実装差異に対して許容範囲を設ける（ヘッダー順序、アルゴリズム選択等）
+    - Outbox配送における厳密な順序保証の省略: ActivityPub仕様ではOutboxの順序保証が推奨されるが、パフォーマンスを優先し結果整合性で対応する
+    - C2S (Client-to-Server) プロトコル未実装: クライアントとの通信はavion-gatewayが独自APIで担当し、C2Sプロトコルは実装しない
 
 * **HTTP Signatures認証**:
   * draft-cavage-http-signatures-12 準拠の実装
@@ -800,8 +806,17 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   * 公開鍵情報の長期キャッシュ（TTL: 6時間）
   * WebFingerレスポンスのキャッシュ（TTL: 1時間）
   * 配送先エンドポイントのキャッシュ
+  * 詳細なキャッシュ設計については[Redisキャッシュ戦略](../common/infrastructure/redis-cache-strategy.md)を参照
 
 ## 技術的要求
+
+### パフォーマンス要件
+
+| 指標 | 目標値 |
+|------|--------|
+| API レスポンスタイム (p50) | < 200ms |
+| API レスポンスタイム (p99) | < 2000ms |
+| 可用性 (SLA) | 99.9% |
 
 ### レイテンシ
 
@@ -866,10 +881,17 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 ### データ整合性
 
 * **Transaction Management**:
-  * **ACID準拠**: 重要な操作（フォロー関係、ブロック処理）での厳格なトランザクション境界
-  * **分散トランザクション**: Saga パターンによる長期間トランザクション、補償操作対応
+  * **ACID準拠操作（単一DB内トランザクション）**:
+    - アクティビティ受信→検証→永続化→イベント発行: 受信したアクティビティのDB永続化とNATS JetStreamへのイベント発行を単一トランザクション内で実行。イベント発行失敗時はDB操作もロールバック（Transactional Outboxパターン適用）
+    - RemoteActor情報の更新: Actor情報の取得・検証・永続化を単一トランザクションで実行
+    - BlockedDomain状態の同期更新: avion-moderationからのポリシー変更イベント受信時のBlockedDomain Aggregate更新
+    - フォロー関係・ブロック処理: 状態変更とイベント発行の原子性保証
+  * **Sagaパターン適用操作（結果整合性）**:
+    - Outbox配送処理: 配送タスク作成→署名生成→HTTP送信→結果記録の一連の処理。各ステップは独立して失敗可能で、リトライ・DLQによる補償処理で対応
+    - アカウント移行（Move）: 移行元の状態変更→フォロワーへの通知→フォロー関係の再構築。各段階で失敗した場合は補償操作（移行のロールバック通知）を実行
+    - コミュニティ連合配信: コミュニティ内投稿の複数リモートインスタンスへの配信。個別配信の失敗は他の配信に影響せず、リトライキューで個別に再試行
   * **Isolation Level**: Read Committed基本、必要時Serializable、デッドロック回避
-  * **Atomic Operations**: アクティビティ受信→検証→永続化→イベント発行の原子性保証
+  * **Atomic Operations**: アクティビティ受信→検証→永続化→イベント発行の原子性保証（Transactional Outboxパターン）
 
 * **Consistency Models**:
   * **Strong Consistency**: Actor状態、ブロック情報、認証データは強一貫性
@@ -922,7 +944,7 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
 ### テスト要件
 
 * **カバレッジ目標**:
-  * ユニットテスト: 90%以上
+  * ユニットテスト: 85%以上
   * クリティカルパス（フェデレーション通信、署名検証、アクター管理）: 95%以上
   * 統合テスト: 主要なユースケースの100%カバー
 
@@ -964,6 +986,14 @@ AvionをActivityPubプロトコルに対応させ、他の互換サーバー（M
   * アクター探索シナリオテスト
   * アクティビティ配送テスト
   * エラー処理・リトライテスト
+
+## サービス間責務境界の決定事項
+
+### ドメインブロックの責務分離（決定事項）
+
+* **ポリシー決定**: avion-moderationの`InstancePolicy` Aggregateがブロック判定・ポリシー決定を行う
+* **技術的実行**: avion-activitypubの`BlockedDomain` AggregateがActivityPubプロトコル上の技術的ブロック実行を担う
+* **同期メカニズム**: avion-moderationからのNATS JetStreamイベント（`moderation.instance_policy.changed`）を受信してBlockedDomain状態を同期
 
 ## 決まっていないこと
 
